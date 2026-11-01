@@ -87,6 +87,10 @@ pub enum Ask {
         reply: Reply<()>,
     },
     RemoveFromAgent(String),
+    /// Moves a key's files to the Trash, taking it out of the agent first.
+    TrashKey(String, Reply<Vec<isle_fs::trash::Trashed>>),
+    /// Puts trashed files back.
+    Untrash(Vec<isle_fs::trash::Trashed>),
     GenerateKey {
         name: String,
         kind: NewKind,
@@ -684,6 +688,41 @@ async fn run(mut asked: UnboundedReceiver<Ask>, events: UnboundedSender<Event>) 
                     && let Err(e) = agent.remove(&public)
                 {
                     tracing::warn!("removing a key from the agent: {e}");
+                }
+                reload = true;
+            }
+            Ask::TrashKey(name, reply) => {
+                let result = match sources.item(&ItemId::Ssh(name)) {
+                    Some(Item { detail: Detail::Ssh { key, in_agent }, .. }) => {
+                        if in_agent
+                            && let Some(agent) = &sources.agent
+                            && let Ok(public) = ssh_key::PublicKey::from_openssh(&key.public_key)
+                        {
+                            let _ = agent.remove(&public);
+                        }
+                        let mut trashed = Vec::new();
+                        let mut failed = None;
+                        for path in key.private.iter().chain(key.public.iter()) {
+                            match isle_fs::trash::trash(path) {
+                                Ok(t) => trashed.push(t),
+                                Err(e) => failed = Some(e.to_string()),
+                            }
+                        }
+                        match failed {
+                            Some(why) if trashed.is_empty() => Err(Failure::Other(why)),
+                            _ => Ok(trashed),
+                        }
+                    }
+                    _ => Err(Failure::Other("the key is gone".into())),
+                };
+                let _ = reply.send(result);
+                reload = true;
+            }
+            Ask::Untrash(items) => {
+                for item in &items {
+                    if let Err(e) = isle_fs::trash::put_back(item) {
+                        tracing::warn!("putting a key back: {e}");
+                    }
                 }
                 reload = true;
             }

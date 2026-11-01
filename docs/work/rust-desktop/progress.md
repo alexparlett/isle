@@ -22,6 +22,13 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- 19c.8: Wi-Fi's detail with Wi-Fi Settings…; an SSH key's detail with the public key's
+  well; Add to agent, through the passphrase sheet for an encrypted key, a wrong passphrase
+  clearing the field; New SSH key with its indeterminate bar, the app held while generating;
+  a key deleted to the Trash with Undo Move to Trash (⌘Z), out of the agent first. Headless
+  against a real ssh-agent: a key made, added, trashed and put back; Wi-Fi passwords from
+  NetworkManager and from the keyring, and a refusal leaving the dots. The switcher card
+  shows no bar for generating: LauncherEntry has no indeterminate progress.
 - 19c.7: Edit in place behind the gate (title, user, website and notes for a login; title
   and secret for an Apps item), leaving with changes asked; New login with Save in over the
   unlocked keyrings, the default first; the delete alert with the Apps and storage-key lines;

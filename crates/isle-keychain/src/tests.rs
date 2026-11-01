@@ -50,7 +50,7 @@ fn serial() -> std::sync::MutexGuard<'static, ()> {
 }
 
 pub struct Fakes {
-    pub bus: isle_fakes::Bus,
+    pub _bus: isle_fakes::Bus,
     pub secrets: SecretService,
     pub nm: NetworkManager,
     pub polkit: Polkit,
@@ -129,6 +129,7 @@ pub fn fakes(name: &str, collections: Vec<CollectionSpec>) -> Fakes {
         std::env::set_var("DBUS_SYSTEM_BUS_ADDRESS", &bus.address);
         std::env::set_var("HOME", &home);
         std::env::set_var("XDG_STATE_HOME", home.join(".state"));
+        std::env::set_var("XDG_DATA_HOME", home.join(".local/share"));
         std::env::remove_var("SSH_AUTH_SOCK");
     }
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -161,7 +162,7 @@ pub fn fakes(name: &str, collections: Vec<CollectionSpec>) -> Fakes {
         (secrets, nm, polkit)
     });
     Fakes {
-        bus,
+        _bus: bus,
         secrets,
         nm,
         polkit,
@@ -350,4 +351,92 @@ fn a_login_is_edited_made_and_deleted() {
     let made = fakes.secrets.item("login", 4).expect("a login is made");
     assert_eq!(made.attributes["xdg:schema"], "org.gnome.keyring.NetworkPassword");
     assert_eq!(fakes.secrets.fetched(), 1, "nothing more is fetched");
+}
+
+#[test]
+fn a_key_is_generated_added_and_trashed_then_put_back() {
+    let _turn = serial();
+    let fakes = fakes("ssh", keyring());
+    let socket = std::env::temp_dir().join(format!("isle-kc-agent-{}.sock", std::process::id()));
+    let _ = std::fs::remove_file(&socket);
+    let mut agent = std::process::Command::new("ssh-agent")
+        .args(["-D", "-a"])
+        .arg(&socket)
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .expect("ssh-agent");
+    let start = std::time::Instant::now();
+    while !socket.exists() {
+        assert!(start.elapsed() < Duration::from_secs(5), "ssh-agent did not start");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    // SAFETY: set while holding the tests' lock, before the window's store starts.
+    unsafe { std::env::set_var("SSH_AUTH_SOCK", &socket) };
+    let mut test = runner(1000.);
+    settle_until(&mut test, "id_ed25519");
+    click(&mut test, "SSH keys");
+    poll(&mut test, 5);
+    command(&mut test, "new-key");
+    settle_until(&mut test, "New SSH Key");
+    click(&mut test, "Save");
+    settle_until(&mut test, "id_ed25519_2");
+    let made = fakes.home.join(".ssh/id_ed25519_2");
+    assert!(made.exists() && fakes.home.join(".ssh/id_ed25519_2.pub").exists());
+
+    click(&mut test, "id_ed25519_2");
+    poll(&mut test, 5);
+    click(&mut test, "Add to agent");
+    settle_until(&mut test, "Remove from agent");
+    let listed = std::process::Command::new("ssh-add").arg("-l").env("SSH_AUTH_SOCK", &socket).output().unwrap();
+    assert_eq!(String::from_utf8_lossy(&listed.stdout).lines().count(), 1);
+
+    command(&mut test, "delete");
+    for _ in 0..100 {
+        poll(&mut test, 1);
+        if !made.exists() {
+            break;
+        }
+    }
+    assert!(!made.exists(), "the key went to the Trash");
+    let listed = std::process::Command::new("ssh-add").arg("-l").env("SSH_AUTH_SOCK", &socket).output().unwrap();
+    assert!(!listed.status.success() || listed.stdout.is_empty(), "and out of the agent");
+    command(&mut test, "undo");
+    for _ in 0..100 {
+        poll(&mut test, 1);
+        if made.exists() {
+            break;
+        }
+    }
+    assert!(made.exists(), "Undo puts it back");
+    let _ = agent.kill();
+    let _ = agent.wait();
+    let _ = std::fs::remove_file(&socket);
+    // SAFETY: as above.
+    unsafe { std::env::remove_var("SSH_AUTH_SOCK") };
+}
+
+#[test]
+fn a_wifi_password_shows_from_where_it_is_kept_and_a_refusal_shows_nothing() {
+    let _turn = serial();
+    let fakes = fakes("wifi", keyring());
+    let mut test = runner(1000.);
+    settle_until(&mut test, "Home");
+    click(&mut test, "Home");
+    poll(&mut test, 5);
+    click(&mut test, "Show");
+    settle_until(&mut test, "home-pass");
+    assert_eq!(fakes.nm.secrets_asked(), 1);
+    click(&mut test, "Cafe");
+    poll(&mut test, 5);
+    click(&mut test, "Show");
+    settle_until(&mut test, "cafe-pass");
+    assert_eq!(fakes.nm.secrets_asked(), 1, "an agent-owned password comes from the keyring");
+
+    fakes.nm.refuse_secrets(true);
+    click(&mut test, "Home");
+    poll(&mut test, 5);
+    click(&mut test, "Show");
+    poll(&mut test, 30);
+    assert!(!labels(&test).iter().any(|l| l == "home-pass"), "refused, the field stays dots");
+    assert!(labels(&test).iter().any(|l| l == "Show"));
 }

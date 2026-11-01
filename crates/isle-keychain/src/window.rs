@@ -53,6 +53,9 @@ enum Job {
     Save { id: ItemId, login: bool, fields: LoginFields, secret: Option<Zeroizing<String>> },
     Create { collection: String, fields: LoginFields, password: Zeroizing<String> },
     Delete(ItemId),
+    AddKey { name: String, passphrase: Zeroizing<String> },
+    GenerateKey { name: String, kind: isle_secrets::ssh::NewKind, comment: String, passphrase: Zeroizing<String> },
+    TrashKey(String),
 }
 
 /// Where the generator's popover is open.
@@ -80,6 +83,7 @@ fn commands(
     snapshot: &Snapshot,
     shown: bool,
     editing: bool,
+    can_undo: bool,
 ) -> Vec<Command> {
     let keyring = snapshot.keyring == Keyring::Ready;
     let has_secret = item.is_some_and(Item::has_secret);
@@ -100,6 +104,11 @@ fn commands(
             .chord(Chord::cmd('c').shift())
             .enabled(item.and_then(Item::user).is_some()),
         Command::new("find", "Search", Menu::Edit, 9).chord(Chord::cmd('f')),
+        edit_field(
+            Command::new("undo", "Undo Move to Trash", Menu::Edit, 0)
+                .chord(Chord::cmd('z'))
+                .enabled(can_undo),
+        ),
         Command::new(
             "show",
             if shown {
@@ -189,6 +198,18 @@ impl App for KeychainWindow {
         let mut generated = use_state(|| Rc::new(Zeroizing::new(String::new())));
         let mut delete_ask = use_state(|| None::<ItemId>);
         let mut leave_ask = use_state(|| None::<Leave>);
+        let mut passphrase_for = use_state(|| None::<String>);
+        let mut passphrase_text = use_state(isle_ui::FieldText::default);
+        let mut passphrase_wrong = use_state(|| false);
+        let mut new_key_open = use_state(|| false);
+        let mut key_name = use_state(String::new);
+        let mut key_kind = use_state(|| 0usize);
+        let mut key_comment = use_state(String::new);
+        let mut key_pass = use_state(isle_ui::FieldText::default);
+        let mut key_confirm = use_state(isle_ui::FieldText::default);
+        let mut generating = use_state(|| false);
+        let mut key_error = use_state(|| None::<String>);
+        let mut undo_trash = use_state(|| None::<Vec<isle_fs::trash::Trashed>>);
         let shared = self.shared.clone();
 
         let (store, incoming) = use_hook(move || {
@@ -250,6 +271,57 @@ impl App for KeychainWindow {
                                         selected.set(Some(id));
                                     }
                                     Ok(Err(failure)) => tracing::warn!(?failure, "the login was not saved"),
+                                    Err(_) => {}
+                                }
+                                continue;
+                            }
+                            Job::AddKey { name, passphrase } => {
+                                let (tx, rx) = oneshot::channel();
+                                store.ask(Ask::AddToAgent { key: name, passphrase, reply: tx });
+                                match rx.await {
+                                    Ok(Ok(())) => {
+                                        passphrase_for.set(None);
+                                        passphrase_text.set(isle_ui::FieldText::default());
+                                    }
+                                    Ok(Err(store::Failure::Passphrase)) => {
+                                        passphrase_wrong.set(true);
+                                        passphrase_text.set(isle_ui::FieldText::default());
+                                    }
+                                    Ok(Err(failure)) => {
+                                        passphrase_for.set(None);
+                                        tracing::warn!(?failure, "the key was not added");
+                                    }
+                                    Err(_) => {}
+                                }
+                                continue;
+                            }
+                            Job::GenerateKey { name, kind, comment, passphrase } => {
+                                // Generating is work in flight: the app stays until it ends.
+                                let _hold = app.hold();
+                                generating.set(true);
+                                let (tx, rx) = oneshot::channel();
+                                store.ask(Ask::GenerateKey { name, kind, comment, passphrase, reply: tx });
+                                let result = rx.await;
+                                generating.set(false);
+                                match result {
+                                    Ok(Ok(name)) => {
+                                        new_key_open.set(false);
+                                        key_pass.set(isle_ui::FieldText::default());
+                                        key_confirm.set(isle_ui::FieldText::default());
+                                        selected.set(Some(ItemId::Ssh(name)));
+                                    }
+                                    Ok(Err(store::Failure::Other(why))) => key_error.set(Some(why)),
+                                    Ok(Err(failure)) => key_error.set(Some(format!("{failure:?}"))),
+                                    Err(_) => {}
+                                }
+                                continue;
+                            }
+                            Job::TrashKey(name) => {
+                                let (tx, rx) = oneshot::channel();
+                                store.ask(Ask::TrashKey(name, tx));
+                                match rx.await {
+                                    Ok(Ok(items)) => undo_trash.set(Some(items)),
+                                    Ok(Err(failure)) => tracing::warn!(?failure, "the key was not moved to the Trash"),
                                     Err(_) => {}
                                 }
                                 continue;
@@ -378,6 +450,7 @@ impl App for KeychainWindow {
             &snap,
             shown_now.is_some(),
             editing.read().is_some(),
+            undo_trash.read().is_some(),
         ));
 
         let reveal = {
@@ -398,6 +471,22 @@ impl App for KeychainWindow {
         let mut regenerate = move || {
             let recipe = remembered.peek().recipe;
             generated.set(Rc::new(isle_secrets::generator::generate(&recipe)));
+        };
+        let mut open_new_key = move || {
+            let dir = std::env::var_os("HOME").map(std::path::PathBuf::from).unwrap_or_default().join(".ssh");
+            let name = ["id_ed25519", "id_ed25519_2", "id_ed25519_3", "id_isle"]
+                .into_iter()
+                .find(|n| !dir.join(n).exists())
+                .unwrap_or("id_isle");
+            let user = std::env::var("USER").unwrap_or_default();
+            let host = std::fs::read_to_string("/etc/hostname").unwrap_or_default();
+            key_name.set(name.to_owned());
+            key_kind.set(0);
+            key_comment.set(format!("{user}@{}", host.trim()));
+            key_pass.set(isle_ui::FieldText::default());
+            key_confirm.set(isle_ui::FieldText::default());
+            key_error.set(None);
+            new_key_open.set(true);
         };
         let mut open_new_login = move || {
             new_fields.fill(&LoginFields::default(), "");
@@ -431,6 +520,7 @@ impl App for KeychainWindow {
             }
         };
         use_side_effect({
+            let jobs = jobs.clone();
             let (app, shared, store, reveal, act_on_source) = (
                 app.clone(),
                 shared.clone(),
@@ -480,9 +570,19 @@ impl App for KeychainWindow {
                                 reveal(id, Then::Edit);
                             }
                         }
-                        "delete" => {
-                            if item.as_ref().is_some_and(Item::editable) {
-                                delete_ask.set(id.clone());
+                        "delete" => match &item {
+                            Some(Item { id: ItemId::Ssh(name), .. }) => {
+                                let _ = jobs.unbounded_send(Job::TrashKey(name.clone()));
+                            }
+                            Some(i) if i.editable() => delete_ask.set(id.clone()),
+                            _ => {}
+                        },
+                        "new-key" => open_new_key(),
+                        "undo" => {
+                            let kept = undo_trash.peek().clone();
+                            if let Some(items) = kept {
+                                undo_trash.set(None);
+                                store.ask(Ask::Untrash(items));
                             }
                         }
                         "new-login" => open_new_login(),
@@ -511,10 +611,11 @@ impl App for KeychainWindow {
                     item_menu.set(Some((id, at)));
                 }
                 list::Act::Unlock(path) => store.ask(Ask::Unlock(path)),
-                list::Act::NewKey => {}
+                list::Act::NewKey => open_new_key(),
             })
         };
         let on_detail = {
+            let jobs_detail = jobs.clone();
             let (app, store, reveal) = (app.clone(), store.clone(), reveal.clone());
             let item = item.clone();
             EventHandler::new(move |act: detail::Act| {
@@ -547,7 +648,17 @@ impl App for KeychainWindow {
                         }
                     }
                     detail::Act::Edit => reveal(item.id.clone(), Then::Edit),
-                    detail::Act::AddToAgent => {}
+                    detail::Act::AddToAgent => {
+                        if let (ItemId::Ssh(name), Detail::Ssh { key, .. }) = (&item.id, &item.detail) {
+                            if key.encrypted == Some(true) {
+                                passphrase_wrong.set(false);
+                                passphrase_text.set(isle_ui::FieldText::default());
+                                passphrase_for.set(Some(name.clone()));
+                            } else {
+                                let _ = jobs_detail.unbounded_send(Job::AddKey { name: name.clone(), passphrase: Zeroizing::new(String::new()) });
+                            }
+                        }
+                    }
                 }
             })
         };
@@ -875,6 +986,60 @@ impl App for KeychainWindow {
                 ],
             )
         });
+        let overlay_passphrase = passphrase_for.read().clone().map(|name| {
+            let (add_jobs, key) = (jobs.clone(), name.clone());
+            crate::ssh_sheets::passphrase(
+                &theme,
+                &name,
+                passphrase_text.read().clone(),
+                *passphrase_wrong.read(),
+                EventHandler::new(move |_| {
+                    passphrase_for.set(None);
+                    passphrase_text.set(isle_ui::FieldText::default());
+                }),
+                EventHandler::new(move |_| {
+                    let passphrase = Zeroizing::new(passphrase_text.peek().borrow().as_str().to_owned());
+                    let _ = add_jobs.unbounded_send(Job::AddKey { name: key.clone(), passphrase });
+                }),
+            )
+        });
+        let overlay_new_key = new_key_open.read().then(|| {
+            let save_jobs = jobs.clone();
+            crate::ssh_sheets::new_key(
+                &theme,
+                crate::ssh_sheets::NewKey {
+                    name: key_name,
+                    kind: *key_kind.read(),
+                    comment: key_comment,
+                    passphrase: key_pass.read().clone(),
+                    confirm: key_confirm.read().clone(),
+                    generating: *generating.read(),
+                    error: key_error.read().clone(),
+                    on_kind: EventHandler::new(move |i| key_kind.set(i)),
+                    on_cancel: EventHandler::new(move |_| new_key_open.set(false)),
+                    on_save: EventHandler::new(move |_| {
+                        let pass = Zeroizing::new(key_pass.peek().borrow().as_str().to_owned());
+                        let confirm = Zeroizing::new(key_confirm.peek().borrow().as_str().to_owned());
+                        if pass != confirm {
+                            key_error.set(Some("The passphrases don't match.".into()));
+                            return;
+                        }
+                        key_error.set(None);
+                        let kind = if *key_kind.peek() == 1 {
+                            isle_secrets::ssh::NewKind::Rsa3072
+                        } else {
+                            isle_secrets::ssh::NewKind::Ed25519
+                        };
+                        let _ = save_jobs.unbounded_send(Job::GenerateKey {
+                            name: key_name.peek().trim().to_owned(),
+                            kind,
+                            comment: key_comment.peek().clone(),
+                            passphrase: pass,
+                        });
+                    }),
+                },
+            )
+        });
         let overlay_generator = generator_sheet.read().then(|| {
             let (app, copies) = (app.clone(), shared.copies.clone());
             let password = generated.read().as_str().to_owned();
@@ -1118,5 +1283,7 @@ impl App for KeychainWindow {
             .maybe_child(overlay_generator)
             .maybe_child(overlay_delete)
             .maybe_child(overlay_leave)
+            .maybe_child(overlay_passphrase)
+            .maybe_child(overlay_new_key)
     }
 }

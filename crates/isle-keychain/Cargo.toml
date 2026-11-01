@@ -13,6 +13,7 @@ futures-util = { workspace = true, features = ["std"] }
 isle-app.workspace = true
 isle-apps.workspace = true
 isle-bus.workspace = true
+isle-fs.workspace = true
 isle-ipc.workspace = true
 isle-network.workspace = true
 isle-secrets.workspace = true

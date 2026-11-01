@@ -10,6 +10,7 @@ mod model;
 mod settings;
 mod sheets;
 mod sidebar;
+mod ssh_sheets;
 mod state;
 mod store;
 #[cfg(test)]

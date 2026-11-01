@@ -202,14 +202,17 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
 
 /// A line in the list's place: empty, no results, or the keyring missing.
 fn line(theme: &Theme, words: String) -> Element {
+    rect().width(Size::fill()).height(Size::fill()).center().child(words_line(theme, words)).into_element()
+}
+
+fn words_line(theme: &Theme, words: String) -> Element {
     let t = &theme.tokens;
     rect()
         .width(Size::fill())
-        .height(Size::fill())
-        .padding(t.space_xl)
-        .center()
+        .padding((0., t.space_xl))
         .child(
             label()
+                .width(Size::fill())
                 .text(words)
                 .font_size(t.type_style_body_size)
                 .color(colour(t.colour_text_2))
@@ -304,7 +307,7 @@ impl Component for List {
                 .height(Size::flex(1.))
                 .center()
                 .spacing(t.space_m)
-                .child(line(&theme, words))
+                .child(words_line(&theme, words))
                 .maybe_child(new_key)
                 .into_element()
         } else {

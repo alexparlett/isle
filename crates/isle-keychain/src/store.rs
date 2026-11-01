@@ -696,6 +696,7 @@ async fn run(mut asked: UnboundedReceiver<Ask>, events: UnboundedSender<Event>) 
                 reload = true;
             }
             Ask::TrashKey(name, reply) => {
+                tracing::info!(key = name, "moving a key to the Trash");
                 let result = match sources.item(&ItemId::Ssh(name)) {
                     Some(Item { detail: Detail::Ssh { key, in_agent }, .. }) => {
                         if in_agent

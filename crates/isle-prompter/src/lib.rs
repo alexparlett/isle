@@ -215,6 +215,9 @@ impl Prompter {
             let (dismiss, dismissed) = watch::channel(false);
             session.dismiss = Some(dismiss);
             let key = session.exchange.key(&exchange);
+            if key.is_none() {
+                warn!(len = exchange.len(), "the keyring's half of the exchange could not be read");
+            }
             (dismissed, key, session.exchange.begin())
         };
         let request = Request {
@@ -248,7 +251,10 @@ impl Prompter {
                     });
                     match closing {
                         Some(closing) => ("yes", choice, closing),
-                        None => ("no", false, own),
+                        None => {
+                            warn!("the password could not be sealed for the keyring");
+                            ("no", false, own)
+                        }
                     }
                 }
                 Reply::Yes { choice } => ("yes", choice, own),

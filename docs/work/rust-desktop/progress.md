@@ -22,6 +22,30 @@
   (`isle-network` gains the profiles); SSH keys read without a passphrase, generated to load in
   `ssh-keygen` and `ssh-add`, added and removed in process, "In agent" read past a gcr-shaped
   proxy.
+- 19c.12: the measures and the walk. Release, headless: opening with 2,000 items 111 ms
+  (bar 300), a reveal with the grant held 3.6 ms (bar 100). Choice 26's tests: 2,000 items
+  listed, searched, selected and scrolled with no secret fetched, Show fetching one; a
+  canary shown, copied, edited and generated beside, absent from the logs at trace and from
+  every file under the home. Walked in the VM by real input against gnome-keyring 51 and
+  gcr-ssh-agent, Keychain opened through the compositor (from ssh, polkit counts the caller
+  inactive and refuses without asking): the gate refused, then allowed with the password,
+  and asked again after the session's lock; a password shown and hidden after 30 s, and on
+  minimising; copied, pasted by another client, absent from history, withdrawn after 30 s;
+  copied, ⌘Q, pasted, the process ending at the withdrawal; a Wi-Fi password from
+  NetworkManager; a login made with the generator's popover (found by `secret-tool` by its
+  server), searched, edited and deleted; a key made with a passphrase (loading in
+  `ssh-keygen`), its "In agent" read past gcr's proxy, added after a wrong passphrase,
+  removed, trashed and put back; the keyring locked from More, heading the list. Fixed from
+  the walk: the window kept a title bar (now `WindowSpec::main`); the search field took the
+  keyboard at launch, swallowing ↑↓ and ⌘ chords; the empty session collection listed as
+  "Keyring"; the empty line crowded out New SSH key…; a wiped field took no keys in an app
+  window and no focus from a click (it now takes keys while focused, for the compositor's
+  prompts too). Seen once and not reproduced: ⌘⌫ on a just-made key moved nothing.
+  Not walked: Unlock… through the keyring prompt — the compositor's prompter answers
+  gnome-keyring 51 and the unlock is dismissed though the same password unlocks it from the
+  command line (creating a keyring fails alike); a regression since P9's walk, left to its
+  own session. Nor oo7-daemon (not installed in the guest), idle ending the grant (unit
+  tested), an RSA key, editing an Apps item.
 - 19c.11: the narrow window: the sidebar collapses under 760, and under 680 the list and
   the detail stack, the detail over the list with Back; Increase Contrast rings the list's
   rows; the largest text size puts the detail's labels above their values; unfocused, the

@@ -35,6 +35,7 @@ fn crate_of(bin: &str) -> &str {
     match bin {
         "isle" => "isle-cli",
         "isle-settings" => "isle-system-settings",
+        "isle-provider-init" => "isle-providers",
         other => other,
     }
 }

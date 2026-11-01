@@ -1,0 +1,12 @@
+#%PAM-1.0
+# Signing in at Isle's greeter: greetd's own stack, with the login keyring unlocked from the
+# typed password. Installed as /usr/lib/pam.d/isle-greetd; an /etc/pam.d/isle-greetd
+# overrides it.
+
+auth       required     pam_securetty.so
+auth       requisite    pam_nologin.so
+auth       include      system-local-login
+-auth      optional     pam_gnome_keyring.so
+account    include      system-local-login
+session    include      system-local-login
+-session   optional     pam_gnome_keyring.so auto_start

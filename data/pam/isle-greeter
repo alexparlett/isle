@@ -1,0 +1,7 @@
+#%PAM-1.0
+# The session greetd opens for Isle's greeter itself, as the greeter user: no password and
+# no keyring. Installed as /usr/lib/pam.d/isle-greeter.
+
+auth       required     pam_permit.so
+account    include      system-local-login
+session    include      system-local-login

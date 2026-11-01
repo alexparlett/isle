@@ -56,6 +56,16 @@
   session says "Couldn't start {session}. Choose another session and try again." Not built:
   `ISLE_FROM_GREETER` and the session's softened first frame, since the lock's own unlock is a
   cut rather than P1's dissolve, so signing in and unlocking already look alike.
+- 14b.7: the package and the step. `/usr/lib/pam.d/isle-greetd` (greetd's stack with the
+  keyring lines, `-` so a missing module is no failure) and `isle-greeter` (the greeter's own
+  session: no password, no keyring); `/usr/lib/tmpfiles.d/isle-greeter.conf` for the
+  greeter's cache and state and `/var/lib/isle/greeter`; greetd an optional dependency,
+  tuigreet now the fallback. `isle setup`'s `greeter` step names `isle-compositor --greeter`
+  with `[default_session] service` and `[general] service`, makes the invoking user's look
+  directory, and undoes to the lines it replaced (tuigreet's on the host), taking out a
+  section it added; P14a's tuigreet record still undoes. Two package tests fixed on the way,
+  both failing before P14b: `isle-provider-init` is built from `isle-providers`, and a
+  `tests.rs` test module is not a packaged binary's source.
 
 ## 2026-11-01 (P19c)
 

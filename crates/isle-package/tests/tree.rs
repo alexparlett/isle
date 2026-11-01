@@ -40,7 +40,8 @@ fn no_installed_binary_reads_the_build_tree() {
             .unwrap()
             .to_string_lossy()
             .into_owned();
-        if allowed.iter().any(|a| shown.starts_with(a)) {
+        // A `tests.rs` is a test module of its own, included under `#[cfg(test)]`.
+        if allowed.iter().any(|a| shown.starts_with(a)) || shown.ends_with("/tests.rs") {
             continue;
         }
         let text = std::fs::read_to_string(&file).unwrap();

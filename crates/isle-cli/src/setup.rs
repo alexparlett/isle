@@ -13,8 +13,11 @@ use isle_state::{
     domains::{Setup, SetupStep},
 };
 
-/// What greetd runs until Isle's greeter mode (`p14a-session.md` choice 2).
+/// What greetd ran before Isle's greeter mode (`p14a-session.md` choice 2).
 const TUIGREET: &str = "tuigreet --time --remember --remember-session --sessions /usr/share/wayland-sessions";
+
+/// Isle's greeter, as greetd runs it (`p14b-greeter.md` choice 2).
+const GREETER: &str = "isle-compositor --greeter";
 
 const XREMAP_DROP_IN: &str = "\
 # v1's remapper rewrites Cmd chords before Isle sees them; Isle's session does without it.
@@ -88,7 +91,7 @@ pub const STEPS: &[Step] = &[
     Step {
         id: "greeter",
         who: Who::Root,
-        what: "greetd's greeter is tuigreet, listing every installed session",
+        what: "greetd's greeter is Isle's, with its own PAM services",
         check: greeter::check,
         apply: greeter::apply,
         undo: greeter::undo,
@@ -122,19 +125,59 @@ pub const STEPS: &[Step] = &[
 mod greeter {
     use super::*;
 
+    /// greetd's greeter and its two PAM services (`p14b-greeter.md` choices 2, 7 and 17).
+    const KEYS: &[(&str, &str, &str)] = &[
+        ("default_session", "command", GREETER),
+        ("default_session", "service", "isle-greeter"),
+        ("general", "service", "isle-greetd"),
+    ];
+
     fn config(env: &Env) -> PathBuf {
         env.at("/etc/greetd/config.toml")
     }
 
-    /// The byte range of `[default_session]`'s `command = …` line, and its text.
-    fn command_line(text: &str) -> Option<(std::ops::Range<usize>, &str)> {
+    /// The user `isle setup` was run by, through sudo or pkexec.
+    fn invoker() -> Option<(u32, String)> {
+        let uid: u32 = std::env::var("SUDO_UID")
+            .or_else(|_| std::env::var("PKEXEC_UID"))
+            .ok()?
+            .parse()
+            .ok()?;
+        // SAFETY: getpwuid's entry is read before any other call can replace it.
+        let name = unsafe {
+            let entry = libc::getpwuid(uid);
+            (!entry.is_null()).then(|| {
+                std::ffi::CStr::from_ptr((*entry).pw_name)
+                    .to_string_lossy()
+                    .into_owned()
+            })
+        }?;
+        Some((uid, name))
+    }
+
+    /// Where the invoking user's session publishes the greeter's look.
+    fn look_dir(env: &Env) -> Option<PathBuf> {
+        let (_, name) = invoker()?;
+        Some(env.at("/var/lib/isle/greeter").join(name))
+    }
+
+    /// The byte range of `key = …` in `[section]`, and its text.
+    fn key_line<'a>(
+        text: &'a str,
+        section: &str,
+        key: &str,
+    ) -> Option<(std::ops::Range<usize>, &'a str)> {
         let mut offset = 0;
         let mut in_section = false;
         for line in text.split_inclusive('\n') {
             let trimmed = line.trim();
             if trimmed.starts_with('[') {
-                in_section = trimmed == "[default_session]";
-            } else if in_section && trimmed.starts_with("command") {
+                in_section = trimmed == format!("[{section}]");
+            } else if in_section
+                && trimmed
+                    .split_once('=')
+                    .is_some_and(|(k, _)| k.trim() == key)
+            {
                 let end = offset + line.trim_end_matches('\n').len();
                 return Some((offset..end, &text[offset..end]));
             }
@@ -143,46 +186,156 @@ mod greeter {
         None
     }
 
-    fn wanted() -> String {
-        format!("command = \"{TUIGREET}\"")
+    fn wanted(key: &str, value: &str) -> String {
+        format!("{key} = \"{value}\"")
+    }
+
+    /// `text` with `key = value` in `[section]`, adding the line, and the section, it lacks.
+    fn with_key(text: &str, section: &str, key: &str, value: &str) -> String {
+        let line = wanted(key, value);
+        if let Some((range, _)) = key_line(text, section, key) {
+            let mut new = text.to_owned();
+            new.replace_range(range, &line);
+            return new;
+        }
+        let header = format!("[{section}]");
+        let mut offset = 0;
+        for l in text.split_inclusive('\n') {
+            offset += l.len();
+            if l.trim() == header {
+                let mut new = text.to_owned();
+                new.insert_str(offset, &format!("{line}\n"));
+                return new;
+            }
+        }
+        let mut new = text.to_owned();
+        if !new.is_empty() && !new.ends_with('\n') {
+            new.push('\n');
+        }
+        if !new.is_empty() {
+            new.push('\n');
+        }
+        new.push_str(&format!("{header}\n{line}\n"));
+        new
+    }
+
+    /// `text` without `[section]` when nothing is left in it, and the blank line before it.
+    fn without_empty_section(text: &str, section: &str) -> String {
+        let header = format!("[{section}]");
+        let lines: Vec<&str> = text.split_inclusive('\n').collect();
+        let Some(at) = lines.iter().position(|l| l.trim() == header) else {
+            return text.to_owned();
+        };
+        let end = lines[at + 1..]
+            .iter()
+            .position(|l| l.trim().starts_with('['))
+            .map_or(lines.len(), |i| at + 1 + i);
+        if lines[at + 1..end].iter().any(|l| !l.trim().is_empty()) {
+            return text.to_owned();
+        }
+        let start = if at > 0 && lines[at - 1].trim().is_empty() {
+            at - 1
+        } else {
+            at
+        };
+        lines[..start].concat() + &lines[end..].concat()
+    }
+
+    fn undo_key(section: &str, key: &str) -> String {
+        format!("{section}.{key}")
     }
 
     pub fn check(env: &Env) -> Check {
         let Ok(text) = std::fs::read_to_string(config(env)) else {
             return Check::NotHere;
         };
-        match command_line(&text) {
-            Some((_, line)) if line == wanted() => Check::Done,
-            Some(_) if !env.at("/usr/bin/tuigreet").exists() => {
-                Check::Blocked("greetd-tuigreet is not installed".into())
-            }
-            Some(_) => Check::Due,
-            None => Check::Blocked("greetd's config has no [default_session] command".into()),
+        let set = KEYS.iter().all(|(section, key, value)| {
+            key_line(&text, section, key).is_some_and(|(_, l)| l == wanted(key, value))
+        });
+        let looks = look_dir(env).is_none_or(|d| d.is_dir());
+        if set && looks {
+            return Check::Done;
         }
+        if !env.at("/usr/bin/isle-compositor").exists() {
+            return Check::Blocked("isle-git is not installed".into());
+        }
+        if key_line(&text, "default_session", "command").is_none() {
+            return Check::Blocked("greetd's config has no [default_session] command".into());
+        }
+        Check::Due
     }
 
     pub fn apply(env: &Env) -> Result<Undo, String> {
         let path = config(env);
-        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let (range, old) = command_line(&text).ok_or("no [default_session] command")?;
-        let mut new = text.clone();
-        new.replace_range(range.clone(), &wanted());
-        write(&path, &new)?;
-        Ok(Undo::from([("command".to_owned(), old.to_owned())]))
+        let mut text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        let mut undo = Undo::new();
+        let added: Vec<&str> = ["default_session", "general"]
+            .into_iter()
+            .filter(|s| !text.lines().any(|l| l.trim() == format!("[{s}]")))
+            .collect();
+        if !added.is_empty() {
+            undo.insert("added".into(), added.join(","));
+        }
+        for (section, key, value) in KEYS {
+            let old = key_line(&text, section, key).map(|(_, l)| l.to_owned());
+            undo.insert(undo_key(section, key), old.unwrap_or_default());
+            text = with_key(&text, section, key, value);
+        }
+        write(&path, &text)?;
+        if let Some(dir) = look_dir(env)
+            && !dir.is_dir()
+        {
+            std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+            if let Some((uid, _)) = invoker() {
+                let c = std::ffi::CString::new(dir.as_os_str().as_encoded_bytes())
+                    .map_err(|e| e.to_string())?;
+                // SAFETY: a valid path; the gid is left as it is.
+                if unsafe { libc::chown(c.as_ptr(), uid, u32::MAX) } != 0 {
+                    return Err(format!("{}: {}", dir.display(), std::io::Error::last_os_error()));
+                }
+            }
+            undo.insert("look".into(), dir.to_string_lossy().into_owned());
+        }
+        Ok(undo)
     }
 
     pub fn undo(env: &Env, undo: &Undo) -> Result<(), String> {
         let path = config(env);
-        let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-        let old = undo.get("command").ok_or("the record has no command")?;
-        match command_line(&text) {
-            Some((range, line)) if line == wanted() => {
-                let mut new = text.clone();
-                new.replace_range(range, old);
-                write(&path, &new)
+        let mut text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        // P14a's record, from when the step chose tuigreet, holds the command alone.
+        let keys: Vec<(&str, &str, &str)> = if undo.contains_key("command") {
+            vec![("default_session", "command", TUIGREET)]
+        } else {
+            KEYS.to_vec()
+        };
+        for (section, key, value) in &keys {
+            match key_line(&text, section, key) {
+                Some((_, line)) if line == wanted(key, value) => {}
+                _ => return Err("greetd's config has been changed since; left as it is".into()),
             }
-            _ => Err("greetd's command has been changed since; left as it is".into()),
         }
+        for (section, key, _) in &keys {
+            let old = undo
+                .get(&undo_key(section, key))
+                .or_else(|| undo.get(*key))
+                .cloned()
+                .unwrap_or_default();
+            let (range, _) = key_line(&text, section, key).expect("checked above");
+            if old.is_empty() {
+                let end = (range.end + 1).min(text.len());
+                text.replace_range(range.start..end, "");
+            } else {
+                text.replace_range(range, &old);
+            }
+        }
+        for section in undo.get("added").map(|a| a.split(',')).into_iter().flatten() {
+            text = without_empty_section(&text, section);
+        }
+        write(&path, &text)?;
+        if let Some(dir) = undo.get("look") {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+        Ok(())
     }
 }
 
@@ -551,43 +704,60 @@ mod tests {
     }
 
     #[test]
-    fn the_greeter_becomes_tuigreet_and_comes_back() {
+    fn the_greeter_becomes_isles_and_comes_back() {
         let scratch = Scratch::new("greeter");
-        let config = scratch.put(
-            "root/etc/greetd/config.toml",
-            "[terminal]\nvt = 1\n\n[default_session]\ncommand = \"start-hyprland -- -c /etc/greetd/hyprland.lua\"\nuser = \"greeter\"\n",
+        let before = format!(
+            "[terminal]\nvt = 1\n\n[default_session]\ncommand = \"{TUIGREET}\"\nuser = \"greeter\"\n"
         );
+        let config = scratch.put("root/etc/greetd/config.toml", &before);
         assert!(matches!(
             (step("greeter").check)(&scratch.env()),
             Check::Blocked(_)
         ));
-        scratch.put("root/usr/bin/tuigreet", "");
+        scratch.put("root/usr/bin/isle-compositor", "");
         let env = scratch.env();
+        assert_eq!((step("greeter").check)(&env), Check::Due);
         (step("greeter").apply)(&env).unwrap();
         let text = std::fs::read_to_string(&config).unwrap();
-        assert!(text.contains(&format!("command = \"{TUIGREET}\"\nuser = \"greeter\"\n")));
-        assert!(text.starts_with("[terminal]\nvt = 1\n"));
-        std::fs::write(
-            &config,
-            "[terminal]\nvt = 1\n\n[default_session]\ncommand = \"start-hyprland -- -c /etc/greetd/hyprland.lua\"\nuser = \"greeter\"\n",
-        )
-        .unwrap();
+        assert!(text.starts_with("[terminal]\nvt = 1\n"), "{text}");
+        assert!(
+            text.contains(&format!(
+                "[default_session]\nservice = \"isle-greeter\"\ncommand = \"{GREETER}\"\nuser = \"greeter\"\n"
+            )),
+            "{text}"
+        );
+        assert!(text.ends_with("\n[general]\nservice = \"isle-greetd\"\n"), "{text}");
+        assert_eq!((step("greeter").check)(&env), Check::Done);
+        std::fs::write(&config, &before).unwrap();
         round_trip(&scratch, "greeter", &[&config]);
+    }
+
+    #[test]
+    fn p14as_tuigreet_record_still_undoes() {
+        let scratch = Scratch::new("greeter-p14a");
+        let config = scratch.put(
+            "root/etc/greetd/config.toml",
+            &format!("[default_session]\ncommand = \"{TUIGREET}\"\n"),
+        );
+        let undo = Undo::from([("command".to_owned(), "command = \"agreety\"".to_owned())]);
+        (step("greeter").undo)(&scratch.env(), &undo).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&config).unwrap(),
+            "[default_session]\ncommand = \"agreety\"\n"
+        );
     }
 
     #[test]
     fn the_greeter_is_left_alone_once_changed_by_hand() {
         let scratch = Scratch::new("greeter-hand");
         let config = scratch.put("root/etc/greetd/config.toml", "[default_session]\ncommand = \"x\"\n");
-        scratch.put("root/usr/bin/tuigreet", "");
+        scratch.put("root/usr/bin/isle-compositor", "");
         let env = scratch.env();
         let undo = (step("greeter").apply)(&env).unwrap();
-        std::fs::write(&config, "[default_session]\ncommand = \"mine\"\n").unwrap();
+        let mine = "[default_session]\ncommand = \"mine\"\n";
+        std::fs::write(&config, mine).unwrap();
         assert!((step("greeter").undo)(&env, &undo).is_err());
-        assert_eq!(
-            std::fs::read_to_string(&config).unwrap(),
-            "[default_session]\ncommand = \"mine\"\n"
-        );
+        assert_eq!(std::fs::read_to_string(&config).unwrap(), mine);
     }
 
     #[test]

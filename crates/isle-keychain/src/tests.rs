@@ -51,11 +51,17 @@ fn serial() -> std::sync::MutexGuard<'static, ()> {
 
 pub struct Fakes {
     pub _bus: isle_fakes::Bus,
-    pub secrets: SecretService,
+    secrets: Option<SecretService>,
     pub nm: NetworkManager,
     pub polkit: Polkit,
     pub home: PathBuf,
-    _runtime: tokio::runtime::Runtime,
+    pub runtime: tokio::runtime::Runtime,
+}
+
+impl Fakes {
+    pub fn secrets(&self) -> &SecretService {
+        self.secrets.as_ref().expect("a Secret Service")
+    }
 }
 
 impl Drop for Fakes {
@@ -108,7 +114,8 @@ pub fn keyring() -> Vec<CollectionSpec> {
 }
 
 /// The fakes on a bus of their own, the process's buses and home pointed at them.
-pub fn fakes(name: &str, collections: Vec<CollectionSpec>) -> Fakes {
+pub fn fakes(name: &str, collections: impl Into<Option<Vec<CollectionSpec>>>) -> Fakes {
+    let collections = collections.into();
     let bus = isle_fakes::Bus::start();
     let home = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/tmp")
@@ -138,7 +145,10 @@ pub fn fakes(name: &str, collections: Vec<CollectionSpec>) -> Fakes {
         .unwrap();
     let address = bus.address.clone();
     let (secrets, nm, polkit) = runtime.block_on(async move {
-        let secrets = SecretService::start(&address, collections).await.unwrap();
+        let secrets = match collections {
+            Some(c) => Some(SecretService::start(&address, c).await.unwrap()),
+            None => None,
+        };
         let profile = |id: &str, uuid: &str, flags: u32| {
             Saved::Profile(Profile {
                 id: id.into(),
@@ -167,7 +177,7 @@ pub fn fakes(name: &str, collections: Vec<CollectionSpec>) -> Fakes {
         nm,
         polkit,
         home,
-        _runtime: runtime,
+        runtime,
     }
 }
 
@@ -210,14 +220,15 @@ fn shot() {
     let Some(path) = std::env::var_os("KEYCHAIN_SHOT") else {
         return;
     };
-    let _fakes = fakes("shot", keyring());
+    let missing = std::env::var_os("KEYCHAIN_MISSING").is_some();
+    let _fakes = fakes("shot", (!missing).then(keyring));
     let mut test = runner(
         std::env::var("KEYCHAIN_WIDTH")
             .ok()
             .and_then(|w| w.parse().ok())
             .unwrap_or(1000.),
     );
-    settle_until(&mut test, "github.com");
+    settle_until(&mut test, if missing { "Cafe" } else { "github.com" });
     for id in std::env::var("KEYCHAIN_COMMAND").unwrap_or_default().split('|').filter(|c| !c.is_empty()) {
         poll(&mut test, 10);
         command(&mut test, id);
@@ -280,13 +291,13 @@ fn every_kind_lists_without_a_secret_and_show_fetches_one() {
         "a Wi-Fi network's password is not an item of its own: {seen:?}"
     );
     assert!(!seen.iter().any(|l| l.contains("hunter2")));
-    assert_eq!(fakes.secrets.fetched(), 0, "listing fetches nothing");
+    assert_eq!(fakes.secrets().fetched(), 0, "listing fetches nothing");
 
     click(&mut test, "github.com");
     poll(&mut test, 5);
     click(&mut test, "Show");
     settle_until(&mut test, "hunter2");
-    assert_eq!(fakes.secrets.fetched(), 1);
+    assert_eq!(fakes.secrets().fetched(), 1);
     assert_eq!(fakes.polkit.checks().len(), 1, "the gate asked once");
     click(&mut test, "Hide");
     poll(&mut test, 5);
@@ -298,7 +309,7 @@ fn every_kind_lists_without_a_secret_and_show_fetches_one() {
         1,
         "the grant covers the next click"
     );
-    assert_eq!(fakes.secrets.fetched(), 2);
+    assert_eq!(fakes.secrets().fetched(), 2);
 }
 
 #[test]
@@ -311,11 +322,11 @@ fn a_login_is_edited_made_and_deleted() {
     poll(&mut test, 5);
     click(&mut test, "Edit");
     settle_until(&mut test, "Done");
-    assert_eq!(fakes.secrets.fetched(), 1, "Edit fetches the password, behind the gate");
+    assert_eq!(fakes.secrets().fetched(), 1, "Edit fetches the password, behind the gate");
     click(&mut test, "Done");
     poll(&mut test, 20);
     assert!(labels(&test).iter().any(|l| l == "Edit"), "Done with nothing changed ends Edit");
-    assert_eq!(fakes.secrets.item("login", 0).unwrap().label, "github.com");
+    assert_eq!(fakes.secrets().item("login", 0).unwrap().label, "github.com");
 
     command(&mut test, "delete");
     settle_until(&mut test, "Delete “github.com”?");
@@ -323,11 +334,11 @@ fn a_login_is_edited_made_and_deleted() {
     click(&mut test, "Delete");
     for _ in 0..100 {
         poll(&mut test, 1);
-        if fakes.secrets.item("login", 0).is_none() {
+        if fakes.secrets().item("login", 0).is_none() {
             break;
         }
     }
-    assert!(fakes.secrets.item("login", 0).is_none(), "the item is deleted");
+    assert!(fakes.secrets().item("login", 0).is_none(), "the item is deleted");
     settle_until(&mut test, "Grafana");
     assert!(!labels(&test).iter().any(|l| l == "github.com"));
 
@@ -337,20 +348,20 @@ fn a_login_is_edited_made_and_deleted() {
     settle_until(&mut test, "Chrome will lose the passwords and sign-ins it keeps.");
     click(&mut test, "Cancel");
     poll(&mut test, 5);
-    assert!(fakes.secrets.item("login", 2).is_some());
+    assert!(fakes.secrets().item("login", 2).is_some());
 
     command(&mut test, "new-login");
     settle_until(&mut test, "New Login");
     click(&mut test, "Save");
     for _ in 0..100 {
         poll(&mut test, 1);
-        if fakes.secrets.len("login") > 4 {
+        if fakes.secrets().len("login") > 4 {
             break;
         }
     }
-    let made = fakes.secrets.item("login", 4).expect("a login is made");
+    let made = fakes.secrets().item("login", 4).expect("a login is made");
     assert_eq!(made.attributes["xdg:schema"], "org.gnome.keyring.NetworkPassword");
-    assert_eq!(fakes.secrets.fetched(), 1, "nothing more is fetched");
+    assert_eq!(fakes.secrets().fetched(), 1, "nothing more is fetched");
 }
 
 #[test]
@@ -439,4 +450,62 @@ fn a_wifi_password_shows_from_where_it_is_kept_and_a_refusal_shows_nothing() {
     poll(&mut test, 30);
     assert!(!labels(&test).iter().any(|l| l == "home-pass"), "refused, the field stays dots");
     assert!(labels(&test).iter().any(|l| l == "Show"));
+}
+
+#[test]
+fn a_locked_keyring_heads_the_list_and_unlocks_through_its_prompt() {
+    let _turn = serial();
+    let mut collections = keyring();
+    collections.push(CollectionSpec {
+        id: "work".into(),
+        label: "Work".into(),
+        locked: true,
+        alias: None,
+        items: vec![ItemSpec::new("Jira", "org.gnome.keyring.NetworkPassword", &[("user", "a"), ("server", "jira.work")], "j")],
+    });
+    let fakes = fakes("locked", collections);
+    let mut test = runner(1000.);
+    settle_until(&mut test, "Work is locked");
+    assert!(!labels(&test).iter().any(|l| l == "Jira"));
+    click(&mut test, "Unlock…");
+    for _ in 0..200 {
+        poll(&mut test, 1);
+        if fakes.secrets().prompts_shown() > 0 {
+            break;
+        }
+    }
+    fakes.runtime.block_on(fakes.secrets().complete_prompt(true)).unwrap();
+    settle_until(&mut test, "Jira");
+    assert!(!labels(&test).iter().any(|l| l == "Work is locked"));
+}
+
+#[test]
+fn without_a_secret_service_wifi_and_ssh_keys_work_on() {
+    let _turn = serial();
+    let _fakes = fakes("missing", None);
+    let mut test = runner(1000.);
+    settle_until(&mut test, "No keyring service is running. Choose one in Settings › General › Passwords.");
+    settle_until(&mut test, "id_ed25519");
+    let seen = labels(&test);
+    assert!(seen.iter().any(|l| l == "Home") && seen.iter().any(|l| l == "id_ed25519"), "{seen:?}");
+    click(&mut test, "Logins");
+    settle_until(&mut test, "No keyring service is running. Choose one in Settings › General › Passwords.");
+}
+
+#[test]
+fn a_frozen_service_says_so_in_time() {
+    let _turn = serial();
+    let fakes = fakes("frozen", keyring());
+    fakes.secrets().freeze();
+    let mut test = runner(1000.);
+    let start = std::time::Instant::now();
+    for _ in 0..600 {
+        poll(&mut test, 1);
+        if labels(&test).iter().any(|l| l.starts_with("The keyring isn't answering")) {
+            break;
+        }
+    }
+    assert!(labels(&test).iter().any(|l| l.starts_with("The keyring isn't answering")), "{:?}", labels(&test));
+    assert!(start.elapsed() < Duration::from_secs(12));
+    settle_until(&mut test, "Home");
 }

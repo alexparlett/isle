@@ -267,6 +267,7 @@ impl Component for Space {
         let mut pointer = use_state(|| (0f32, 0f32));
         // The tile the pointer has rested on for `timing-tooltip-ms`.
         let mut tip = use_state(|| None::<PathBuf>);
+        let mut tip_size = use_state(|| (0f32, 0f32));
         let dwell = theme.tokens.timing_tooltip_ms as u64;
         use_side_effect(move || {
             let over = hover.read().clone();
@@ -530,46 +531,52 @@ impl Component for Space {
                     .find(|(e, _)| &e.path == path)
                     .map(|(e, r)| (e.clone(), *r))
             };
+            // Placed by the pointer, or under a small selected tile, then turned to the other side
+            // where it would leave the map; its size is known from its last frame.
             let tooltip = match (tip.read().clone(), self.selected.clone()) {
-                (Some(path), _) => placed(&path).map(|(e, _)| {
-                    let (x, y) = *pointer.read();
-                    (e, (x + 12., y + 18.))
-                }),
+                (Some(path), _) => placed(&path).map(|(e, _)| (e, *pointer.read(), true)),
                 (None, Some(path)) => placed(&path)
                     .filter(|(_, r)| unlabelled(r))
-                    .map(|(e, r)| (e, (r.x, r.y + r.h + t.space_xs))),
+                    .map(|(e, r)| (e, (r.x + r.w / 2., r.y + r.h), false)),
                 _ => None,
             }
-            .map(|(e, (x, y))| {
+            .map(|(e, (x, y), by_pointer)| {
                 let (w, h) = *map_size.read();
+                let (tw, th) = *tip_size.read();
+                let gap = if by_pointer { 16. } else { t.space_xs };
+                let left = if x + 12. + tw > w {
+                    x - 12. - tw
+                } else {
+                    x + if by_pointer { 12. } else { -tw / 2. }
+                };
+                let top = if y + gap + th > h {
+                    y - gap
+                        - th
+                        - if by_pointer {
+                            0.
+                        } else {
+                            r_height(&e, &entries, &rects)
+                        }
+                } else {
+                    y + gap
+                };
                 rect()
                     .position(
                         Position::new_absolute()
-                            .left(x.min(w - 240.).max(0.))
-                            .top(y.min(h - 28.).max(0.)),
+                            .left(left.clamp(0., (w - tw).max(0.)))
+                            .top(top.clamp(0., (h - th).max(0.))),
                     )
-                    .padding((3., t.space_s))
-                    .corner_radius(t.radius_small)
-                    .background(colour(t.colour_window_raised))
-                    .maybe(true, |el| {
-                        isle_ui::shadows(&t.shadow_menu)
-                            .into_iter()
-                            .fold(el, |el, s| el.shadow(s))
+                    .layer(Layer::Overlay)
+                    .interactive(Interactive::No)
+                    .on_sized(move |ev: Event<SizedEventData>| {
+                        tip_size.set_if_modified((ev.area.width(), ev.area.height()))
                     })
-                    .horizontal()
-                    .spacing(t.space_s)
-                    .child(text::line(
-                        &theme,
-                        text::Style::Callout,
-                        colour(t.colour_text),
-                        e.name.clone(),
-                    ))
-                    .child(text::line(
-                        &theme,
-                        text::Style::Callout,
-                        colour(t.colour_text_2),
-                        format!("{} · {}", size(e.bytes), e.kind.name()),
-                    ))
+                    .child(Tooltip::new_text(format!(
+                        "{} · {} · {}",
+                        e.name,
+                        size(e.bytes),
+                        e.kind.name()
+                    )))
                     .into_element()
             });
             let tiles: Vec<Element> = rects
@@ -750,4 +757,13 @@ pub fn nearest(rects: &[(PathBuf, Rect)], from: &Path, dx: f32, dy: f32) -> Opti
             d(a).total_cmp(&d(b))
         })
         .map(|(p, _)| p.clone())
+}
+
+/// The height of `e`'s tile, so a tooltip under it can go above it instead.
+fn r_height(e: &Entry, entries: &[Entry], rects: &[Rect]) -> f32 {
+    entries
+        .iter()
+        .zip(rects)
+        .find(|(x, _)| x.path == e.path)
+        .map_or(0., |(_, r)| r.h)
 }

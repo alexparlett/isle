@@ -528,15 +528,13 @@ impl App for Cleaner {
         let basket_shown = (!basket.read().is_empty() || moved.read().is_some())
             && ((narrow >= 1000.) != *basket_hidden.read());
         let sidebar_shown = (narrow >= 820.) != *sidebar_hidden.read();
-        let toolbar = rect()
-            .width(Size::fill())
-            .height(Size::px(t.size_toolbar))
-            .padding((0., t.space_l, 0., LIGHTS + t.space_l))
+        // Leading and trailing take equal shares, so the scope and the view's controls sit in the
+        // toolbar's centre (`surfaces/cleaner.md` Toolbar).
+        let leading = rect()
+            .width(Size::flex(1.))
             .horizontal()
-            .content(Content::flex())
             .cross_align(Alignment::Center)
             .spacing(t.space_s)
-            .toolbar()
             .child(
                 Button::icon("sidebar-simple", "Sidebar").on_press(move |_| {
                     let hidden = *sidebar_hidden.peek();
@@ -555,11 +553,14 @@ impl App for Cleaner {
             )
             .child(
                 rect()
-                    .width(Size::flex(1.))
                     .min_width(Size::px(80.))
                     .max_width(Size::px(320.))
                     .child(title_block),
-            )
+            );
+        let centre = rect()
+            .horizontal()
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
             .child(
                 rect()
                     .min_width(Size::px(if narrow < 760. { 100. } else { 120. }))
@@ -602,8 +603,13 @@ impl App for Cleaner {
                     move |i: usize| remembered.write().list = i == 1,
                 )
                 .into_element()
-            }))
-            .child(rect().width(Size::flex(1.)))
+            }));
+        let trailing = rect()
+            .width(Size::flex(1.))
+            .horizontal()
+            .main_align(Alignment::End)
+            .cross_align(Alignment::Center)
+            .spacing(t.space_s)
             // Narrow, the primary action keeps its symbol alone.
             .child(
                 match (scanning, narrow < 760.) {
@@ -680,6 +686,18 @@ impl App for Cleaner {
                     140.
                 },
             });
+        let toolbar = rect()
+            .width(Size::fill())
+            .height(Size::px(t.size_toolbar))
+            .padding((0., t.space_l, 0., LIGHTS + t.space_l))
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .spacing(t.space_l)
+            .toolbar()
+            .child(leading)
+            .child(centre)
+            .child(trailing);
 
         // The sidebar.
         let view_rows: Vec<Element> = View::ALL

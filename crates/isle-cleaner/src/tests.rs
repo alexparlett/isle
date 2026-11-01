@@ -145,6 +145,24 @@ fn shot() {
             std::time::Duration::from_millis(20),
         );
     }
+    // `CLEANER_HOVER` names a tile to rest the pointer on, a little under its label.
+    if let Ok(name) = std::env::var("CLEANER_HOVER") {
+        let at = test
+            .find(|node, element| {
+                Label::try_downcast(element)
+                    .filter(|l| l.text == name)
+                    .map(|_| node.layout().area.center())
+            })
+            .unwrap_or_else(|| panic!("no tile reads {name:?}"));
+        test.move_cursor((f64::from(at.x), f64::from(at.y) + 30.));
+        for _ in 0..60 {
+            test.poll(
+                std::time::Duration::from_millis(16),
+                std::time::Duration::from_millis(20),
+            );
+            std::thread::sleep(std::time::Duration::from_millis(15));
+        }
+    }
     test.render_to_file(PathBuf::from(path));
 }
 

@@ -115,3 +115,71 @@ async fn an_unlock_prompt_returns_the_password_through_the_exchange() {
     assert!(matches!(called.recv().await, Some(Called::Done)));
     wait_until(|| async { prompts(&isle).await["showing"].is_null() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_new_keyring_prompt_returns_the_chosen_password() {
+    const TAB: u32 = 15;
+    let isle = Isle::start("keyring-new").await;
+    let (send, mut called) = mpsc::unbounded_channel();
+    let keyring = zbus::connection::Builder::address(isle.bus_address().as_str())
+        .unwrap()
+        .serve_at(CALLBACK, Callback(send))
+        .unwrap()
+        .build()
+        .await
+        .unwrap();
+    let prompter = zbus::Proxy::new(
+        &keyring,
+        "org.gnome.keyring.SystemPrompter",
+        "/org/gnome/keyring/Prompter",
+        "org.gnome.keyring.internal.Prompter",
+    )
+    .await
+    .unwrap();
+    let path = zbus::zvariant::ObjectPath::try_from(CALLBACK).unwrap();
+    let _: () = prompter.call("BeginPrompting", &(&path,)).await.unwrap();
+    let Some(Called::Ready(_, _, opening)) = called.recv().await else {
+        panic!("no turn");
+    };
+    // gnome-keyring asks within one turn: a confirmation first, cancelled, then the password.
+    let first = Exchange::new().unwrap();
+    let mut ask: HashMap<&str, Value<'_>> = HashMap::new();
+    ask.insert("message", Value::from("Store passwords unencrypted?"));
+    let _: () = prompter
+        .call("PerformPrompt", &(&path, "confirm", ask, first.begin()))
+        .await
+        .unwrap();
+    wait_until(|| async { prompts(&isle).await["armed"] == true }).await;
+    const ESCAPE: u32 = 1;
+    isle.test().await.key(ESCAPE, true).await.unwrap();
+    isle.test().await.key(ESCAPE, false).await.unwrap();
+    let Some(Called::Ready(reply, _, opening)) = called.recv().await else {
+        panic!("no answer to the confirmation");
+    };
+    assert_eq!(reply, "no");
+    wait_until(|| async { prompts(&isle).await["showing"].is_null() }).await;
+
+    let mine = Exchange::new().unwrap();
+    let mut props: HashMap<&str, Value<'_>> = HashMap::new();
+    props.insert("title", Value::from("New Keyring Password"));
+    props.insert("message", Value::from("Choose password for new keyring"));
+    props.insert("password-new", Value::from(true));
+    props.insert("continue-label", Value::from("Continue"));
+    let _: () = prompter
+        .call("PerformPrompt", &(&path, "password", props, mine.begin()))
+        .await
+        .unwrap();
+    wait_until(|| async { prompts(&isle).await["armed"] == true }).await;
+    let test = isle.test().await;
+    for key in [S, E, C, TAB, S, E, C, RETURN] {
+        test.key(key, true).await.unwrap();
+        test.key(key, false).await.unwrap();
+    }
+    let Some(Called::Ready(reply, _, closing)) = called.recv().await else {
+        panic!("no answer");
+    };
+    assert_eq!(reply, "yes");
+    let key = mine.key(&opening).unwrap();
+    let secret = receive(&closing, &key).unwrap();
+    assert_eq!(secret.as_slice(), b"sec");
+}

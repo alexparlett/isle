@@ -378,7 +378,7 @@ impl App for Monitor {
                             })
                             .child(Button::icon("dots-three-circle", "More")),
                     )
-                    .child(SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 140. }),
+                    .child(SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 140., focus: true }),
             );
         let _ = search_focus;
 

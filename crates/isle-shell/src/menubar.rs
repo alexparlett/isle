@@ -404,6 +404,7 @@ impl Component for HelpMenu {
                 value: query.into_writable(),
                 placeholder: "Search".into(),
                 width,
+                focus: true,
             })
             .child(
                 rect().key(q.clone()).child(

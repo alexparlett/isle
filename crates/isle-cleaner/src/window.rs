@@ -685,6 +685,7 @@ impl App for Cleaner {
                 } else {
                     140.
                 },
+                focus: true,
             });
         let toolbar = rect()
             .width(Size::fill())

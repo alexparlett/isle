@@ -661,3 +661,25 @@ fn bars() {
     reveals.sort();
     eprintln!("reveal with the grant held: median {:?}, worst {:?}", reveals[2], reveals[4]);
 }
+
+#[test]
+fn a_passphrase_field_takes_a_click_and_keys() {
+    let _turn = serial();
+    let _fakes = fakes("field", keyring());
+    let mut test = runner(1000.);
+    settle_until(&mut test, "github.com");
+    command(&mut test, "new-key");
+    settle_until(&mut test, "New SSH Key");
+    let at = test
+        .find(|node, element| {
+            Label::try_downcast(element).filter(|l| l.text == "Passphrase").map(|_| node.layout().area.center())
+        })
+        .unwrap();
+    test.click_cursor((f64::from(at.x) + 250., f64::from(at.y)));
+    poll(&mut test, 3);
+    for c in ["a", "b", "c"] {
+        test.press_key(Key::Character(c.into()));
+    }
+    poll(&mut test, 3);
+    assert!(labels(&test).iter().any(|l| l == "•••"), "{:?}", labels(&test));
+}

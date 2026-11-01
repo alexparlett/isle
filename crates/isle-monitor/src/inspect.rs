@@ -205,7 +205,7 @@ impl App for Inspect {
                     .cross_align(Alignment::Center)
                     .spacing(t.space_s)
                     .child(Button::new("Quit Process").enabled(quit_ok).on_press(move |_| alert.set(true)))
-                    .maybe_child((*tab.read() == 1).then(|| SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 140. }.into_element())),
+                    .maybe_child((*tab.read() == 1).then(|| SearchField { value: query.into_writable(), placeholder: "Search".into(), width: 140., focus: true }.into_element())),
             );
         let body = if *tab.read() == 0 {
             general(&theme, &f, ink, gone, &app)

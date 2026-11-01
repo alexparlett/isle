@@ -10,6 +10,8 @@ pub struct SearchField {
     pub value: Writable<String>,
     pub placeholder: String,
     pub width: f32,
+    /// Takes the keyboard as it appears.
+    pub focus: bool,
 }
 
 impl Component for SearchField {
@@ -33,7 +35,7 @@ impl Component for SearchField {
             .child(
                 Input::new(self.value.clone())
                     .placeholder(self.placeholder.clone())
-                    .auto_focus(true)
+                    .auto_focus(self.focus)
                     .width(Size::fill())
                     .background(Color::TRANSPARENT)
                     .hover_background(Color::TRANSPARENT)

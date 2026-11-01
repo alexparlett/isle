@@ -106,6 +106,7 @@ impl App for Scene {
                         value: query.into_writable(),
                         placeholder: "Search".into(),
                         width: t.size_menu_search,
+                        focus: true,
                     }),
             )
             .child(

@@ -272,6 +272,10 @@ impl Sources {
             saved.iter().map(|w| (w.uuid.as_str(), w)).collect();
 
         for c in &collections {
+            // gnome-keyring's session collection, unlabelled and empty, is no keyring to show.
+            if c.label.is_empty() && c.items.is_empty() && c.path.as_str().ends_with("/collection/session") {
+                continue;
+            }
             out.sources.push(Source {
                 path: c.path.to_string(),
                 label: if c.label.is_empty() {

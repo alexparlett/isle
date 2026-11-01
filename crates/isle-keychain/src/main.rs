@@ -76,7 +76,7 @@ impl Delegate for Keychain {
                 }
             }
             None => {
-                let spec = WindowSpec::new(SPEC.title, SPEC.size, SPEC.min_size).token(token);
+                let spec = WindowSpec::main(app.spec()).token(token);
                 let key = app.open(
                     spec,
                     window::KeychainWindow {

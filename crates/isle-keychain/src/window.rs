@@ -737,6 +737,7 @@ impl App for KeychainWindow {
                 value: query.into_writable(),
                 placeholder: "Search".into(),
                 width: if narrow < 820. { 120. } else { 180. },
+                focus: false,
             });
         let toolbar = rect()
             .width(Size::fill())

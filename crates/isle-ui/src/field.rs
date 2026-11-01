@@ -136,7 +136,7 @@ impl Component for Field {
         let text = self.text.clone();
         let enabled = self.enabled;
         let (on_submit, on_change) = (self.on_submit.clone(), self.on_change.clone());
-        let on_key = move |e: Event<KeyboardEventData>| {
+        let mut on_key = move |e: Event<KeyboardEventData>| {
             if !enabled {
                 return;
             }
@@ -230,7 +230,17 @@ impl Component for Field {
             .horizontal()
             .cross_align(Alignment::Center)
             .overflow(Overflow::Clip)
-            .on_key_down(on_key)
+            // Keys are taken while this field holds focus, whichever node Freya routes them to.
+            .on_global_key_down(move |e: Event<KeyboardEventData>| {
+                if focus() != Focus::Not {
+                    on_key(e);
+                }
+            })
+            .on_press(move |_| {
+                if enabled {
+                    a11y.request_focus();
+                }
+            })
             .child(line)
             .maybe_child(caret)
     }

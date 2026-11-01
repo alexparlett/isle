@@ -4587,7 +4587,10 @@ dependencies = [
 name = "isle-auth"
 version = "0.1.0"
 dependencies = [
+ "isle-fakes",
  "libc",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "zeroize",
@@ -4761,6 +4764,7 @@ dependencies = [
  "libc",
  "oo7",
  "serde",
+ "serde_json",
  "tokio",
  "zbus",
  "zvariant",

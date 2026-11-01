@@ -6,6 +6,8 @@
 //! `info TEXT` and `error TEXT` as PAM says them, then one of `ok`, `fail TEXT` or
 //! `broken TEXT`. Text is escaped so each message is one line.
 
+pub mod greetd;
+
 use std::{path::Path, process::Stdio};
 
 use tokio::{

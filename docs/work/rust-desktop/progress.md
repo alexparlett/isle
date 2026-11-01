@@ -13,6 +13,12 @@
   its line breaks dropped; Cmd+C and Cmd+X do nothing. Option still types its characters
   (`#` on `gb(mac)`). Tested on a Mac and a PC keyboard; the test client gains
   `copy-lines`.
+- 14b.2: `isle_auth::greetd`, the greeter's side of greetd's IPC (a length-prefixed JSON
+  object each way, the password's frame zeroized): a conversation steps to PAM's next
+  question with its info and error lines kept, to Ready, Refused (cancelled, so the next try
+  starts afresh; faillock's lines read as a lockout) or Broken. `isle-fakes` gains a greetd
+  that parses the wire format itself, scripts each user's messages and records the sessions
+  started.
 
 ## 2026-11-01 (P19c)
 

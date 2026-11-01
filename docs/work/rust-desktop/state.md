@@ -674,3 +674,10 @@
   P14b planned in `p14b-greeter.md`, reviewed: every recommendation
   taken; it includes the lock's field taking Cmd+A, Cmd+V and
   Cmd+Backspace. Building.
+- P14b built 2026-11-01 through 14b.7, headless: the field's chords,
+  `isle_auth::greetd` and a fake greetd, `isle-compositor --greeter`, users
+  from AccountsService with the list and the session menu, the look each
+  session publishes, the handoff, the session-failed line, the fallback to
+  tuigreet, the PAM files, tmpfiles and the `greeter` setup step. Next:
+  14b.8, the VM (the package in the guest, greetd on Isle's greeter), then
+  the host run with the user.

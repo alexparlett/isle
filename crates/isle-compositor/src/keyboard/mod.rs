@@ -569,7 +569,15 @@ impl State {
             KeyState::Pressed if self.isle.lock.locked && self.isle.lock.field_focused && {
                 let sym = self.isle.keyboards.with_engine(false, &[], |_, ctx| ctx.keys.sym(code));
                 let mods = self.held_mods();
-                sym.is_some_and(|sym| self.lock_chord(sym, mods))
+                match sym.and_then(|sym| self.field_key(sym, mods).map(|r| (sym, r))) {
+                    Some((sym, repeats)) => {
+                        if repeats {
+                            self.start_field_repeat(code, sym, mods);
+                        }
+                        true
+                    }
+                    None => false,
+                }
             } =>
             {
                 self.isle.swallowed.insert(key);
@@ -583,6 +591,9 @@ impl State {
                 return;
             }
             KeyState::Released if self.isle.swallowed.remove(&key) => {
+                if self.isle.repeat.as_ref().is_some_and(|(held, _)| *held == code) {
+                    self.stop_repeat();
+                }
                 self.spotlight_key_released(code);
                 return;
             }
@@ -786,6 +797,35 @@ impl State {
         match token {
             Ok(token) => self.isle.repeat = Some((code, token)),
             Err(err) => warn!("could not repeat a shortcut: {err}"),
+        }
+    }
+
+    /// A field key held: it acts again at the keyboard's repeat delay and rate.
+    fn start_field_repeat(
+        &mut self,
+        code: u32,
+        sym: smithay::input::keyboard::Keysym,
+        mods: isle_keys::chord::Mods,
+    ) {
+        use smithay::reexports::calloop::timer::{TimeoutAction, Timer};
+        self.stop_repeat();
+        let keyboard = &self.isle.settings.keyboard;
+        let delay = std::time::Duration::from_millis(keyboard.repeat_delay as u64);
+        let every = std::time::Duration::from_secs_f64(1.0 / keyboard.repeat_rate.max(1) as f64);
+        let token = self
+            .isle
+            .loop_handle
+            .insert_source(Timer::from_duration(delay), move |_, _, state| {
+                match state.field_key(sym, mods) {
+                    Some(true) => TimeoutAction::ToDuration(every),
+                    _ => {
+                        state.isle.repeat = None;
+                        TimeoutAction::Drop
+                    }
+                }
+            });
+        if let Ok(token) = token {
+            self.isle.repeat = Some((code, token));
         }
     }
 

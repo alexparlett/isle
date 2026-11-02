@@ -224,3 +224,65 @@ async fn cmd_v_pastes_the_clipboard_without_its_line_breaks() {
     wait_until(|| async { status(&isle).await["dots"] == 9 }).await;
     assert_eq!(status(&isle).await["selected"], false);
 }
+
+const LEFT: u32 = 105;
+const LEFTSHIFT: u32 = 42;
+const LEFTCTRL: u32 = 29;
+const E: u32 = 18;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_field_moves_selects_and_repeats_as_a_text_field() {
+    let isle = Isle::start("lock-editing").await;
+    isle_ipc::settings::SettingsProxy::new(&isle.bus)
+        .await
+        .unwrap()
+        .set("keyboard.layouts", &zvariant::Value::from(vec!["gb"]))
+        .await
+        .unwrap();
+    let test = isle.test().await;
+    let mac = test.add_keyboard("Keychron Q6 Max").await.unwrap();
+    lock(&isle).await;
+    wait_until(|| async { status(&isle).await["field_focused"] == true }).await;
+    let at = || async {
+        let s = status(&isle).await;
+        (s["dots"].as_u64().unwrap(), s["caret"].as_u64().unwrap())
+    };
+
+    // Left moves the caret back and typing goes in there.
+    for code in [A, B, A] {
+        tap_on(&isle, &mac, code).await;
+    }
+    tap_on(&isle, &mac, LEFT).await;
+    tap_on(&isle, &mac, B).await;
+    assert_eq!(at().await, (4, 3));
+
+    // Shift+Left selects; Backspace takes the selection.
+    chord_on(&isle, &mac, LEFTSHIFT, LEFT).await;
+    chord_on(&isle, &mac, LEFTSHIFT, LEFT).await;
+    assert_eq!(status(&isle).await["selected"], true);
+    tap_on(&isle, &mac, BACKSPACE).await;
+    assert_eq!(at().await, (2, 1));
+
+    // Ctrl+A and Ctrl+E go to the ends; Option+Left in a secure field goes to the start.
+    chord_on(&isle, &mac, LEFTCTRL, E).await;
+    assert_eq!(at().await, (2, 2));
+    chord_on(&isle, &mac, LEFTCTRL, A).await;
+    assert_eq!(at().await, (2, 0));
+    chord_on(&isle, &mac, LEFTCTRL, E).await;
+    chord_on(&isle, &mac, LEFTALT, LEFT).await;
+    assert_eq!(at().await, (2, 0));
+
+    // Backspace held repeats at the keyboard's rate.
+    chord_on(&isle, &mac, LEFTCTRL, E).await;
+    for _ in 0..8 {
+        tap_on(&isle, &mac, A).await;
+    }
+    test.key_on(&mac, BACKSPACE, true).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(900)).await;
+    test.key_on(&mac, BACKSPACE, false).await.unwrap();
+    let (dots, _) = at().await;
+    assert!(dots < 9, "held Backspace deleted only one: {dots} left");
+    let after = at().await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(at().await, after, "the repeat outlived the key");
+}

@@ -291,7 +291,8 @@ impl Component for FaceView {
                                     placeholder: greeter.and_then(|g| g.placeholder.clone()),
                                     clear: greeter.and_then(|g| g.clear.clone()),
                                     menu_open: greeter.is_some_and(|g| g.menu_open),
-                                    selected: face.selected,
+                                    caret: face.caret,
+                                    selection: face.selection,
                                     held: face.held,
                                     locked_out: face.locked_out,
                                     error_edge: face.error_edge,
@@ -547,13 +548,14 @@ fn picture(theme: &Theme, face: &Face) -> freya::prelude::Rect {
 #[derive(PartialEq)]
 struct Field {
     dots: usize,
+    caret: usize,
+    selection: Option<(usize, usize)>,
     /// PAM's question at the greeter, in place of "Enter password".
     placeholder: Option<String>,
     /// A question shown in clear: what is typed, in place of the dots.
     clear: Option<String>,
     /// The session menu has the keyboard; the field takes it back as the menu closes.
     menu_open: bool,
-    selected: bool,
     held: bool,
     locked_out: bool,
     error_edge: bool,
@@ -615,34 +617,68 @@ impl Component for Field {
                     self.placeholder.clone().unwrap_or_else(|| "Enter password".into()),
                 ))
         } else if let Some(typed) = &self.clear {
+            let at = typed
+                .char_indices()
+                .nth(self.caret)
+                .map_or(typed.len(), |(i, _)| i);
+            let ink = colour(t.colour_text);
+            let (before, after) = typed.split_at(at);
             rect()
                 .horizontal()
                 .cross_align(Alignment::Center)
-                .child(text::line(&theme, text::Style::Body, colour(t.colour_text), typed.clone()))
+                .child(text::line(&theme, text::Style::Body, ink, before.to_owned()))
                 .maybe_child(caret)
+                .child(text::line(&theme, text::Style::Body, ink, after.to_owned()))
         } else {
-            let dots = rect()
-                .horizontal()
-                .cross_align(Alignment::Center)
-                .spacing(t.space_xs)
-                .maybe(self.selected, |el| {
-                    el.padding((3., t.space_xxs))
-                        .corner_radius(3.)
-                        .background(colour(t.colour_accent).with_a((t.selection_mix * 255.) as u8))
-                })
-                .children((0..shown).map(|_| {
+            // The dots that fit, the window kept around the caret.
+            let first = self
+                .caret
+                .saturating_sub(shown)
+                .min(self.dots.saturating_sub(shown));
+            let last = (first + shown).min(self.dots);
+            let run = |range: std::ops::Range<usize>, selected: bool| {
+                (!range.is_empty()).then(|| {
                     rect()
-                        .width(Size::px(dot))
-                        .height(Size::px(dot))
-                        .corner_radius(dot / 2.0)
-                        .background(colour(t.colour_text))
+                        .horizontal()
+                        .cross_align(Alignment::Center)
+                        .spacing(t.space_xs)
+                        .maybe(selected, |el| {
+                            el.padding((3., t.space_xxs))
+                                .corner_radius(3.)
+                                .background(
+                                    colour(t.colour_accent)
+                                        .with_a((t.selection_mix * 255.) as u8),
+                                )
+                        })
+                        .children(range.map(|_| {
+                            rect()
+                                .width(Size::px(dot))
+                                .height(Size::px(dot))
+                                .corner_radius(dot / 2.0)
+                                .background(colour(t.colour_text))
+                                .into_element()
+                        }))
                         .into_element()
-                }));
-            rect()
+                })
+            };
+            let row = rect()
                 .horizontal()
                 .cross_align(Alignment::Center)
-                .child(dots)
-                .maybe_child((!self.selected).then_some(caret).flatten())
+                .spacing(t.space_xs);
+            match self.selection {
+                Some((from, to)) => {
+                    let (from, to) = (from.clamp(first, last), to.clamp(first, last));
+                    row.maybe_child(run(first..from, false))
+                        .maybe_child(run(from..to, true))
+                        .maybe_child(run(to..last, false))
+                }
+                None => {
+                    let at = self.caret.clamp(first, last);
+                    row.maybe_child(run(first..at, false))
+                        .maybe_child(caret)
+                        .maybe_child(run(at..last, false))
+                }
+            }
         };
         plate(&theme, self.solid, height / 2.0)
             .a11y_id(a11y)

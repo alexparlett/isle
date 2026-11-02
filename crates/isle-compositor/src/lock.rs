@@ -49,20 +49,16 @@ impl Status {
     }
 }
 
-/// The longest password the field takes.
-const FIELD_LIMIT: usize = 512;
 
 pub struct LockState {
     pub locked: bool,
     pub since: Option<Instant>,
     /// From the lock's request to every screen showing it.
     pub shown_after: Option<std::time::Duration>,
-    /// The typed password; the face draws only its length.
-    pub field: Zeroizing<String>,
+    /// The typed password; the face draws only its length, caret and selection.
+    pub field: crate::lock_field::Field,
     /// The field has the face's keyboard focus, so typing goes into it.
     pub field_focused: bool,
-    /// Cmd+A selected everything typed: the next character replaces it.
-    pub selected: bool,
     pub status: Status,
     /// Wrong passwords since the lock came.
     pub failures: u32,
@@ -94,7 +90,6 @@ impl Default for LockState {
             shown_after: None,
             field: Default::default(),
             field_focused: true,
-            selected: false,
             status: Status::None,
             failures: 0,
             locked_out_until: None,
@@ -163,8 +158,9 @@ impl Isle {
     pub fn lock_status(&self) -> String {
         serde_json::json!({
             "locked": self.lock.locked,
-            "dots": self.lock.field.chars().count(),
-            "selected": self.lock.selected,
+            "dots": self.lock.field.chars(),
+            "caret": self.lock.field.caret(),
+            "selected": self.lock.field.selection().is_some(),
             "greeter": {
                 "users": self.greeter.users.iter().map(|u| u.login.clone()).collect::<Vec<_>>(),
                 "chosen": self.greeter.chosen,
@@ -448,22 +444,8 @@ impl State {
             k::KEY_Escape if crate::greeter::on() && self.isle.lock.field.is_empty() => {
                 self.greeter_back();
             }
-            k::KEY_BackSpace if !held => {
-                if std::mem::take(&mut self.isle.lock.selected) {
-                    self.isle.lock.field.zeroize();
-                } else {
-                    self.isle.lock.field.pop();
-                }
-                self.field_changed();
-            }
-            k::KEY_Delete if !held => {
-                if std::mem::take(&mut self.isle.lock.selected) {
-                    self.isle.lock.field.zeroize();
-                    self.field_changed();
-                }
-            }
             k::KEY_Escape if !held => self.clear_field(),
-            k::KEY_BackSpace | k::KEY_Delete | k::KEY_Escape => {}
+            k::KEY_Escape => {}
             _ => {
                 let Some(c) = sym.key_char().filter(|c| !c.is_control()) else {
                     return false;
@@ -477,48 +459,96 @@ impl State {
         true
     }
 
-    /// Cmd+A, Cmd+V, Cmd+C, Cmd+X, and Cmd or Option with Backspace in the field, read from
-    /// the physical chord before translation turns it into an app's keys; whether it was one.
-    pub fn lock_chord(
+    /// Whether the field answers its keys as a secure field: always on the lock, and at
+    /// the greeter unless PAM's question is shown in clear.
+    fn field_secure(&self) -> bool {
+        !crate::greeter::on() || self.isle.greeter.prompt.as_ref().is_none_or(|(_, s)| *s)
+    }
+
+    /// The field's editing keys, read from the physical chord before translation turns them
+    /// into an app's: moving, selecting and deleting as a macOS text field does, Cmd+A, Cmd+V,
+    /// and Cmd+C and Cmd+X doing nothing. Returns whether it took the key, and whether the key
+    /// repeats while held.
+    pub fn field_key(
         &mut self,
         sym: smithay::input::keyboard::Keysym,
         mods: isle_keys::chord::Mods,
-    ) -> bool {
+    ) -> Option<bool> {
+        use crate::lock_field::To;
         use smithay::input::keyboard::keysyms as k;
-        if !mods.cmd && !mods.option
-            || matches!(
-                self.isle.session.lock_power,
-                isle_shell::lock::Power::Confirm { .. }
-            )
-        {
-            return false;
+        let confirm = matches!(
+            self.isle.session.lock_power,
+            isle_shell::lock::Power::Confirm { .. }
+        );
+        let listing = crate::greeter::on()
+            && self.isle.greeter.chosen.is_none()
+            && self.isle.greeter.users.len() >= 2;
+        if confirm || listing {
+            return None;
         }
-        let held = self.isle.lock.pending || self.isle.locked_out();
-        match (sym.raw(), mods.cmd) {
-            (k::KEY_BackSpace, _) => {
-                if !held {
-                    self.clear_field();
-                }
+        enum Edit {
+            Move(To),
+            Delete(To),
+            SelectAll,
+            Paste,
+            Nothing,
+        }
+        let (cmd, option, ctrl) = (mods.cmd, mods.option, mods.ctrl && !mods.cmd);
+        let along = |plain: To, word: To, line: To| {
+            if cmd {
+                line
+            } else if option {
+                word
+            } else {
+                plain
             }
-            (k::KEY_a, true) => {
-                if !held && !self.isle.lock.field.is_empty() {
-                    self.isle.lock.selected = true;
-                    self.field_changed();
-                }
+        };
+        let edit = match sym.raw() {
+            k::KEY_Left | k::KEY_KP_Left => Edit::Move(along(To::Left, To::WordLeft, To::Start)),
+            k::KEY_Right | k::KEY_KP_Right => {
+                Edit::Move(along(To::Right, To::WordRight, To::End))
             }
-            (k::KEY_v, true) => {
-                if !held {
-                    self.read_clipboard_text(|state, text| {
-                        let text = Zeroizing::new(text.unwrap_or_default());
-                        state.lock_paste(&text);
-                    });
-                }
+            k::KEY_Up | k::KEY_KP_Up | k::KEY_Home | k::KEY_KP_Home => Edit::Move(To::Start),
+            k::KEY_Down | k::KEY_KP_Down | k::KEY_End | k::KEY_KP_End => Edit::Move(To::End),
+            k::KEY_BackSpace => Edit::Delete(along(To::Left, To::WordLeft, To::Start)),
+            k::KEY_Delete | k::KEY_KP_Delete => {
+                Edit::Delete(along(To::Right, To::WordRight, To::End))
             }
+            k::KEY_a if cmd => Edit::SelectAll,
+            k::KEY_v if cmd => Edit::Paste,
             // A password is never copied out of the field.
-            (k::KEY_c | k::KEY_x, true) => {}
-            _ => return false,
+            k::KEY_c | k::KEY_x if cmd => Edit::Nothing,
+            // The Emacs keys every macOS text field takes.
+            k::KEY_a if ctrl => Edit::Move(To::Start),
+            k::KEY_e if ctrl => Edit::Move(To::End),
+            k::KEY_b if ctrl => Edit::Move(To::Left),
+            k::KEY_f if ctrl => Edit::Move(To::Right),
+            k::KEY_h if ctrl => Edit::Delete(To::Left),
+            k::KEY_d if ctrl => Edit::Delete(To::Right),
+            k::KEY_k if ctrl => Edit::Delete(To::End),
+            _ => return None,
+        };
+        let repeats = matches!(edit, Edit::Move(_) | Edit::Delete(_));
+        if self.isle.lock.pending || self.isle.locked_out() {
+            return Some(false);
         }
-        true
+        let secure = self.field_secure();
+        let field = &mut self.isle.lock.field;
+        match edit {
+            Edit::Move(to) => field.move_caret(to, secure, mods.shift),
+            Edit::Delete(to) => field.delete(to, secure),
+            Edit::SelectAll => field.select_all(),
+            Edit::Paste => {
+                self.read_clipboard_text(|state, text| {
+                    let text = Zeroizing::new(text.unwrap_or_default());
+                    state.lock_paste(&text);
+                });
+                return Some(false);
+            }
+            Edit::Nothing => return Some(false),
+        }
+        self.field_changed();
+        Some(repeats)
     }
 
     /// The clipboard's text into the field, line breaks dropped, cut at the field's limit.
@@ -529,31 +559,19 @@ impl State {
         self.type_into_field(text.chars().filter(|c| !c.is_control()));
     }
 
-    /// Characters typed or pasted, replacing a selection.
+    /// Characters typed or pasted at the caret, replacing a selection.
     fn type_into_field(&mut self, chars: impl Iterator<Item = char>) {
         if self.isle.lock.pending || self.isle.locked_out() {
             return;
         }
         let lock = &mut self.isle.lock;
-        if std::mem::take(&mut lock.selected) {
-            lock.field.zeroize();
-        }
-        let mut took = false;
-        for c in chars {
-            if lock.field.len() >= FIELD_LIMIT {
-                break;
-            }
-            lock.field.push(c);
-            took = true;
-        }
-        if took {
+        if lock.field.insert(chars) {
             lock.face.error_edge = false;
         }
         self.field_changed();
     }
 
     fn clear_field(&mut self) {
-        self.isle.lock.selected = false;
         self.isle.lock.field.zeroize();
         self.field_changed();
     }
@@ -648,7 +666,6 @@ impl State {
         let lock = &mut self.isle.lock;
         lock.pending = false;
         lock.field.zeroize();
-        lock.selected = false;
         match outcome {
             Ok(isle_auth::Outcome {
                 result: isle_auth::Result::Ok,
@@ -696,7 +713,6 @@ impl State {
             task.abort();
         }
         lock.field.zeroize();
-        lock.selected = false;
         lock.pending = false;
         lock.status = Status::None;
         lock.failures = 0;

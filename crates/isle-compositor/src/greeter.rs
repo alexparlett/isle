@@ -479,7 +479,6 @@ impl State {
     fn clear_attempts(&mut self) {
         let lock = &mut self.isle.lock;
         lock.field.zeroize();
-        lock.selected = false;
         lock.pending = false;
         lock.status = crate::lock::Status::None;
         lock.failures = 0;
@@ -521,7 +520,6 @@ impl State {
                 let lock = &mut self.isle.lock;
                 lock.pending = false;
                 lock.field.zeroize();
-                lock.selected = false;
             }
             Heard::Step(Step::Ready { .. }) => {
                 let Some(session) = self.isle.greeter.sessions.get(self.isle.greeter.session)
@@ -541,7 +539,6 @@ impl State {
                 let lock = &mut self.isle.lock;
                 lock.pending = false;
                 lock.field.zeroize();
-                lock.selected = false;
                 match step.lockout() {
                     Some(minutes) => {
                         info!(minutes, "the account is locked out");

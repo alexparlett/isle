@@ -73,6 +73,12 @@
   failing starts. Found and fixed: the console chord wanted Ctrl+Option after a PC keyboard's
   Alt had been read as Cmd, so Ctrl+Alt+F2 did nothing on a PC-profile keyboard (since P5);
   it now takes Ctrl with Option or Cmd. A PKGBUILD quoting slip stopped the first build.
+- After the host's first sign-in (2026-11-02): greetd reads its config only at its start, so
+  `isle setup` now says a reboot or `systemctl restart greetd` is needed; the greeter then
+  ran on the host, signed in through `isle-greetd` and unlocked the login keyring. At the
+  user's asking the field became a text field (B143 widened): a caret and a selection, the
+  arrows, Home and End with Option, Cmd and Shift, Backspace and Delete by character, word
+  or to the end, the Emacs keys, moves and deletions repeating while held.
 - 14b.9 (before the host run): B140–B143, ARCHITECTURE's How the greeter signs in,
   `platform.md` and `compositor.md`'s open points answered, the roadmap's P14b, the sheet's
   outcome.

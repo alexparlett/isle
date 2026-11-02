@@ -104,8 +104,9 @@ pub struct Face {
     pub user: String,
     pub picture: Option<PathBuf>,
     pub dots: usize,
-    /// Cmd+A selected the dots.
-    pub selected: bool,
+    /// The caret, and the selected dots, by character.
+    pub caret: usize,
+    pub selection: Option<(usize, usize)>,
     pub line: Line,
     /// The field takes no keys: checking, or locked out.
     pub held: bool,

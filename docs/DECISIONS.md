@@ -1562,10 +1562,17 @@ Cmd still switches with Ctrl+Alt+F-key (P5 had required Option, found in
 P14b's VM run). Rejected: relying on the console keys alone, which a
 greeter that dies before reading keys never takes.
 
-**B143 · The lock's field takes a password field's chords.** Built in
-P14b, on the lock and the greeter alike. Read from the physical chord
-before translation, which had turned them into keys the field dropped:
-Cmd+A selects the dots for the next character or Backspace to replace,
-Cmd+Backspace and Option+Backspace clear, Cmd+V pastes the clipboard's
-text with its line breaks dropped, and Cmd+C and Cmd+X do nothing, as
-macOS's secure fields. Option still types its characters.
+**B143 · The lock's field edits as a macOS text field.** Built in P14b, on
+the lock and the greeter alike, widened after the host run at the user's
+asking. The field holds a caret and a selection (`lock_field.rs`, its
+capacity set once so an edit never leaves a copy behind). Its keys are read
+from the physical chord before translation, which had turned them into
+keys the field dropped: Left and Right, with Option by word and Cmd to the
+ends, Up, Down, Home and End to the ends, Shift extending the selection;
+Backspace and Delete by character, Option by word, Cmd to the end; Cmd+A,
+and Ctrl+A, E, B, F, H, D and K as every macOS field takes them; Cmd+V
+pasting the clipboard's text without its line breaks; Cmd+C and Cmd+X
+doing nothing. A secure field goes by its whole text where a word move
+would go, as `NSSecureTextField` does; the greeter's clear question goes by
+words. Moves and deletions repeat while held at the keyboard's delay and
+rate. Option still types its characters.

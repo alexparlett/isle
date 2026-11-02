@@ -10,8 +10,18 @@
   - an FP16 render target keeps values outside 0–1;
   - AB30, XB30 and AB4H GBM scan-out buffers render with the renderer's
     modifiers.
-- Its `run` mode, the HDR10 modeset from a free console, waits on the
-  user.
+- Its `run` mode passed on the host, from a free console, made
+  interactive with its questions drawn on the pattern:
+  - the monitor enters HDR10 and clips at its EDID peak;
+  - BT.2020 shows deeper than BT.709;
+  - no hang;
+  - screen off and on came back in SDR and HDR, by `ACTIVE` and by
+    disabling.
+
+  Two findings. 203 cd/m² looks dimmer than the monitor's SDR white, so
+  SDR Brightness's default is set at the host run. One black screen after
+  waking in HDR by `ACTIVE`, in the first run only, stays open as the 615
+  wake risk. 22.0 is done.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

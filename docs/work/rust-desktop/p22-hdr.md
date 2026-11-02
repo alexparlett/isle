@@ -167,7 +167,8 @@ What the evidence settles:
    white in cd/m², from 80 to the panel's peak, default 203 (BT.2408).
    Everything that is not HDR (windows, the shell, the wallpaper) is shown
    at this brightness. It is the one control that decides whether HDR
-   mode feels dim.
+   mode feels dim. The spike found 203 dimmer than this monitor's SDR
+   white, so 22.10 sets the default against the panel.
 
 ### Composition
 
@@ -559,7 +560,9 @@ which the trial apply showed. Building began the same day.
   Colour state rides only modesets (choice 4). The Keep alert reverts an
   unconfirmed change (choice 7), and the console keys still reach a TTY.
 - **615's black-after-wake on DisplayPort.** Reports tie it to DSC at
-  higher refresh rates; this mode should not need DSC. Phase 22.10's
+  higher refresh rates; this mode should not need DSC. The spike's first
+  run hit it once, in HDR, by `ACTIVE`; later runs did not. Isle sleeps
+  a screen by disabling it, which came back each time. Phase 22.10's
   point 7 tests it. If it hits, the screen relights in SDR before DPMS
   off and in HDR after wake, at the cost of one more blank.
 - **FP16 render targets on NVIDIA's GLES.** The spike checks

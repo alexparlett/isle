@@ -701,5 +701,7 @@
   accepted while it stays isolated); built now, ahead of P14c, P20 and P21,
   at the user's word. 22.0 in part: `spikes/hdr-modeset` built; its `gl`
   mode passed (FP16 holds values outside 0–1, AB30/XB30/AB4H scan-out
-  buffers render). Next: its `run` mode from a free console on the host,
-  the user's, then 22.1.
+  buffers render). 22.0 done the same day: the HDR10 modeset passed on
+  the host (no hang, wakes in HDR); 203 cd/m² looks dimmer than the
+  panel's SDR white; one black wake in the first run stays open. Next:
+  22.1, the connector state ported onto the Smithay fork.

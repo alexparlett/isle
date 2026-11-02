@@ -109,6 +109,22 @@
     description following the screen, HDR10 below the peak passing
     through, and HDR10 above it tone-mapped to it.
   - **Captures** of HDR screens are 22.8's.
+- 22.6: scan-out of HDR10.
+  - **When it is tried.** The screen's full-screen window is described as
+    BT.2020 PQ (Windows BT.2100 included), its surface is the topmost
+    element but the pointer, and the pointer is Isle's own.
+  - **The attempt.** The display gets the window and a pointer encoded in
+    PQ at `sdr-white`, for the cursor plane, which has no colour pipeline.
+    Async flips work as today.
+  - **The fallback.** If Smithay composites the frame instead, it is
+    drawn again through the PQ pass, after a buffer reset, and the
+    composited explainer logs why. The intermediate is invalidated after
+    a scanned-out frame.
+  - **Proof** is on the host (22.10). The headless backend has no planes.
+- 22.7: night light. Its gains were already the PQ pass's (22.4, with GPU
+  tests), and the ramp is never written on an HDR screen (22.3). Scan-out
+  is not tried while night light warms, since a scanned-out frame would
+  skip the warmth. Game Mode turns night light off for games.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

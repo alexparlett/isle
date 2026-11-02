@@ -149,6 +149,11 @@ impl HdrPass {
         Ok(result.states)
     }
 
+    /// Forgets the intermediate's contents, after frames that did not draw it.
+    pub fn invalidate(&mut self) {
+        self.drawn = false;
+    }
+
     /// The intermediate as one element covering the screen, drawn through the PQ pass; a new
     /// white, peak or warmth redraws all of it.
     pub fn element(&mut self, encode: Encode) -> HdrElement {

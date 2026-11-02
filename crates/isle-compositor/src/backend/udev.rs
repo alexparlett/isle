@@ -367,7 +367,59 @@ impl Udev {
         } else {
             present::Cursor::None
         };
-        let (damaged, planes, states) = if let Some(hdr) = &hdr {
+        let direct = match &hdr {
+            // Scanned out, a frame would skip night light's warmth, which is the pass's.
+            Some(hdr) if self.warmth >= crate::night_light::NEUTRAL && hdr10_in_front(isle, output, &elements) => {
+                let white = hdr.sdr_white.get();
+                let cursor = match &isle.cursor_status {
+                    CursorImageStatus::Named(icon) => self.cursors.get_pq(*icon, scale, white),
+                    _ => None,
+                };
+                let mut direct = Vec::new();
+                isle.render_elements(renderer, output, cursor, &mut |e| direct.push(e));
+                let tear = isle.wants_tearing(output) && !direct.iter().any(|e| e.kind() == Kind::Cursor);
+                let mut flags = FrameFlags::DEFAULT | FrameFlags::ALLOW_PRIMARY_PLANE_SCANOUT_ANY;
+                if tear {
+                    flags |= FrameFlags::ASYNC_SCANOUT_ONLY;
+                }
+                let mode = if tear { PresentationMode::Async } else { PresentationMode::VSync };
+                let result = lit
+                    .surface
+                    .render_frame(renderer, &direct, clear, flags, mode)
+                    .map_err(|e| format!("{e:?}"))?;
+                match &result.primary_element {
+                    PrimaryPlaneElement::Element(element) => {
+                        let primary = scanned_out(isle, element.id());
+                        let planes = Planes {
+                            primary,
+                            cursor: if result.cursor_element.is_some() {
+                                present::Cursor::Plane
+                            } else {
+                                cursor_drawn
+                            },
+                            overlays: result.overlay_elements.len(),
+                            asked_async: tear,
+                        };
+                        if let Some(pass) = lit.hdr_pass.as_mut() {
+                            pass.invalidate();
+                        }
+                        Some((!result.is_empty, planes, result.states))
+                    }
+                    // Composited, it would be drawn without the PQ pass: the frame is drawn
+                    // again through it.
+                    PrimaryPlaneElement::Swapchain(_) => {
+                        drop(result);
+                        explain_composited(renderer, output, &direct, clear, flags);
+                        lit.surface.reset_buffers();
+                        None
+                    }
+                }
+            }
+            _ => None,
+        };
+        let (damaged, planes, states) = if let Some(direct) = direct {
+            direct
+        } else if let Some(hdr) = &hdr {
             if !lit.hdr_pass.as_ref().is_some_and(|p| p.fits(output)) {
                 lit.hdr_pass = Some(crate::hdr_pass::HdrPass::new(renderer, output)?);
             }
@@ -1372,6 +1424,34 @@ fn scanned_out(isle: &Isle, id: &Id) -> present::Primary {
         }
     }
     present::Primary::Surface
+}
+
+/// Whether an HDR screen's front is a full-screen window in BT.2020 PQ with nothing over it
+/// but Isle's pointer: then it may be scanned out with no transform (P22 choice 16).
+fn hdr10_in_front(isle: &Isle, output: &Output, elements: &[IsleElement]) -> bool {
+    use smithay::wayland::color::management::{Chromaticities, Primaries, TransferFunction};
+    if matches!(isle.cursor_status, CursorImageStatus::Surface(_)) {
+        return false;
+    }
+    let Some(surface) = isle
+        .full_screen_shown(output)
+        .and_then(|id| isle.wm.get(id))
+        .and_then(|r| r.surface())
+    else {
+        return false;
+    };
+    let (Some(desc), _) = smithay::wayland::color::management::get_surface_description(&surface) else {
+        return false;
+    };
+    let bt2020 = desc.primaries.named == Some(Primaries::Bt2020)
+        || desc.primaries.values == Some(Chromaticities::from_named(Primaries::Bt2020));
+    let id = Id::from_wayland_resource(&surface);
+    desc.transfer == TransferFunction::St2084Pq
+        && bt2020
+        && elements
+            .iter()
+            .find(|e| e.kind() != Kind::Cursor)
+            .is_some_and(|e| *e.id() == id)
 }
 
 /// Where the display cannot wait on the render's fence, the frame is finished here, or a

@@ -17,6 +17,10 @@ type Loaded = Option<Image_>;
 
 struct Image_ {
     buffer: MemoryRenderBuffer,
+    /// The buffer's pixels, size and scale, kept to encode them again for an HDR screen.
+    pixels: Vec<u8>,
+    dims: (i32, i32),
+    buffer_scale: i32,
     hotspot: Point<i32, Logical>,
     size: Option<Size<i32, Logical>>,
     src: Option<Rectangle<f64, Logical>>,
@@ -27,6 +31,8 @@ pub struct Cursors {
     size: u32,
     /// By icon and scale in thousandths.
     cache: HashMap<(CursorIcon, u32), Loaded>,
+    /// The same images encoded in PQ, by icon, scale and reference white in cd/m².
+    pq: HashMap<(CursorIcon, u32, u32), Loaded>,
 }
 
 impl Cursors {
@@ -41,6 +47,7 @@ impl Cursors {
             theme: CursorTheme::load(&name),
             size,
             cache: HashMap::new(),
+            pq: HashMap::new(),
         }
     }
 
@@ -65,6 +72,41 @@ impl Cursors {
         })
     }
 
+    /// The image for `icon` encoded as BT.2020 PQ with its white at `white` cd/m², for the
+    /// cursor plane of an HDR screen, which has no colour pipeline of its own.
+    pub fn get_pq(&mut self, icon: CursorIcon, scale: f64, white: f64) -> Option<NamedCursor<'_>> {
+        let key = (icon, (scale * 1000.0).round() as u32, white.round() as u32);
+        if !self.pq.contains_key(&key) {
+            self.get(icon, scale);
+            let loaded = self.cache[&(icon, key.1)].as_ref().map(|image| {
+                let pixels = to_pq(&image.pixels, white);
+                Image_ {
+                    buffer: MemoryRenderBuffer::from_slice(
+                        &pixels,
+                        Fourcc::Argb8888,
+                        image.dims,
+                        image.buffer_scale,
+                        Transform::Normal,
+                        None,
+                    ),
+                    pixels,
+                    dims: image.dims,
+                    buffer_scale: image.buffer_scale,
+                    hotspot: image.hotspot,
+                    size: image.size,
+                    src: image.src,
+                }
+            });
+            self.pq.insert(key, loaded);
+        }
+        self.pq[&key].as_ref().map(|image| NamedCursor {
+            buffer: &image.buffer,
+            hotspot: image.hotspot,
+            size: image.size,
+            src: image.src,
+        })
+    }
+
     /// At an integer scale the image is the buffer, at that buffer scale. At a fractional
     /// one it is resampled to exactly the pixels it covers, so the cursor plane, which
     /// cannot scale, takes it.
@@ -82,6 +124,9 @@ impl Cursors {
                     Transform::Normal,
                     None,
                 ),
+                pixels: image.pixels_rgba.clone(),
+                dims: (image.width as i32, image.height as i32),
+                buffer_scale: s as i32,
                 hotspot: Point::from(((image.xhot / s) as i32, (image.yhot / s) as i32)),
                 size: None,
                 src: None,
@@ -104,6 +149,9 @@ impl Cursors {
                 Transform::Normal,
                 None,
             ),
+            dims: (w as i32, h as i32),
+            buffer_scale: 1,
+            pixels,
             hotspot: Point::from((
                 (image.xhot as f64 * nominal).round() as i32,
                 (image.yhot as f64 * nominal).round() as i32,
@@ -127,6 +175,35 @@ impl Cursors {
     }
 }
 
+/// Premultiplied Argb8888 in sRGB (gamma 2.2) re-encoded as BT.2020 PQ, its white at `white`
+/// cd/m².
+fn to_pq(pixels: &[u8], white: f64) -> Vec<u8> {
+    const BT709_TO_BT2020: [[f64; 3]; 3] = [
+        [0.6274, 0.3293, 0.0433],
+        [0.0691, 0.9195, 0.0114],
+        [0.0164, 0.0880, 0.8956],
+    ];
+    let pq = |nits: f64| {
+        let y = (nits / 10000.0).clamp(0.0, 1.0).powf(2610.0 / 16384.0);
+        ((0.8359375 + 18.8515625 * y) / (1.0 + 18.6875 * y)).powf(78.84375)
+    };
+    let mut out = pixels.to_vec();
+    for px in out.chunks_exact_mut(4) {
+        let a = px[3] as f64 / 255.0;
+        if a == 0.0 {
+            continue;
+        }
+        // Little-endian ARGB: blue, green, red, alpha.
+        let rgb = [px[2], px[1], px[0]].map(|c| ((c as f64 / 255.0) / a).min(1.0).powf(2.2) * white);
+        let wide = BT709_TO_BT2020.map(|row| row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]);
+        let [r, g, b] = wide.map(|v| (pq(v) * a * 255.0).round() as u8);
+        px[0] = b;
+        px[1] = g;
+        px[2] = r;
+    }
+    out
+}
+
 /// Bilinear resampling of premultiplied four-byte pixels.
 fn resample(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
     let mut out = vec![0u8; (dw * dh * 4) as usize];
@@ -147,4 +224,16 @@ fn resample(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn white_is_pq_at_the_reference_and_alpha_stays() {
+        let white = super::to_pq(&[255, 255, 255, 255, 0, 0, 0, 0], 203.0);
+        // PQ of 203 cd/m² is 0.581.
+        assert!(white[..3].iter().all(|&c| c.abs_diff(148) <= 1), "{white:?}");
+        assert_eq!(white[3], 255);
+        assert_eq!(&white[4..], &[0, 0, 0, 0]);
+    }
 }

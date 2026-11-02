@@ -149,6 +149,14 @@
   - **Tests.** A pane test covers the row hidden and shown, the change
     asked for, and the slider and 8-bit line in HDR. Its helper clicks a
     described row's control at the centre of its label and description.
+- **The full compositor suite** after 22.9: 68 test binaries pass.
+  - It found one regression: glass in half floats had lost the 1.0 clamp
+    on its saturation, so SDR glass over red came out redder than the
+    contrast floor reckons (2.83:1). Saturation now stops at 1.0, or at an
+    HDR texel's own brightest channel.
+  - `shell.rs`'s six-frames-in-the-open test failed once under the full
+    suite and passes alone, as P19p recorded.
+- 22.10's checklist is in `hdr-2026.md` §10.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

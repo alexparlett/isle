@@ -93,7 +93,9 @@ varying vec2 v_coords;
 void main() {
     vec3 c = texture2D(tex, v_coords).rgb;
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = max(mix(vec3(luma), c, saturation), 0.0);
+    // Saturation goes no further than 1.0, as on SDR, or an HDR texel's own brightest channel.
+    float top = max(1.0, max(max(c.r, c.g), c.b));
+    c = clamp(mix(vec3(luma), c, saturation), 0.0, top);
     c = mix(c, tint.rgb, tint.a);
     vec2 p = (v_coords - src_origin) / src_size * size;
     vec2 q = abs(p - size * 0.5) - (size * 0.5 - vec2(radius));

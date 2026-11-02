@@ -188,7 +188,8 @@ HEAD packaged and installed. Ends with the host signing into Isle from
 tuigreet, and P12's and P13's host runs made on the installed build.
 Intent: platform.md, compositor.md.
 
-**P14b · The greeter.** Split from the switch at the user's choice
+**P14b · The greeter.** Built 2026-11-02, host run pending:
+`p14b-greeter.md`, B140–B143. Split from the switch at the user's choice
 (2026-11-01) and built before the parity packets end. The compositor's
 greeter mode under greetd (B26): the lock's face with its user list and
 session menu, drawing the look the user's session publishes for it (where:

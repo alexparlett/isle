@@ -982,10 +982,13 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   shipped code reads the build tree.
 - **What it installs.** The six binaries; the session entry; the user
   target; the portal backend file and `isle-portals.conf`; Settings'
-  desktop entry and D-Bus service; `/usr/lib/pam.d/isle`; the NVIDIA
+  desktop entry and D-Bus service; `/usr/lib/pam.d/isle`, and
+  `isle-greetd` and `isle-greeter` for the greeter; `tmpfiles.d` entries
+  for the greeter's cache, its state and the published looks; the NVIDIA
   profile in `/etc` (the driver reads no `/usr/share` directory); an i2c
   `uaccess` rule and `i2c-dev` for DDC/CI.
-- **Beside v1** (B101). tuigreet chooses the session. Each desktop's
+- **Beside v1** (B101). Isle's greeter chooses the session (B140), tuigreet
+  standing in when it cannot draw (B142). Each desktop's
   portals file chooses from the one backend file; xremap carries a
   condition on `XDG_CURRENT_DESKTOP`; the lock marker is named for the
   logind session; the logs are apart.
@@ -996,6 +999,30 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 - **`isle setup`** (B103). Steps with check, apply and undo and their
   record; the root half is `isle setup --as-root`, run through sudo or
   pkexec.
+
+## How the greeter signs in
+
+- **The mode** (B140). `isle-compositor --greeter` sets `greeter::on()`
+  before any thread starts, with `XDG_CACHE_HOME` and `XDG_STATE_HOME` in
+  `/var/cache/isle-greeter` and `/var/lib/isle-greeter`. `run` takes its
+  own branch: the default settings, the shipped tokens, `start_locked`,
+  `worker::spawn_greeter`, and none of a session's names, state or
+  clients. `unlock` returns at once in it; the island is not drawn.
+- **The conversation.** `isle_auth::greetd` speaks greetd's IPC;
+  `greeter.rs` owns a task on the worker that holds the connection and
+  takes `Talk`s from the loop, posting each `Heard` back with the
+  generation it was asked in. The lock's `submit_password` hands the field
+  to it instead of `isle-auth`; PAM's question is the field's placeholder,
+  its info lines the status line, a refusal the lock's shake.
+- **Users and sessions.** AccountsService, listed again when it comes onto
+  the bus; `isle_apps::sessions` for the menu. The face's model gains
+  `Greeter`: the list, the selection, the sessions, PAM's question.
+- **The look** (B141). `greeter_look.rs`: `Isle::publish_look_soon` from
+  `apply_settings` and a newly shown picture in a session;
+  `greeter_take_look` in the greeter for the selected user, through
+  `isle_settings::text_of` and the settings store.
+- **The way out** (B142). `greeter::count_start` before the backend, and
+  `greeter_drew` after a frame on the face's screen.
 
 ## Rules the layout enforces
 

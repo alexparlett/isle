@@ -73,6 +73,9 @@
   failing starts. Found and fixed: the console chord wanted Ctrl+Option after a PC keyboard's
   Alt had been read as Cmd, so Ctrl+Alt+F2 did nothing on a PC-profile keyboard (since P5);
   it now takes Ctrl with Option or Cmd. A PKGBUILD quoting slip stopped the first build.
+- 14b.9 (before the host run): B140–B143, ARCHITECTURE's How the greeter signs in,
+  `platform.md` and `compositor.md`'s open points answered, the roadmap's P14b, the sheet's
+  outcome.
 
 ## 2026-11-01 (P19c)
 

@@ -678,6 +678,12 @@
   `isle_auth::greetd` and a fake greetd, `isle-compositor --greeter`, users
   from AccountsService with the list and the session menu, the look each
   session publishes, the handoff, the session-failed line, the fallback to
-  tuigreet, the PAM files, tmpfiles and the `greeter` setup step. Next:
-  14b.8, the VM (the package in the guest, greetd on Isle's greeter), then
-  the host run with the user.
+  tuigreet, the PAM files, tmpfiles and the `greeter` setup step.
+- P14b built 2026-11-02 (14b.8, the VM): signed in through greetd to Isle
+  and to Hyprland, the look drawn, the fallback to tuigreet, Ctrl+Alt+F2
+  fixed for PC-profile keyboards. B140–B143 recorded (P19a and P19c, still
+  to close, take theirs from B144), ARCHITECTURE has How the greeter signs
+  in, `p14b-greeter.md` ends with its outcome. Next: the host run, the
+  user's (`docs/research/rust-desktop/p14b-greeter.md`); then P14c or P20.
+  The guest is left on greetd with Isle's greeter and a test password kept
+  outside the repository.

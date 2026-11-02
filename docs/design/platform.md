@@ -586,8 +586,10 @@ Wi-Fi and suspend without an admin password.
 **v1 lessons kept.** D17. D34: greetd holds one PAM conversation per
 session. D39.
 
-**Open for its packet.** The greetd IPC client. Where the session writes
-the greeter's choices so greetd's user can read them.
+**Answered in P14b.** Isle's own greetd client on the compositor's worker
+(B140). The session writes the greeter's choices to
+`/var/lib/isle/greeter/<user>/`, a settings file and a picture (B141).
+Fingerprint sign-in and autologin are P14c's.
 
 ### Supervisor and crash records
 

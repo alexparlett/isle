@@ -366,3 +366,31 @@ which Isle already maps, are the way out of a misbehaving greeter
 - **PAM messages beyond a password.** An expired password asks for a new
   one twice; choice 6 handles any number of prompts, but the face was drawn
   for one. The fake tests the shape; the copy is PAM's.
+
+## Outcome
+
+Built 2026-11-01 and 02 in phases 14b.0–14b.8; the host run, part of done,
+is the user's, with its checklist in `docs/research/rust-desktop/p14b-greeter.md`.
+B140–B143 record the decisions. Differences from the plan:
+
+- **No arrival from the greeter's backdrop.** Choice 16's
+  `ISLE_FROM_GREETER` and the session's softened first frame are not built:
+  the lock's unlock is a cut, not P1's dissolve, so signing in and
+  unlocking already look alike. The greeter hides its face and exits after
+  `motion-exit-fade-ms`.
+- **The look is a settings file.** Choice 10's `look.kdl` is written in
+  `settings.kdl`'s own form by `isle_settings::text_of` and read through
+  the settings store, so the greeter needs no schema of its own; per-device
+  keyboard entries are written even when they hold their defaults.
+- **The console keys changed.** The VM run found that a PC-profile
+  keyboard's Ctrl+Alt+F-key did nothing (Alt read as Cmd, since P5); they
+  now act with Ctrl and Option or Cmd (B142).
+- **The session menu closes** on a choice, Escape or its capsule, not on a
+  click elsewhere on the face.
+- **The field's chords** are read by the Cmd role, which a PC keyboard puts
+  on its left Alt, not Ctrl as choice 18 first said.
+
+Found on the way and fixed: two `isle-package` tests failing before P14b
+(`isle-provider-init`'s crate, and `tests.rs` modules counted as shipped
+source); a PKGBUILD quoting slip of P14b's own. The guest kept five
+hand-copied helper and policy files from P19's walks, overwritten by name.

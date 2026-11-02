@@ -397,7 +397,7 @@ with tearing where the user allows it (B6).
 
 **v1 lessons kept.** D17: outside the logind session scope NetworkManager, udisks and logind refuse or demand admin. D15, D43: a dead locker stranded the session and the restart loop gave up; logs were lost in the runtime directory. D53: restore by app and Space; a shell restart replays nothing. D66: Rust-side faults land in something restartable, not the whole desktop.
 
-**Settled in P2.** A dispatch stuck for ten seconds writes a crash record and aborts the main thread, so its stack is in the core dump and the supervisor starts a fresh session; `debug { watchdog-abort #false }` turns that off (B35). **Open.** GPU reset recovery, which killed Denial's session (smithay-and-gaming.md §4.5). Where the session publishes the greeter's choices so greetd's user can read them.
+**Settled in P2.** A dispatch stuck for ten seconds writes a crash record and aborts the main thread, so its stack is in the core dump and the supervisor starts a fresh session; `debug { watchdog-abort #false }` turns that off (B35). **Open.** GPU reset recovery, which killed Denial's session (smithay-and-gaming.md §4.5). **Settled in P14b.** The session publishes the greeter's choices as a settings file and a picture under `/var/lib/isle/greeter/` (B141).
 
 ### Shell surface hosting
 

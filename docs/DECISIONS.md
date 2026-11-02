@@ -1518,3 +1518,54 @@ Checked against compsize on a compressed loop disk: equal to the byte.
 Rejected: scaling each disk's figures by its used share (wrong per folder,
 since build output and video compress differently) and labelling the
 larger figures honestly (still larger than the disk).
+
+**B140 · The greeter is the compositor's lock and nothing else.** Built in
+P14b. greetd runs `isle-compositor --greeter` as its `greeter` user: the
+lock's face with a list of users from AccountsService (passwd's people
+when it does not answer) and a menu of `wayland-sessions` entries, started
+locked and never unlocked, with no Wayland socket, no Xwayland, no session
+bus, no state under a home and no shortcuts but the layout switch and the
+console keys. Its worker runs logind, UPower and AccountsService alone.
+The password goes to greetd over Isle's own client of greetd's IPC, run on
+the worker one request at a time, each answer tagged with the user it was
+asked about so a late one is dropped; greetd runs PAM under
+`/usr/lib/pam.d/isle-greetd`, and the greeter's own session is
+`isle-greeter`, greetd's own file left alone. Signed in, the greeter
+starts the chosen session with its `DesktopNames` as
+`XDG_CURRENT_DESKTOP`, remembers the user and their session, hides its face
+and exits. Rejected: a separate greeter binary (two builds of the lock),
+the `greetd_ipc` crate (GPL-3.0-only, for a few dozen lines), a cage or
+sway host (a second compositor for one screen).
+
+**B141 · The session publishes the greeter's look as a settings file.**
+Built in P14b. Half a second after the last change, a session writes
+`/var/lib/isle/greeter/<user>/look.kdl` in `settings.kdl`'s own form,
+holding only the keys the greeter draws with (appearance but the glass,
+the clock's hours, the keyboard and each keyboard's profile, the displays'
+mode, scale, place and turn, the main screen, the wallpaper), and the main
+screen's picture fitted to it as `wallpaper.png`. The greeter reads the
+selected user's file through the settings store, takes those keys alone
+and applies them as changed settings; a file that does not parse gives the
+shipped look, and `tokens.kdl` and `settings.kdl` are never read.
+`isle setup` makes the user's directory. Rejected: AccountsService's
+extension properties, which cannot carry a picture; a root helper reading
+each home, as cosmic-greeter's daemon does.
+
+**B142 · A greeter that cannot draw gives way to tuigreet.** Built in
+P14b. Each start that has not yet drawn its face is counted in the
+greeter's state (`/var/lib/isle-greeter`); the third within a minute
+execs tuigreet with P14a's arguments, and a drawn face clears the count.
+A greeter started within ten seconds of handing greetd a session says the
+session did not start. The console keys are the other way out: they act
+with Ctrl and either Option or Cmd, so a PC keyboard whose Alt is read as
+Cmd still switches with Ctrl+Alt+F-key (P5 had required Option, found in
+P14b's VM run). Rejected: relying on the console keys alone, which a
+greeter that dies before reading keys never takes.
+
+**B143 · The lock's field takes a password field's chords.** Built in
+P14b, on the lock and the greeter alike. Read from the physical chord
+before translation, which had turned them into keys the field dropped:
+Cmd+A selects the dots for the next character or Backspace to replace,
+Cmd+Backspace and Option+Backspace clear, Cmd+V pastes the clipboard's
+text with its line breaks dropped, and Cmd+C and Cmd+X do nothing, as
+macOS's secure fields. Option still types its characters.

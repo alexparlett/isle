@@ -703,5 +703,7 @@
   mode passed (FP16 holds values outside 0–1, AB30/XB30/AB4H scan-out
   buffers render). 22.0 done the same day: the HDR10 modeset passed on
   the host (no hang, wakes in HDR); 203 cd/m² looks dimmer than the
-  panel's SDR white; one black wake in the first run stays open. Next:
-  22.1, the connector state ported onto the Smithay fork.
+  panel's SDR white; one black wake in the first run stays open. 22.1
+  and 22.2 ported as alexparlett/smithay#6 (connector state) and #7 (the
+  protocol), both building with their tests passing. Next: merge both
+  into `isle`, move the pin, then 22.3.

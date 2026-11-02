@@ -22,6 +22,18 @@
   SDR Brightness's default is set at the host run. One black screen after
   waking in HDR by `ACTIVE`, in the first run only, stays open as the 615
   wake risk. 22.0 is done.
+- 22.1: the connector colour state is ported as alexparlett/smithay#6
+  (`hdr-connector`). It is dividebysandwich's commit, applied unchanged
+  onto `isle`. It builds, and its 9 DRM tests pass. The port, read
+  through, already checks each new colour state with TEST_ONLY when it is
+  staged, so the comparison with franzjeger's code was not needed.
+- 22.2: the protocol is ported as alexparlett/smithay#7
+  (`hdr-color-management`). It is dividebysandwich's commit and
+  Snowhill's six, colour representation included but not to be
+  advertised. The only conflicts were in `Cargo.toml` and the CHANGELOG.
+  It builds, and its colour tests pass.
+- Both PRs wait to be merged into `isle` before the workspace's pin
+  moves.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

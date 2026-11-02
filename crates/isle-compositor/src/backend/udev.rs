@@ -107,6 +107,8 @@ struct Lit {
     front_drawn_at: Option<Duration>,
     /// The VRR state the connector refused, not asked for again until wanted otherwise.
     vrr_refused: Option<bool>,
+    /// An HDR screen's intermediate, made at its first frame.
+    hdr_pass: Option<crate::hdr_pass::HdrPass>,
 }
 
 /// The dmabuf feedback for a surface on this output: what Isle renders from, and what
@@ -346,7 +348,11 @@ impl Udev {
         };
         // An async flip leaves the cursor plane alone, so with the pointer shown the frame
         // goes with vsync: its cursor on its plane and the game still scanned out.
-        let tear = isle.wants_tearing(output) && !elements.iter().any(|e| e.kind() == Kind::Cursor);
+        let hdr = crate::hdr::OutputHdr::of(output).cloned();
+        // An HDR screen's frame is the pass's texture, never a client's buffer (P22 choice 16).
+        let tear = hdr.is_none()
+            && isle.wants_tearing(output)
+            && !elements.iter().any(|e| e.kind() == Kind::Cursor);
         if tear {
             flags |= FrameFlags::ASYNC_SCANOUT_ONLY | FrameFlags::ALLOW_PRIMARY_PLANE_SCANOUT_ANY;
         }
@@ -355,49 +361,64 @@ impl Udev {
         } else {
             PresentationMode::VSync
         };
-        let result = lit
-            .surface
-            .render_frame(renderer, &elements, clear, flags, mode)
-            .map_err(|e| format!("{e:?}"))?;
-        let damaged = !result.is_empty;
-        if damaged
-            && matches!(result.primary_element, PrimaryPlaneElement::Swapchain(_))
-            && isle.full_screen_front(output).is_some()
-        {
-            explain_composited(renderer, output, &elements, clear, flags);
-        }
-        // Where the display cannot wait on the render's fence, the frame is finished here,
-        // or a half-drawn frame would be scanned out.
-        if damaged
-            && result.needs_sync()
-            && let PrimaryPlaneElement::Swapchain(element) = &result.primary_element
-            && {
-                static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                if !SAID.swap(true, std::sync::atomic::Ordering::Relaxed) {
-                    info!("composited frames are waited for: the display takes no render fence");
-                }
-                true
-            }
-            && let Err(err) = element.sync.wait()
-        {
-            warn!(output = output.name(), "could not wait for the frame to render: {err:?}");
-        }
-        let planes = Planes {
-            primary: match &result.primary_element {
-                PrimaryPlaneElement::Swapchain(_) => present::Primary::Composited,
-                PrimaryPlaneElement::Element(element) => scanned_out(isle, element.id()),
-            },
-            cursor: if result.cursor_element.is_some() {
-                present::Cursor::Plane
-            } else if elements.iter().any(|e| e.kind() == Kind::Cursor) {
-                present::Cursor::Drawn
-            } else {
-                present::Cursor::None
-            },
-            overlays: result.overlay_elements.len(),
-            asked_async: tear,
+        let cursor_drawn = if elements.iter().any(|e| e.kind() == Kind::Cursor) {
+            present::Cursor::Drawn
+        } else {
+            present::Cursor::None
         };
-        let states = result.states;
+        let (damaged, planes, states) = if let Some(hdr) = &hdr {
+            if !lit.hdr_pass.as_ref().is_some_and(|p| p.fits(output)) {
+                lit.hdr_pass = Some(crate::hdr_pass::HdrPass::new(renderer, output)?);
+            }
+            let pass = lit.hdr_pass.as_mut().expect("made above");
+            let states = pass.composite(renderer, &elements, clear)?;
+            let element = pass.element(crate::hdr_pass::Encode {
+                sdr_white: hdr.sdr_white.get() as f32,
+                peak: hdr.caps.peak as f32,
+                gains: crate::night_light::gains(self.warmth).map(|g| g as f32),
+            });
+            let pass_elements = [element];
+            let result = lit
+                .surface
+                .render_frame(renderer, &pass_elements, clear, FrameFlags::empty(), PresentationMode::VSync)
+                .map_err(|e| format!("{e:?}"))?;
+            let damaged = !result.is_empty;
+            wait_unfenced(&result, damaged, output);
+            let planes = Planes {
+                primary: present::Primary::Composited,
+                cursor: cursor_drawn,
+                overlays: 0,
+                asked_async: false,
+            };
+            (damaged, planes, states)
+        } else {
+            let result = lit
+                .surface
+                .render_frame(renderer, &elements, clear, flags, mode)
+                .map_err(|e| format!("{e:?}"))?;
+            let damaged = !result.is_empty;
+            if damaged
+                && matches!(result.primary_element, PrimaryPlaneElement::Swapchain(_))
+                && isle.full_screen_front(output).is_some()
+            {
+                explain_composited(renderer, output, &elements, clear, flags);
+            }
+            wait_unfenced(&result, damaged, output);
+            let planes = Planes {
+                primary: match &result.primary_element {
+                    PrimaryPlaneElement::Swapchain(_) => present::Primary::Composited,
+                    PrimaryPlaneElement::Element(element) => scanned_out(isle, element.id()),
+                },
+                cursor: if result.cursor_element.is_some() {
+                    present::Cursor::Plane
+                } else {
+                    cursor_drawn
+                },
+                overlays: result.overlay_elements.len(),
+                asked_async: tear,
+            };
+            (damaged, planes, result.states)
+        };
         if damaged {
             lit.surface.queue_frame(()).map_err(|e| format!("{e:?}"))?;
             if !matches!(planes.primary, present::Primary::Window(_)) {
@@ -926,6 +947,7 @@ impl State {
                 front_commit: None,
                 front_drawn_at: None,
                 vrr_refused: None,
+                hdr_pass: None,
             },
         );
 
@@ -1344,6 +1366,30 @@ fn scanned_out(isle: &Isle, id: &Id) -> present::Primary {
         }
     }
     present::Primary::Surface
+}
+
+/// Where the display cannot wait on the render's fence, the frame is finished here, or a
+/// half-drawn frame would be scanned out.
+fn wait_unfenced<B, F, E>(
+    result: &smithay::backend::drm::compositor::RenderFrameResult<'_, B, F, E>,
+    damaged: bool,
+    output: &Output,
+) where
+    B: smithay::backend::allocator::Buffer,
+    F: smithay::backend::drm::Framebuffer,
+{
+    if damaged
+        && result.needs_sync()
+        && let PrimaryPlaneElement::Swapchain(element) = &result.primary_element
+    {
+        static SAID: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if !SAID.swap(true, std::sync::atomic::Ordering::Relaxed) {
+            info!("composited frames are waited for: the display takes no render fence");
+        }
+        if let Err(err) = element.sync.wait() {
+            warn!(output = output.name(), "could not wait for the frame to render: {err:?}");
+        }
+    }
 }
 
 /// Asks `surface` for HDR10: a 10-bit swapchain, else 8-bit, and the screen's colour state,

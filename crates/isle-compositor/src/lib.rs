@@ -24,6 +24,7 @@ mod greeter;
 mod greeter_look;
 mod handlers;
 mod hdr;
+mod hdr_pass;
 mod helpers;
 mod hot_corners;
 mod idle;

@@ -392,6 +392,7 @@ impl crate::state::State {
         if force || (kelvin - self.isle.night_applied).abs() >= 10.0 || (!fading && kelvin != self.isle.night_applied) {
             self.backend.set_warmth(kelvin);
             self.isle.night_applied = kelvin;
+            self.isle.queue_redraw_hdr();
         }
         if fading && !self.isle.night_fading {
             self.isle.night_fading = true;
@@ -402,6 +403,7 @@ impl crate::state::State {
                 if (kelvin - state.isle.night_applied).abs() >= 10.0 || !fading {
                     state.backend.set_warmth(kelvin);
                     state.isle.night_applied = kelvin;
+                    state.isle.queue_redraw_hdr();
                 }
                 if fading {
                     TimeoutAction::ToDuration(FADE_STEP)

@@ -108,6 +108,21 @@ impl OutputHdr {
     }
 }
 
+impl crate::state::Isle {
+    /// Redraws every HDR screen, whose final pass carries night light's warmth.
+    pub fn queue_redraw_hdr(&mut self) {
+        let outputs: Vec<_> = self
+            .space
+            .outputs()
+            .filter(|o| OutputHdr::of(o).is_some())
+            .cloned()
+            .collect();
+        for output in outputs {
+            self.queue_redraw(&output);
+        }
+    }
+}
+
 /// Whether the connector has `Colorspace` with BT2020_RGB and `HDR_OUTPUT_METADATA`.
 pub fn connector_takes_hdr(drm: &DrmDevice, conn: connector::Handle) -> bool {
     let Ok(props) = drm.get_properties(conn) else {

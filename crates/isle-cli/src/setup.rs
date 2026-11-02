@@ -282,6 +282,11 @@ mod greeter {
             text = with_key(&text, section, key, value);
         }
         write(&path, &text)?;
+        // greetd reads its config once, at its own start.
+        println!(
+            "         greetd takes the new greeter when it next starts: reboot, or \
+             `sudo systemctl restart greetd`, which ends the session it is running"
+        );
         if let Some(dir) = look_dir(env)
             && !dir.is_dir()
         {

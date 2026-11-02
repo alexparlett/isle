@@ -62,8 +62,11 @@ r670 installed and setup applied.
 
    A greeter that cannot draw at all runs tuigreet by itself after three
    tries.
-5. Sign out. The greeter should show your wallpaper, dark or light as you
-   have it, your name and picture, and the session capsule.
+5. Restart greetd, which reads its config only at its own start and ends
+   the session it is running: reboot, or save your work and run `sudo
+   systemctl restart greetd`. (Signing out alone gives tuigreet again; found
+   on the host's first try.) The greeter should show your wallpaper, dark
+   or light as you have it, your name and picture, and the session capsule.
 6. Check, in order:
    - a wrong password shakes the field and says so;
    - Ctrl+Option+(Fn+)F2 reaches tty2, Ctrl+Option+F1 comes back;

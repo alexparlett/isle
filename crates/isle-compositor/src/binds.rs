@@ -271,7 +271,12 @@ impl Bindings {
             shortcut,
             mods: chord.mods,
         };
-        if chord.mods.ctrl && chord.mods.option && (keysyms::KEY_F1..=keysyms::KEY_F12).contains(&raw) {
+        // The kernel's console keys are Ctrl+Alt+F-key by the key's label; a PC keyboard whose
+        // Alt is read as Cmd still switches with it.
+        if chord.mods.ctrl
+            && (chord.mods.option || chord.mods.cmd)
+            && (keysyms::KEY_F1..=keysyms::KEY_F12).contains(&raw)
+        {
             return Some(bound(Action::SwitchVt((raw - keysyms::KEY_F1 + 1) as i32), None));
         }
         if let Some(shortcut) = self.chords.get(&chord) {
@@ -472,5 +477,33 @@ pub fn spawn(command: &str) {
         });
     if let Err(err) = result {
         warn!("could not start a spawn thread: {err}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use isle_keys::chord::{Chord, Mods};
+    use isle_settings::schema::Settings;
+    use smithay::input::keyboard::Keysym;
+
+    use super::*;
+
+    fn vt(mods: Mods) -> Option<i32> {
+        let bindings = Bindings::new(&Settings::default(), 1);
+        match bindings.lookup(Chord::new(mods, Keysym::from(keysyms::KEY_F2)))?.action {
+            Action::SwitchVt(vt) => Some(vt),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn ctrl_with_option_or_cmd_and_an_f_key_switches_console() {
+        let ctrl = Mods {
+            ctrl: true,
+            ..Mods::NONE
+        };
+        assert_eq!(vt(Mods { option: true, ..ctrl }), Some(2));
+        assert_eq!(vt(Mods { cmd: true, ..ctrl }), Some(2));
+        assert_eq!(vt(ctrl), None);
     }
 }

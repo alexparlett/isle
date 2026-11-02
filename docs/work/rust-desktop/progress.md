@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-11-02 (P22)
+
+- 22.0 in part. The plan was reviewed with every recommendation taken. The
+  community Smithay port stays the base: both pieces apply cleanly onto
+  `isle` at `3e5b6fe4`, and the user accepts its drift while it stays
+  isolated. P22 is built now, ahead of P14c, P20 and P21.
+- `spikes/hdr-modeset` was written. Its `gl` mode passed on the host:
+  - an FP16 render target keeps values outside 0–1;
+  - AB30, XB30 and AB4H GBM scan-out buffers render with the renderer's
+    modifiers.
+- Its `run` mode, the HDR10 modeset from a free console, waits on the
+  user.
+- ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
+  say `24647fc8`.
+
 ## 2026-11-01 (P14b)
 
 - 14b.0: the record. P14 split again at the user's choice: P14b the greeter, P14c the rest

@@ -36,4 +36,5 @@ one at a time.
 - `p19a-monitor.md`: P19a, Monitor.
 - `p19b-cleaner.md`: P19b, Cleaner.
 - `p19c-keychain.md`: P19c, Keychain.
+- `p22-hdr.md`: P22, HDR.
 - Evidence: `docs/research/rust-desktop/`.

@@ -1079,7 +1079,7 @@ How Isle is installed.
 ## Dependencies held as forks
 
 - **Smithay**, through `alexparlett/smithay` (B6), pinned by revision on
-  its `isle` branch: upstream master at `118e34f` with Isle's patches, each
+  its `isle` branch: upstream master at `24647fc8` (2026-10-20) with Isle's patches, each
   merged by pull request in the fork, none offered upstream (B43). So far
   three: the X11 window manager tracks windows' bounding shape (SHAPE) and
   reads Steam's `STEAM_GAME` label (alexparlett/smithay#2), and an

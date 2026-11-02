@@ -352,7 +352,9 @@ touchpad's tap and scroll-method rows. The edge swipe for Notification
 Centre stays out: libinput's gestures carry no position. Intent: shell.md
 Mission Control 9, compositor.md Pointer 6–7.
 
-**P22 · HDR.** Shots, streams and the colour pick from HDR outputs (P11's
+**P22 · HDR.** Planned and reviewed 2026-11-02, every recommendation
+taken; built now, ahead of P14c, P20 and P21 (the user's choice):
+`p22-hdr.md`, evidence in `docs/research/rust-desktop/hdr-2026.md`. Shots, streams and the colour pick from HDR outputs (P11's
 are 8-bit sRGB). Night light shares the CRTC's colour pipeline with HDR
 (P12 writes `GAMMA_LUT` alone). Colour management from the community Smithay fork's work
 (B23): the colour-management protocol, HDR metadata to the output, SDR

@@ -687,3 +687,19 @@
   user's (`docs/research/rust-desktop/p14b-greeter.md`); then P14c or P20.
   The guest is left on greetd with Isle's greeter and a test password kept
   outside the repository.
+- P22 planned 2026-11-02 in `p22-hdr.md`, for review; built after P21 as
+  B23 has it. Evidence in `docs/research/rust-desktop/hdr-2026.md`, with
+  the host's KMS probed: `Colorspace` and `HDR_OUTPUT_METADATA` on DP-4, no
+  `max bpc`, 10-bit only as XB30/AB30, plane colour pipelines with PQ
+  curves only. The plan: a spike first; the community Smithay port
+  (connector state in the modeset, colour-management v3) as two fork PRs;
+  HDR a per-screen switch with SDR Brightness (203); blend in FP16
+  extended sRGB and encode PQ in a final pass; HDR10 full-screen scan-out
+  untouched; night light in the pass on HDR screens; captures mapped to
+  SDR; no colour pipeline. Phases 22.0–22.11.
+- P22 reviewed 2026-11-02, every recommendation taken (the port's drift
+  accepted while it stays isolated); built now, ahead of P14c, P20 and P21,
+  at the user's word. 22.0 in part: `spikes/hdr-modeset` built; its `gl`
+  mode passed (FP16 holds values outside 0–1, AB30/XB30/AB4H scan-out
+  buffers render). Next: its `run` mode from a free console on the host,
+  the user's, then 22.1.

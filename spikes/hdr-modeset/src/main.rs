@@ -660,9 +660,19 @@ fn hold(secs: u64) -> bool {
     true
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum Leave {
+    /// From HDR, the colour reset in the disabling commit.
+    Reset,
+    /// From HDR, the colour left as it is.
+    Unreset,
+    /// From SDR: whether the console relights an output left disabled.
+    Sdr,
+}
+
 struct Options {
-    /// Leaves HDR by disabling the output and exits: Some(true) resets the colour in that commit.
-    leave: Option<bool>,
+    /// Disables the output and exits.
+    leave: Option<Leave>,
     depth: Depth,
     mode: Option<(u16, u16, u32)>,
     card: Option<PathBuf>,
@@ -779,19 +789,20 @@ fn run(opts: Options) -> Result<(), String> {
             Ok(())
         };
 
-        if let Some(reset) = opts.leave {
-            show(&sdr, &["Leave test. Press Enter for HDR."])?;
-            ask(&answers, "L0. Leave test. Enter for HDR");
-            let how = if reset {
-                "and its colour is reset in that commit"
-            } else {
-                "with its colour left in HDR"
+        if let Some(leave) = opts.leave {
+            let (from, how) = match leave {
+                Leave::Reset => (&hdr_on, "and its colour is reset in that commit"),
+                Leave::Unreset => (&hdr_on, "with its colour left in HDR"),
+                Leave::Sdr => (&sdr, "in SDR"),
             };
-            let line = format!("HDR. Press Enter: the screen turns off {how}, and the program exits.");
-            show(&hdr_on, &[&line, "Then check whether the console's text looks normal."])?;
+            show(&sdr, &["Leave test. Press Enter."])?;
+            ask(&answers, "L0. Leave test. Enter");
+            let line = format!("Press Enter: the screen turns off {how}, and the program exits.");
+            show(from, &[&line, "Then: does the console come back, and does its text look normal?"])?;
             ask(&answers, "L1. Enter to leave");
-            let t = disable(&card, &out, reset.then_some(default))?;
-            say!("output disabled{} in {t:?}", if reset { " with the colour reset" } else { "" });
+            let reset = (leave == Leave::Reset).then_some(default);
+            let t = disable(&card, &out, reset)?;
+            say!("output disabled ({how}) in {t:?}");
             left.set(true);
             return Ok(());
         }
@@ -1011,13 +1022,14 @@ fn main() -> ExitCode {
         match arg.as_str() {
             "gl" | "run" => command = if arg == "gl" { "gl" } else { "run" },
             "--eight" => opts.depth = Depth::Eight,
-            "--leave" => opts.leave = Some(true),
-            "--leave-unreset" => opts.leave = Some(false),
+            "--leave" => opts.leave = Some(Leave::Reset),
+            "--leave-unreset" => opts.leave = Some(Leave::Unreset),
+            "--leave-sdr" => opts.leave = Some(Leave::Sdr),
             "--mode" => opts.mode = it.next().and_then(|v| parse_mode(v)),
             "--card" => opts.card = it.next().map(PathBuf::from),
             _ => {
                 eprintln!(
-                    "usage: hdr-modeset [run] [--leave | --leave-unreset] [--eight] [--mode WxH@HZ] [--card PATH]\n       hdr-modeset gl"
+                    "usage: hdr-modeset [run] [--leave | --leave-unreset | --leave-sdr] [--eight] [--mode WxH@HZ] [--card PATH]\n       hdr-modeset gl"
                 );
                 return ExitCode::from(2);
             }

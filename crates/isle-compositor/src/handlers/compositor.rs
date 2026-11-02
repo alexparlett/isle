@@ -35,6 +35,10 @@ impl CompositorHandler for State {
 
     fn commit(&mut self, surface: &WlSurface) {
         on_commit_buffer_handler::<Self>(surface);
+        if crate::colour_management::changed_at_commit(surface) {
+            self.isle.colour_epoch.set(self.isle.colour_epoch.get() + 1);
+            self.isle.queue_redraw_all();
+        }
 
         if !is_sync_subsurface(surface) {
             let mut root = surface.clone();

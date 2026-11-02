@@ -76,6 +76,7 @@ pub struct HdrPass {
     scale: f64,
     drawn: bool,
     encoded: Option<Encode>,
+    epoch: u64,
 }
 
 /// What the screen is told for the pass's uniforms.
@@ -110,6 +111,7 @@ impl HdrPass {
             scale,
             drawn: false,
             encoded: None,
+            epoch: 0,
         })
     }
 
@@ -122,13 +124,18 @@ impl HdrPass {
             && output.current_scale().fractional_scale() == self.scale
     }
 
-    /// Draws `elements` into the intermediate, keeping what did not change.
+    /// Draws `elements` into the intermediate, keeping what did not change unless the colour
+    /// epoch moved.
     pub fn composite(
         &mut self,
         renderer: &mut GlesRenderer,
         elements: &[IsleElement],
         clear: [f32; 4],
+        epoch: u64,
     ) -> Result<RenderElementStates, String> {
+        if std::mem::replace(&mut self.epoch, epoch) != epoch {
+            self.drawn = false;
+        }
         let mut framebuffer = renderer.bind(&mut self.texture).map_err(|e| e.to_string())?;
         let age = usize::from(self.drawn);
         let result = self
@@ -301,7 +308,7 @@ mod tests {
             colour,
             Kind::Unspecified,
         );
-        pass.composite(renderer, &[IsleElement::Solid(solid)], [0.0, 0.0, 0.0, 1.0])
+        pass.composite(renderer, &[IsleElement::Solid(solid)], [0.0, 0.0, 0.0, 1.0], 0)
             .expect("composite");
         let element = pass.element(encode);
         let mut screen: GlesTexture =

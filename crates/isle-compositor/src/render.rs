@@ -227,6 +227,7 @@ impl Isle {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
+        self.colour_target.set(crate::colour::Target::of(output));
         let scale = Scale::from(output.current_scale().fractional_scale());
         let pointer = self
             .seat

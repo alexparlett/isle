@@ -64,3 +64,90 @@ async fn a_still_hdr_desktop_presents_no_frames() {
     // The island's clock may turn a minute in the window.
     assert!(test.frames("HEADLESS-1").await.unwrap() - before <= 1);
 }
+
+mod clients {
+    use wayland_protocols::wp::color_management::v1::client::wp_color_manager_v1::{
+        Feature, Primaries, TransferFunction,
+    };
+
+    use super::*;
+
+    fn pq_eotf(e: f64) -> f64 {
+        let p = e.clamp(0.0, 1.0).powf(1.0 / 78.84375);
+        ((p - 0.8359375).max(0.0) / (18.8515625 - 18.6875 * p)).powf(1.0 / (2610.0 / 16384.0)) * 10000.0
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_manager_advertises_what_gamescope_and_mesa_look_for() {
+        let mut isle = Isle::start("hdr-features").await;
+        let client = isle.client("isle.test.Cm", "888888");
+        client.wait_for("cm done").await;
+        for feature in [
+            Feature::Parametric,
+            Feature::SetPrimaries,
+            Feature::SetLuminances,
+            Feature::SetMasteringDisplayPrimaries,
+            Feature::ExtendedTargetVolume,
+            Feature::WindowsScrgb,
+        ] {
+            assert!(client.printed(&format!("cm feature {}", feature as u32)), "{feature:?}");
+        }
+        for tf in [TransferFunction::St2084Pq, TransferFunction::Gamma22, TransferFunction::ExtLinear] {
+            assert!(client.printed(&format!("cm tf {}", tf as u32)), "{tf:?}");
+        }
+        assert!(!client.printed(&format!("cm tf {}", TransferFunction::Srgb as u32)));
+        for primaries in [Primaries::Srgb, Primaries::Bt2020] {
+            assert!(client.printed(&format!("cm primaries {}", primaries as u32)), "{primaries:?}");
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn the_preferred_description_follows_the_screen() {
+        let mut isle = Isle::start("hdr-preferred").await;
+        let client = isle.client("isle.test.Cm", "888888");
+        isle.wait_for_window("isle.test.Cm").await;
+        client.send("preferred");
+        client.wait_for("preferred done").await;
+        assert!(client.printed(&format!("preferred tf {}", TransferFunction::Gamma22 as u32)));
+
+        client.clear();
+        isle.test().await.make_hdr("HEADLESS-1", 302.0, 250.0).await.unwrap();
+        client.wait_for("preferred changed").await;
+        client.send("preferred");
+        client.wait_for("preferred done").await;
+        assert!(client.printed(&format!("preferred tf {}", TransferFunction::St2084Pq as u32)));
+        assert!(client.printed(&format!("preferred primaries {}", Primaries::Bt2020 as u32)));
+        assert!(client.printed("preferred luminances 50 10000 250"));
+        // Above the reference, so gamescope offers HDR.
+        assert!(client.printed_part("preferred target 0 302"));
+    }
+
+    /// An HDR10 window mastered to 1000 cd/m² in `colour`, and the code at its centre.
+    async fn hdr10(isle: &mut Isle, colour: &str) -> (i32, i32) {
+        let client = isle.client("isle.test.Hdr10", colour);
+        let window = isle.wait_for_window("isle.test.Hdr10").await;
+        isle.test().await.make_hdr("HEADLESS-1", 302.0, 203.0).await.unwrap();
+        client.send("describe pq 1000");
+        client.wait_for("described").await;
+        std::mem::forget(client);
+        (window.x + window.width / 2, window.y + window.height / 2)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hdr10_below_the_peak_passes_through() {
+        let mut isle = Isle::start("hdr-pass-through").await;
+        let (x, y) = hdr10(&mut isle, "828282").await;
+        let test = isle.test().await;
+        let want = pq(pq_eotf(130.0 / 255.0));
+        wait_until(|| async { near(test.screen_code("HEADLESS-1", x, y).await.unwrap(), want) }).await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hdr10_above_the_peak_is_tone_mapped_to_it() {
+        let mut isle = Isle::start("hdr-tone-map").await;
+        let (x, y) = hdr10(&mut isle, "ffffff").await;
+        let test = isle.test().await;
+        let peak = pq(302.0);
+        wait_until(|| async { near(test.screen_code("HEADLESS-1", x, y).await.unwrap(), peak) }).await;
+    }
+}

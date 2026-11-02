@@ -710,4 +710,6 @@
   leaving the console and on exit. 22.4 built: the FP16 intermediate and
   the PQ pass, tested on the GPU and on a pretend HDR headless screen;
   `hdr true` in settings.kdl now gives a correct SDR desktop in HDR10
-  (no Settings row yet). Next: 22.5, HDR clients.
+  (no Settings row yet). 22.5 built: colour management served, HDR10 and
+  scRGB clients converted and tone-mapped, glass in half floats. Next:
+  22.6, scan-out of HDR10 full-screen games.

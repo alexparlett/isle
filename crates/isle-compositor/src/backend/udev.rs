@@ -109,6 +109,7 @@ struct Lit {
     vrr_refused: Option<bool>,
     /// An HDR screen's intermediate, made at its first frame.
     hdr_pass: Option<crate::hdr_pass::HdrPass>,
+    colour_epoch: u64,
 }
 
 /// The dmabuf feedback for a surface on this output: what Isle renders from, and what
@@ -371,7 +372,7 @@ impl Udev {
                 lit.hdr_pass = Some(crate::hdr_pass::HdrPass::new(renderer, output)?);
             }
             let pass = lit.hdr_pass.as_mut().expect("made above");
-            let states = pass.composite(renderer, &elements, clear)?;
+            let states = pass.composite(renderer, &elements, clear, isle.colour_epoch.get())?;
             let element = pass.element(crate::hdr_pass::Encode {
                 sdr_white: hdr.sdr_white.get() as f32,
                 peak: hdr.caps.peak as f32,
@@ -392,6 +393,9 @@ impl Udev {
             };
             (damaged, planes, states)
         } else {
+            if std::mem::replace(&mut lit.colour_epoch, isle.colour_epoch.get()) != isle.colour_epoch.get() {
+                lit.surface.reset_buffers();
+            }
             let result = lit
                 .surface
                 .render_frame(renderer, &elements, clear, flags, mode)
@@ -948,6 +952,7 @@ impl State {
                 front_drawn_at: None,
                 vrr_refused: None,
                 hdr_pass: None,
+                colour_epoch: 0,
             },
         );
 
@@ -971,6 +976,7 @@ impl State {
         }
         info!(name, identity, mode = ?Mode::from(drm_mode), ?position, "output lit");
         isle.add_output(&output, position.into());
+        isle.refresh_colour_preferences();
         isle.queue_redraw(&output);
     }
 

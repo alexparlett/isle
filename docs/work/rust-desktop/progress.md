@@ -77,6 +77,38 @@
   - **Not built here:** glass and backdrops in the intermediate's format
     wait for HDR clients (22.5), since only they put values above 1.0
     under the glass.
+- 22.5: HDR clients.
+  - **The protocol.** wp-color-management-v1 is served with the features
+    nested gamescope and Mesa's WSI look for. Never the deprecated `srgb`
+    transfer function.
+  - **Each screen's description.** BT.2020 PQ with reference `sdr-white`
+    and a target at the EDID's peak in HDR, else sRGB primaries with gamma
+    2.2. `preferred_changed` follows a screen going HDR and a new
+    `sdr-white`.
+  - **The conversion.** A surface described in any other colour space is
+    converted into the blend space, in the clip shader for clipped windows
+    and in its own element otherwise (full-screen games, popups):
+    - decode PQ, extended linear, gamma 2.2, BT.1886, gamma 2.8 or
+      piecewise sRGB;
+    - convert the primaries to BT.709 with a matrix from their
+      chromaticities;
+    - scale its reference to the screen's white;
+    - apply BT.2390's EETF on the brightest channel when its mastering
+      peak is above the screen's. Windows scRGB and BT.2100 are
+      display-referred and never tone-mapped.
+  - **Glass** blurs in half floats.
+  - **Two bugs found by the tests:**
+    - Reading a description inside a surface-tree walk deadlocked.
+    - The window list built in the glass phase ran before the screen's
+      colour target was set. The target is now set where every element
+      list is built.
+  - **Redraws.** A description change commits no pixels, so a commit that
+    changes one moves a colour epoch, and every screen redraws whole.
+  - **Tests.** The test client gains `describe pq NITS` and `preferred`.
+    Four new tests cover the advertised features, the preferred
+    description following the screen, HDR10 below the peak passing
+    through, and HDR10 above it tone-mapped to it.
+  - **Captures** of HDR screens are 22.8's.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

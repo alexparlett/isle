@@ -37,6 +37,8 @@ pub mod cast;
 mod centre;
 mod child_env;
 mod clipboard;
+mod colour;
+mod colour_management;
 mod control_centre;
 mod control_edit;
 mod keyring;

@@ -65,6 +65,7 @@ void main() {
 #if defined(NO_ALPHA)
     color = vec4(color.rgb, 1.0);
 #endif
+    color = cm_convert(color);
     vec2 g = v_coords * geo_scale + geo_offset;
     if (g.x < 0.0 || g.y < 0.0 || g.x > 1.0 || g.y > 1.0) {
         color = vec4(0.0);
@@ -130,19 +131,21 @@ void main() {
 pub struct Programs {
     pub clip: GlesTexProgram,
     pub shadow: GlesPixelProgram,
+    /// Brings a surface described in another colour space into the blend space.
+    pub convert: GlesTexProgram,
 }
 
 impl Programs {
     pub fn compile(renderer: &mut GlesRenderer) -> Result<Self, GlesError> {
-        let clip = renderer.compile_custom_texture_shader(
-            CLIP,
-            &[
-                UniformName::new("geo_size", UniformType::_2f),
-                UniformName::new("geo_scale", UniformType::_2f),
-                UniformName::new("geo_offset", UniformType::_2f),
-                UniformName::new("corners", UniformType::_4f),
-            ],
-        )?;
+        let source = CLIP.replacen("float corner(", &format!("{}\nfloat corner(", crate::colour::CONVERT), 1);
+        let mut uniforms = vec![
+            UniformName::new("geo_size", UniformType::_2f),
+            UniformName::new("geo_scale", UniformType::_2f),
+            UniformName::new("geo_offset", UniformType::_2f),
+            UniformName::new("corners", UniformType::_4f),
+        ];
+        uniforms.extend(crate::colour::uniform_names());
+        let clip = renderer.compile_custom_texture_shader(source, &uniforms)?;
         let shadow = renderer.compile_custom_pixel_shader(
             SHADOW,
             &[
@@ -155,7 +158,8 @@ impl Programs {
                 UniformName::new("colour", UniformType::_4f),
             ],
         )?;
-        Ok(Self { clip, shadow })
+        let convert = crate::colour::compile(renderer)?;
+        Ok(Self { clip, shadow, convert })
     }
 }
 
@@ -172,6 +176,7 @@ pub struct ClippedSurface {
     /// Corner radii in physical pixels: top left, top right, bottom right, bottom left.
     corners: [f32; 4],
     translucent: bool,
+    conversion: Option<crate::colour::Conversion>,
 }
 
 impl ClippedSurface {
@@ -184,9 +189,15 @@ impl ClippedSurface {
         corners: [f32; 4],
         scale: f64,
         translucent: bool,
+        conversion: Option<(crate::colour::Conversion, GlesTexProgram)>,
     ) -> WindowPiece {
         if inner.transform() != Transform::Normal {
-            return WindowPiece::Surface(inner);
+            return match conversion {
+                Some((conversion, convert)) => {
+                    WindowPiece::Colour(crate::colour::ColourSurface::new(inner, convert, conversion))
+                }
+                None => WindowPiece::Surface(inner),
+            };
         }
         let placed = inner.geometry(Scale::from(scale));
         WindowPiece::Clipped(Self {
@@ -196,6 +207,7 @@ impl ClippedSurface {
             placed,
             corners,
             translucent,
+            conversion: conversion.map(|(c, _)| c),
         })
     }
 }
@@ -300,15 +312,14 @@ impl RenderElement<GlesRenderer> for ClippedSurface {
             (dst.loc.x as f64 - src.loc.x * k.0 - g.loc.x) / g.size.w,
             (dst.loc.y as f64 - src.loc.y * k.1 - g.loc.y) / g.size.h,
         );
-        frame.override_default_tex_program(
-            self.program.clone(),
-            vec![
-                Uniform::new("geo_size", (g.size.w as f32, g.size.h as f32)),
-                Uniform::new("geo_scale", (scale.0 as f32, scale.1 as f32)),
-                Uniform::new("geo_offset", (offset.0 as f32, offset.1 as f32)),
-                Uniform::new("corners", corners),
-            ],
-        );
+        let mut uniforms = vec![
+            Uniform::new("geo_size", (g.size.w as f32, g.size.h as f32)),
+            Uniform::new("geo_scale", (scale.0 as f32, scale.1 as f32)),
+            Uniform::new("geo_offset", (offset.0 as f32, offset.1 as f32)),
+            Uniform::new("corners", corners),
+        ];
+        uniforms.extend(crate::colour::Conversion::uniforms(self.conversion.as_ref()));
+        frame.override_default_tex_program(self.program.clone(), uniforms);
         let result = self
             .inner
             .draw(frame, src, dst, damage, opaque_regions, cache);
@@ -637,6 +648,7 @@ smithay::backend::renderer::element::render_elements! {
     pub WindowPiece<=GlesRenderer>;
     Clipped = ClippedSurface,
     Surface = WaylandSurfaceRenderElement<GlesRenderer>,
+    Colour = crate::colour::ColourSurface,
     Shadow = ShadowElement,
     Solid = smithay::backend::renderer::element::solid::SolidColorRenderElement,
     Bar = isle_shell::ShellElement,
@@ -705,7 +717,21 @@ impl crate::state::Isle {
         // The surface's origin is its geometry's top left less the geometry's offset in it.
         let surface_at = (rect.loc - geometry.loc - origin).to_physical_precise_round(scale);
 
+        let target = self.colour_target.get();
+        let programs = self.window_programs.as_ref();
+        // A surface described in another colour space is drawn through the conversion.
+        let converted = |element: WaylandSurfaceRenderElement<GlesRenderer>,
+                         conversions: &std::collections::HashMap<Id, crate::colour::Conversion>|
+         -> WindowPiece {
+            match (conversions.get(element.id()), programs) {
+                (Some(conversion), Some(programs)) => WindowPiece::Colour(
+                    crate::colour::ColourSurface::new(element, programs.convert.clone(), *conversion),
+                ),
+                _ => WindowPiece::Surface(element),
+            }
+        };
         for (popup, offset) in PopupManager::popups_for_surface(&surface) {
+            let conversions = crate::colour::conversions(popup.wl_surface(), target);
             let at = (rect.loc - origin + offset - popup.geometry().loc)
                 .to_physical_precise_round(scale);
             for element in
@@ -718,7 +744,7 @@ impl crate::state::Isle {
                     Kind::Unspecified,
                 )
             {
-                push(WindowPiece::Surface(element));
+                push(converted(element, &conversions));
             }
         }
 
@@ -782,7 +808,7 @@ impl crate::state::Isle {
             rect.size.to_f64().to_physical(scale),
         );
         let corners = style.corners.map(|r| (r as f64 * scale) as f32);
-        let programs = self.window_programs.as_ref();
+        let conversions = crate::colour::conversions(&surface, target);
         let clipped = programs.is_some() && style.clip;
         // A plane cannot clip corners: only a bare window may be put on one.
         let kind = if clipped {
@@ -800,6 +826,7 @@ impl crate::state::Isle {
                 kind,
             )
         {
+            let conversion = conversions.get(element.id()).copied();
             match programs.filter(|_| style.clip) {
                 Some(programs) => push(ClippedSurface::wrap(
                     element,
@@ -808,8 +835,9 @@ impl crate::state::Isle {
                     corners,
                     scale,
                     style.translucent,
+                    conversion.map(|c| (c, programs.convert.clone())),
                 )),
-                None => push(WindowPiece::Surface(element)),
+                None => push(converted(element, &conversions)),
             }
         }
 

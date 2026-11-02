@@ -1827,6 +1827,7 @@ impl Test {
                     if let Some(output) = output {
                         state.isle.queue_redraw(&output);
                     }
+                    state.isle.refresh_colour_preferences();
                     made
                 }
                 _ => Err("only headless outputs are made HDR".into()),

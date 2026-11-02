@@ -93,7 +93,7 @@ varying vec2 v_coords;
 void main() {
     vec3 c = texture2D(tex, v_coords).rgb;
     float luma = dot(c, vec3(0.2126, 0.7152, 0.0722));
-    c = clamp(mix(vec3(luma), c, saturation), 0.0, 1.0);
+    c = max(mix(vec3(luma), c, saturation), 0.0);
     c = mix(c, tint.rgb, tint.a);
     vec2 p = (v_coords - src_origin) / src_size * size;
     vec2 q = abs(p - size * 0.5) - (size * 0.5 - vec2(radius));
@@ -174,20 +174,17 @@ impl Blur {
     ) -> Result<Self, GlesError> {
         let (count, offset) = passes(sigma);
         let size = region.size;
-        let make = |r: &mut GlesRenderer, s: Size<i32, Physical>| -> Result<GlesTexture, GlesError> {
-            Offscreen::<GlesTexture>::create_buffer(
-                r,
-                Fourcc::Abgr8888,
-                (s.w.max(1), s.h.max(1)).into(),
-            )
+        // Half floats, so glass over an HDR window blurs values above white unclipped.
+        let make = |r: &mut GlesRenderer, s: Size<i32, Physical>, format: Fourcc| -> Result<GlesTexture, GlesError> {
+            Offscreen::<GlesTexture>::create_buffer(r, format, (s.w.max(1), s.h.max(1)).into())
         };
-        let backdrop = make(renderer, size)?;
+        let backdrop = make(renderer, size, Fourcc::Abgr16161616f)?;
         let mut levels = Vec::new();
         for level in 1..=count {
             let s = Size::from(((size.w >> level).max(1), (size.h >> level).max(1)));
-            levels.push(make(renderer, s)?);
+            levels.push(make(renderer, s, Fourcc::Abgr16161616f)?);
         }
-        let probe = make(renderer, (4, 4).into())?;
+        let probe = make(renderer, (4, 4).into(), Fourcc::Abgr8888)?;
         Ok(Self {
             region,
             tracker: OutputDamageTracker::new(size, scale, Transform::Normal),

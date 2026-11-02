@@ -255,6 +255,12 @@ pub struct Isle {
     /// Started on the defaults after repeated crashes, until `isle settings use-mine`.
     pub safe_start: bool,
     pub window_programs: Option<crate::wm::draw::Programs>,
+    pub color_management: smithay::wayland::color::management::ColorManagementState,
+    /// Counts surfaces' description changes; a screen that has not drawn the latest redraws
+    /// whole.
+    pub colour_epoch: std::cell::Cell<u64>,
+    /// The screen being drawn, for surfaces converted into its blend space.
+    pub colour_target: std::cell::Cell<crate::colour::Target>,
     /// Each window's shadow layers, kept so their ids hold still across frames.
     pub shadow_cache: std::cell::RefCell<
         std::collections::HashMap<(u64, usize), (crate::wm::draw::ShadowShape, crate::wm::draw::ShadowElement)>,
@@ -415,6 +421,7 @@ impl Isle {
         let shm_state = ShmState::new::<State>(&dh, vec![]);
         let output_manager_state = OutputManagerState::new_with_xdg_output::<State>(&dh);
         crate::background_effect::create_global(&dh);
+        let color_management = crate::colour_management::create_state(&dh);
         let data_device_state = DataDeviceState::new::<State>(&dh);
         let primary_selection_state = PrimarySelectionState::new::<State>(&dh);
         let viewporter_state = ViewporterState::new::<State>(&dh);
@@ -638,6 +645,9 @@ impl Isle {
             settings_error: None,
             safe_start: false,
             window_programs: None,
+            colour_target: std::cell::Cell::new(crate::colour::Target::SDR),
+            color_management,
+            colour_epoch: std::cell::Cell::new(0),
             shadow_cache: Default::default(),
             leaving: Vec::new(),
             split: Default::default(),

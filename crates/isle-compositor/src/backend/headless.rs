@@ -41,6 +41,7 @@ struct Target {
     in_flight: Vec<smithay::backend::renderer::utils::Buffer>,
     /// A pretend HDR screen's intermediate.
     hdr_pass: Option<crate::hdr_pass::HdrPass>,
+    colour_epoch: u64,
 }
 
 impl Headless {
@@ -82,6 +83,10 @@ impl Headless {
             .targets
             .get_mut(&output.name())
             .ok_or_else(|| format!("no target for {}", output.name()))?;
+        let epoch = isle.colour_epoch.get();
+        if std::mem::replace(&mut target.colour_epoch, epoch) != epoch {
+            target.drawn = false;
+        }
         let age = usize::from(target.drawn);
         let mut elements = Vec::new();
         isle.render_elements(&mut self.renderer, output, None, &mut |e| elements.push(e));
@@ -90,7 +95,7 @@ impl Headless {
                 target.hdr_pass = Some(crate::hdr_pass::HdrPass::new(&mut self.renderer, output)?);
             }
             let pass = target.hdr_pass.as_mut().expect("made above");
-            let states = pass.composite(&mut self.renderer, &elements, CLEAR)?;
+            let states = pass.composite(&mut self.renderer, &elements, CLEAR, epoch)?;
             let element = pass.element(crate::hdr_pass::Encode {
                 sdr_white: hdr.sdr_white.get() as f32,
                 peak: hdr.caps.peak as f32,
@@ -189,6 +194,7 @@ impl Headless {
                 drawn: false,
                 in_flight: Vec::new(),
                 hdr_pass: None,
+                colour_epoch: 0,
             },
         );
         let x = isle

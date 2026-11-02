@@ -42,6 +42,11 @@
 //! `globals` (each announced global as `global INTERFACE VERSION`, then `globals done`),
 //! `timing` (each later frame of the window asks for presentation feedback, printing
 //! `presented SEC NSEC REFRESH_NS SEQ FLAGS` or `discarded`),
+//! `describe pq NITS` (the first window's surface described as BT.2020 PQ mastered to NITS,
+//! printing `described`), `preferred` (the description Isle prefers for it, printing
+//! `preferred tf N`, `preferred primaries N`, `preferred luminances MIN MAX REF`,
+//! `preferred target MIN MAX`, `preferred done`, and later `preferred changed`); the colour
+//! manager's advertisements print as `cm feature N`, `cm tf N`, `cm primaries N`, `cm done`,
 //! `drag-on-press` (the next press starts a drag of text with a magenta icon; drags print
 //! `dnd enter`, `dnd drop`, and to the source `dnd finished` or `dnd cancelled`), `quit`. A
 //! close of any other window destroys it.
@@ -90,6 +95,10 @@ use wayland_protocols::wp::relative_pointer::zv1::client::{
 };
 use wayland_protocols::wp::commit_timing::v1::client::{wp_commit_timer_v1, wp_commit_timing_manager_v1};
 use wayland_protocols::wp::content_type::v1::client::{wp_content_type_manager_v1, wp_content_type_v1};
+use wayland_protocols::wp::color_management::v1::client::{
+    wp_color_management_surface_feedback_v1, wp_color_management_surface_v1, wp_color_manager_v1,
+    wp_image_description_creator_params_v1, wp_image_description_info_v1, wp_image_description_v1,
+};
 use wayland_protocols::ext::image_copy_capture::v1::client::{
     ext_image_copy_capture_cursor_session_v1, ext_image_copy_capture_frame_v1,
     ext_image_copy_capture_manager_v1, ext_image_copy_capture_session_v1,
@@ -201,6 +210,9 @@ struct Client {
     commit_timer: Option<wp_commit_timer_v1::WpCommitTimerV1>,
     content_types: Option<wp_content_type_manager_v1::WpContentTypeManagerV1>,
     content_type: Option<wp_content_type_v1::WpContentTypeV1>,
+    colour_manager: Option<wp_color_manager_v1::WpColorManagerV1>,
+    colour_surface: Option<wp_color_management_surface_v1::WpColorManagementSurfaceV1>,
+    colour_feedback: Option<wp_color_management_surface_feedback_v1::WpColorManagementSurfaceFeedbackV1>,
     /// Windows whose frames ask for presentation feedback.
     timing: Vec<usize>,
     ignore_pings: bool,
@@ -758,6 +770,31 @@ impl Client {
                 self.draw(0, qh);
                 return;
             }
+            ("describe", _) => {
+                use wp_color_manager_v1::{Primaries, TransferFunction};
+                let manager = self.colour_manager.as_ref().expect("wp_color_manager_v1").clone();
+                if self.colour_surface.is_none() {
+                    self.colour_surface = Some(manager.get_surface(&self.wins[0].surface, qh, ()));
+                }
+                let creator = manager.create_parametric_creator(qh, ());
+                creator.set_tf_named(TransferFunction::St2084Pq);
+                creator.set_primaries_named(Primaries::Bt2020);
+                let nits = num(1).max(1) as u32;
+                // BT.2020's primaries and D65, in millionths.
+                creator.set_mastering_display_primaries(708_000, 292_000, 170_000, 797_000, 131_000, 46_000, 312_700, 329_000);
+                creator.set_mastering_luminance(50, nits);
+                creator.create(qh, Purpose::Set);
+                return;
+            }
+            ("preferred", _) => {
+                let manager = self.colour_manager.as_ref().expect("wp_color_manager_v1").clone();
+                let feedback = self
+                    .colour_feedback
+                    .get_or_insert_with(|| manager.get_surface_feedback(&self.wins[0].surface, qh, ()))
+                    .clone();
+                feedback.get_preferred(qh, Purpose::Preferred);
+                return;
+            }
             ("content-type", _) => {
                 use wp_content_type_v1::Type;
                 if self.content_type.is_none() {
@@ -1143,6 +1180,79 @@ impl Dispatch<wl_callback::WlCallback, usize> for Client {
     }
 }
 
+/// A protocol enum's wire value.
+fn raw<T: Into<u32>>(v: WEnum<T>) -> u32 {
+    match v {
+        WEnum::Value(v) => v.into(),
+        WEnum::Unknown(v) => v,
+    }
+}
+
+/// What an image description was made for.
+enum Purpose {
+    Set,
+    Preferred,
+}
+
+impl Dispatch<wp_color_manager_v1::WpColorManagerV1, ()> for Client {
+    fn event(_: &mut Self, _: &wp_color_manager_v1::WpColorManagerV1, event: wp_color_manager_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        use wp_color_manager_v1::Event;
+        match event {
+            Event::SupportedFeature { feature } => say(0, format!("cm feature {}", raw(feature))),
+            Event::SupportedTfNamed { tf } => say(0, format!("cm tf {}", raw(tf))),
+            Event::SupportedPrimariesNamed { primaries } => say(0, format!("cm primaries {}", raw(primaries))),
+            Event::Done => say(0, "cm done".into()),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<wp_image_description_v1::WpImageDescriptionV1, Purpose> for Client {
+    fn event(state: &mut Self, desc: &wp_image_description_v1::WpImageDescriptionV1, event: wp_image_description_v1::Event, purpose: &Purpose, _: &Connection, qh: &QueueHandle<Self>) {
+        use wp_image_description_v1::Event;
+        match event {
+            Event::Ready { .. } | Event::Ready2 { .. } => match purpose {
+                Purpose::Set => {
+                    let surface = state.colour_surface.as_ref().expect("a colour surface");
+                    surface.set_image_description(desc, wp_color_manager_v1::RenderIntent::Perceptual);
+                    state.wins[0].surface.commit();
+                    say(0, "described".into());
+                }
+                Purpose::Preferred => {
+                    desc.get_information(qh, ());
+                }
+            },
+            Event::Failed { msg, .. } => say(0, format!("description failed {msg}")),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<wp_image_description_info_v1::WpImageDescriptionInfoV1, ()> for Client {
+    fn event(_: &mut Self, _: &wp_image_description_info_v1::WpImageDescriptionInfoV1, event: wp_image_description_info_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        use wp_image_description_info_v1::Event;
+        match event {
+            Event::TfNamed { tf } => say(0, format!("preferred tf {}", raw(tf))),
+            Event::PrimariesNamed { primaries } => say(0, format!("preferred primaries {}", raw(primaries))),
+            Event::Luminances { min_lum, max_lum, reference_lum } => {
+                say(0, format!("preferred luminances {min_lum} {max_lum} {reference_lum}"))
+            }
+            Event::TargetLuminance { min_lum, max_lum } => say(0, format!("preferred target {min_lum} {max_lum}")),
+            Event::Done => say(0, "preferred done".into()),
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<wp_color_management_surface_feedback_v1::WpColorManagementSurfaceFeedbackV1, ()> for Client {
+    fn event(_: &mut Self, _: &wp_color_management_surface_feedback_v1::WpColorManagementSurfaceFeedbackV1, event: wp_color_management_surface_feedback_v1::Event, _: &(), _: &Connection, _: &QueueHandle<Self>) {
+        use wp_color_management_surface_feedback_v1::Event;
+        if matches!(event, Event::PreferredChanged { .. } | Event::PreferredChanged2 { .. }) {
+            say(0, "preferred changed".into());
+        }
+    }
+}
+
 macro_rules! no_events {
     ($($ty:ty),*) => {$(
         impl Dispatch<$ty, ()> for Client {
@@ -1160,7 +1270,9 @@ no_events!(
     wp_commit_timing_manager_v1::WpCommitTimingManagerV1,
     wp_commit_timer_v1::WpCommitTimerV1,
     wp_content_type_manager_v1::WpContentTypeManagerV1,
-    wp_content_type_v1::WpContentTypeV1
+    wp_content_type_v1::WpContentTypeV1,
+    wp_color_management_surface_v1::WpColorManagementSurfaceV1,
+    wp_image_description_creator_params_v1::WpImageDescriptionCreatorParamsV1
 );
 
 impl Dispatch<zwp_locked_pointer_v1::ZwpLockedPointerV1, ()> for Client {
@@ -1308,6 +1420,9 @@ impl Dispatch<wl_registry::WlRegistry, ()> for Client {
                 }
                 "wp_content_type_manager_v1" => {
                     state.content_types = Some(registry.bind(name, 1, qh, ()))
+                }
+                "wp_color_manager_v1" => {
+                    state.colour_manager = Some(registry.bind(name, version.min(2), qh, ()))
                 }
                 _ => {}
             }
@@ -2168,6 +2283,9 @@ fn main() {
         commit_timer: None,
         content_types: None,
         content_type: None,
+        colour_manager: None,
+        colour_surface: None,
+        colour_feedback: None,
         ignore_pings: false,
         ignored_pings: Vec::new(),
         linger: false,

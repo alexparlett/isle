@@ -66,6 +66,13 @@
   section it added; P14a's tuigreet record still undoes. Two package tests fixed on the way,
   both failing before P14b: `isle-provider-init` is built from `isle-providers`, and a
   `tests.rs` test module is not a packaged binary's source.
+- 14b.8: the VM (`docs/research/rust-desktop/p14b-greeter.md`). The package in the guest,
+  `isle setup`, greetd on Isle's greeter: a wrong password refused through `isle-greetd`,
+  the right one starting the packaged Isle, the look published and drawn after signing out,
+  Hyprland from the session menu and remembered, the fallback to tuigreet after three
+  failing starts. Found and fixed: the console chord wanted Ctrl+Option after a PC keyboard's
+  Alt had been read as Cmd, so Ctrl+Alt+F2 did nothing on a PC-profile keyboard (since P5);
+  it now takes Ctrl with Option or Cmd. A PKGBUILD quoting slip stopped the first build.
 
 ## 2026-11-01 (P19c)
 

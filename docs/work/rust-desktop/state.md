@@ -705,5 +705,5 @@
   the host (no hang, wakes in HDR); 203 cd/m² looks dimmer than the
   panel's SDR white; one black wake in the first run stays open. 22.1
   and 22.2 ported as alexparlett/smithay#6 (connector state) and #7 (the
-  protocol), both building with their tests passing. Next: merge both
-  into `isle`, move the pin, then 22.3.
+  protocol), merged; the workspace pins `isle` at `1d78177e`. Next: 22.3,
+  the screen's HDR state.

@@ -1080,15 +1080,16 @@ How Isle is installed.
 
 - **Smithay**, through `alexparlett/smithay` (B6), pinned by revision on
   its `isle` branch: upstream master at `24647fc8` (2026-10-20) with Isle's patches, each
-  merged by pull request in the fork, none offered upstream (B43). So far
-  three: the X11 window manager tracks windows' bounding shape (SHAPE) and
+  merged by pull request in the fork, none offered upstream (B43). The X11 window manager tracks windows' bounding shape (SHAPE) and
   reads Steam's `STEAM_GAME` label (alexparlett/smithay#2), and an
   xdg-foreign export is looked up by its handle (alexparlett/smithay#3), which
   the share picker uses to hang on the asking window; DRM async page flips,
   Smithay #1948 rebased (alexparlett/smithay#4), and wp-tearing-control
-  (alexparlett/smithay#5); and `FrameFlags::ASYNC_SCANOUT_ONLY`, which keeps
-  a composited frame on vsync, pinned by its branch's commit until its pull
-  request is merged. Its `master` follows upstream; moving Isle to a
+  (alexparlett/smithay#5); `FrameFlags::ASYNC_SCANOUT_ONLY`, which keeps
+  a composited frame on vsync; and, for HDR (P22), ported from the
+  community's `ds-hdr-master`: connector colour state committed with the
+  modeset (alexparlett/smithay#6) and wp-color-management-v1
+  (alexparlett/smithay#7). Its `master` follows upstream; moving Isle to a
   newer upstream is a rebase of `isle` and a revision bump.
 - **Freya**, through `alexparlett/freya` (B7), pinned by revision of its
   `main`, which carries `freya-embed` (the embedding crate made from the

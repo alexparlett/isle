@@ -32,8 +32,10 @@
   Snowhill's six, colour representation included but not to be
   advertised. The only conflicts were in `Cargo.toml` and the CHANGELOG.
   It builds, and its colour tests pass.
-- Both PRs wait to be merged into `isle` before the workspace's pin
-  moves.
+- Both PRs are merged; colour representation was dropped from #7 (its
+  pixel-format check was a TODO, and Isle does not serve it), so #7 leaves
+  `Cargo.toml` alone. The workspace pins `isle` at `1d78177e`, and the
+  compositor builds on it.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

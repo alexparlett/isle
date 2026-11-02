@@ -170,6 +170,12 @@ pub struct Output {
     /// A full-screen game that asks for it is flipped without waiting for vblank.
     #[setting(default = false)]
     pub tearing: bool,
+    /// HDR10, on a screen whose EDID lists it.
+    #[setting(default = false)]
+    pub hdr: bool,
+    /// While HDR is on, how bright everything that is not HDR is, in cd/m².
+    #[setting(default = 203, range = 80..=1000)]
+    pub sdr_white: i64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

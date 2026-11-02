@@ -816,6 +816,10 @@ mod tests {
             min_hz: 0,
             max_hz: 0,
             brightness: -1.,
+            hdr_peak: 0.,
+            hdr: false,
+            sdr_white: 203.,
+            bit_depth: 0,
         }
     }
 

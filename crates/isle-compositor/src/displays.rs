@@ -28,6 +28,9 @@ pub struct Edit {
     pub y: Option<i32>,
     pub transform: Option<String>,
     pub enabled: Option<bool>,
+    pub hdr: Option<bool>,
+    /// In cd/m².
+    pub sdr_white: Option<i64>,
 }
 
 /// A change in force and not yet kept.
@@ -39,7 +42,7 @@ pub struct Pending {
 }
 
 fn relit(a: &OutputConfig, b: &OutputConfig) -> bool {
-    a.mode != b.mode || a.transform != b.transform || a.enabled != b.enabled
+    a.mode != b.mode || a.transform != b.transform || a.enabled != b.enabled || a.hdr != b.hdr
 }
 
 impl Isle {
@@ -74,6 +77,7 @@ impl State {
                     .map(|g| g.loc)
                     .unwrap_or_default();
                 let known = connected.iter().find(|c| c.0 == identity);
+                let hdr = crate::hdr::OutputHdr::of(output);
                 isle_ipc::DisplayInfo {
                     name: output.name(),
                     make: properties.make,
@@ -114,10 +118,18 @@ impl State {
                         .get(&output.name())
                         .and_then(|s| s.level)
                         .map_or(-1.0, f64::from),
+                    hdr_peak: known.map_or(0.0, |c| c.5),
+                    hdr: hdr.is_some(),
+                    sdr_white: config.sdr_white as f64,
+                    bit_depth: match hdr {
+                        Some(h) if !h.ten_bit => 8,
+                        Some(_) => 10,
+                        None => 0,
+                    },
                 }
             })
             .collect();
-        for (identity, name, modes, size_mm, hz) in connected {
+        for (identity, name, modes, size_mm, hz, hdr_peak) in connected {
             if infos.iter().any(|i| i.name == name) {
                 continue;
             }
@@ -145,6 +157,10 @@ impl State {
                 min_hz: hz.0,
                 max_hz: hz.1,
                 brightness: -1.0,
+                hdr_peak,
+                hdr: false,
+                sdr_white: config.sdr_white as f64,
+                bit_depth: 0,
             });
         }
         infos
@@ -195,6 +211,15 @@ impl State {
             }
             if let Some(enabled) = edit.enabled {
                 next.enabled = enabled;
+            }
+            if let Some(hdr) = edit.hdr {
+                next.hdr = hdr;
+            }
+            if let Some(white) = edit.sdr_white {
+                if !(80..=1000).contains(&white) {
+                    return Err("SDR brightness is from 80 to 1000 cd/m²".into());
+                }
+                next.sdr_white = white;
             }
             applied.insert(identity.clone(), next);
         }

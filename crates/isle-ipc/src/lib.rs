@@ -250,6 +250,14 @@ pub struct DisplayInfo {
     pub max_hz: u32,
     /// 0 to 1, or below 0 when Isle cannot set it.
     pub brightness: f64,
+    /// The EDID's peak in cd/m² when the screen and its connector take HDR10, else 0.
+    pub hdr_peak: f64,
+    /// Lit in HDR10.
+    pub hdr: bool,
+    /// The `sdr-white` setting, in cd/m².
+    pub sdr_white: f64,
+    /// 10 or 8 while in HDR10, else 0.
+    pub bit_depth: u32,
 }
 
 /// A mode a display offers.

@@ -226,6 +226,9 @@ impl Isle {
         if let (Some(x), Some(y)) = (config.x, config.y) {
             self.space.map_output(output, (x, y));
         }
+        if let Some(hdr) = crate::hdr::OutputHdr::of(output) {
+            hdr.sdr_white.set(config.sdr_white as f64);
+        }
         self.sync_shell_outputs();
         self.queue_redraw(output);
         self.notify(Event::DisplaysChanged);

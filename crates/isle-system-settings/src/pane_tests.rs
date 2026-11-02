@@ -333,6 +333,10 @@ fn display() -> isle_ipc::DisplayInfo {
         min_hz: 48,
         max_hz: 144,
         brightness: -1.,
+        hdr_peak: 0.,
+        hdr: false,
+        sdr_white: 203.,
+        bit_depth: 0,
     }
 }
 

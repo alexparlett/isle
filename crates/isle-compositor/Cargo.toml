@@ -87,6 +87,7 @@ wayland-backend.workspace = true
 wayland-scanner.workspace = true
 wayland-protocols-plasma = { workspace = true, features = ["server"] }
 smithay-drm-extras.workspace = true
+libdisplay-info = { version = "0.3", features = ["v0_3"] }
 xcursor.workspace = true
 tracing.workspace = true
 tokio.workspace = true

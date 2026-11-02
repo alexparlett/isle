@@ -239,7 +239,7 @@ impl State {
     }
 
     /// The virtual displays turned off, for `Displays1.List`.
-    pub fn parked_headless(&self) -> Vec<(String, String, Vec<isle_ipc::DisplayMode>, (u32, u32), (u32, u32))> {
+    pub fn parked_headless(&self) -> Vec<super::udev::ConnectedDisplay> {
         let Backend::Headless(headless) = &self.backend else {
             return Vec::new();
         };
@@ -252,7 +252,7 @@ impl State {
                     height: size.1,
                     refresh: 60_000,
                 };
-                (identity.clone(), name.clone(), vec![mode], (0, 0), (0, 0))
+                (identity.clone(), name.clone(), vec![mode], (0, 0), (0, 0), 0.0)
             })
             .collect()
     }

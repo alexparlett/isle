@@ -75,6 +75,10 @@ type Manager = DrmOutputManager<
 type Surface =
     DrmOutput<GbmAllocator<DrmDeviceFd>, GbmFramebufferExporter<DrmDeviceFd>, (), DrmDeviceFd>;
 
+/// A connected display for `Displays1.List`: identity, name, modes, size in mm, the EDID's
+/// refresh range, and its HDR10 peak in cd/m² or 0.
+pub type ConnectedDisplay = (String, String, Vec<isle_ipc::DisplayMode>, (u32, u32), (u32, u32), f64);
+
 /// Which device and CRTC an output is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct OutputId {
@@ -121,6 +125,8 @@ struct Connected {
     modes: Vec<isle_ipc::DisplayMode>,
     size_mm: (u32, u32),
     hz: (u32, u32),
+    /// HDR10, when both the EDID and the connector take it.
+    hdr: Option<crate::hdr::HdrCaps>,
 }
 
 struct Device {
@@ -774,6 +780,10 @@ impl State {
                     .map(|r| (r.min_vert_rate_hz.max(0) as u32, r.max_vert_rate_hz.max(0) as u32))
             })
             .unwrap_or((0, 0));
+        let hdr_caps = info
+            .as_ref()
+            .and_then(crate::hdr::HdrCaps::from_info)
+            .filter(|_| crate::hdr::connector_takes_hdr(drm, connector.handle()));
         let mut modes: Vec<&smithay::reexports::drm::control::Mode> = connector.modes().iter().collect();
         modes.sort_by_key(|m| !m.mode_type().contains(ModeTypeFlags::PREFERRED));
         device.connected.insert(
@@ -795,6 +805,7 @@ impl State {
                     .collect(),
                 size_mm: connector.size().unwrap_or((0, 0)),
                 hz,
+                hdr: hdr_caps,
             },
         );
         let config = isle.effective_output(&identity);
@@ -873,6 +884,17 @@ impl State {
                 return;
             }
         };
+        let hdr = match hdr_caps {
+            Some(caps) if config.hdr => {
+                light_hdr(&surface, device.manager.allocator(), renderer, caps, config.sdr_white as f64, &name)
+            }
+            _ => None,
+        };
+        // Night light on an HDR screen is the final pass's, never the ramp (P22 choice 18).
+        let gamma = if hdr.is_some() { None } else { gamma };
+        if let Some(hdr) = hdr {
+            output.user_data().insert_if_missing(|| hdr);
+        }
         let feedback = surface_feedback(&surface, renderer, udev.render_node, node == udev.primary);
         let vrr = match surface.with_compositor(|c| c.vrr_supported(connector.handle())) {
             Ok(VrrSupport::Supported) => present::VrrCapability::OnDemand,
@@ -1028,14 +1050,23 @@ impl State {
     }
 
     /// Every connector with a screen on it, lit or not, for `Displays1.List`.
-    pub fn connected_displays(&self) -> Vec<(String, String, Vec<isle_ipc::DisplayMode>, (u32, u32), (u32, u32))> {
+    pub fn connected_displays(&self) -> Vec<ConnectedDisplay> {
         let Backend::Udev(udev) = &self.backend else {
             return self.parked_headless();
         };
         udev.devices
             .values()
             .flat_map(|d| d.connected.values())
-            .map(|c| (c.identity.clone(), c.name.clone(), c.modes.clone(), c.size_mm, c.hz))
+            .map(|c| {
+                (
+                    c.identity.clone(),
+                    c.name.clone(),
+                    c.modes.clone(),
+                    c.size_mm,
+                    c.hz,
+                    c.hdr.map_or(0.0, |h| h.peak),
+                )
+            })
             .collect()
     }
 
@@ -1304,6 +1335,49 @@ fn scanned_out(isle: &Isle, id: &Id) -> present::Primary {
         }
     }
     present::Primary::Surface
+}
+
+/// Asks `surface` for HDR10: a 10-bit swapchain, else 8-bit, and the screen's colour state,
+/// applied with its next frame's modeset. None, and 8-bit SDR, when the connector refuses.
+fn light_hdr(
+    surface: &Surface,
+    allocator: &GbmAllocator<DrmDeviceFd>,
+    renderer: &mut GlesRenderer,
+    caps: crate::hdr::HdrCaps,
+    sdr_white: f64,
+    name: &str,
+) -> Option<crate::hdr::OutputHdr> {
+    let modifiers = |code: Fourcc| -> Vec<smithay::backend::allocator::Modifier> {
+        renderer
+            .egl_context()
+            .dmabuf_render_formats()
+            .iter()
+            .filter(|f| f.code == code)
+            .map(|f| f.modifier)
+            .collect()
+    };
+    // NVIDIA scans out 10-bit only in ABGR order.
+    let ten_bit = [Fourcc::Xbgr2101010, Fourcc::Abgr2101010].into_iter().find(|&code| {
+        surface
+            .with_compositor(|c| c.set_format(allocator.clone(), code, modifiers(code)))
+            .map_err(|err| info!(name, ?code, "no 10-bit swapchain: {err:?}"))
+            .is_ok()
+    });
+    match surface.with_compositor(|c| c.use_color_state(caps.colour_state())) {
+        Ok(()) => {
+            info!(name, peak = caps.peak, ten_bit = ten_bit.is_some(), "HDR10");
+            Some(crate::hdr::OutputHdr::new(caps, sdr_white, ten_bit.is_some()))
+        }
+        Err(err) => {
+            warn!(name, "the connector refused HDR10: {err:?}");
+            if ten_bit.is_some() {
+                let _ = surface.with_compositor(|c| {
+                    c.set_format(allocator.clone(), Fourcc::Argb8888, modifiers(Fourcc::Argb8888))
+                });
+            }
+            None
+        }
+    }
 }
 
 /// Render formats in the default tranche; the primary plane's formats that Isle can also

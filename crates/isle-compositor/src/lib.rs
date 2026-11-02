@@ -23,6 +23,7 @@ mod grabs;
 mod greeter;
 mod greeter_look;
 mod handlers;
+mod hdr;
 mod helpers;
 mod hot_corners;
 mod idle;

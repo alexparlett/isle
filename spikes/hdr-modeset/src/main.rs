@@ -594,9 +594,15 @@ fn commit(card: &Card, out: &Output, mode_blob: u64, c: &Commit, test: bool) -> 
 }
 
 /// Turns the output off the way Smithay's `DrmCompositor::clear` does: no CRTC, no mode, no planes.
-fn disable(card: &Card, out: &Output) -> Result<Duration, String> {
+/// `reset`, the `Colorspace` value for Default, also puts the connector back to SDR in the
+/// same commit.
+fn disable(card: &Card, out: &Output, reset: Option<u64>) -> Result<Duration, String> {
     let mut req = AtomicModeReq::new();
     req.add_raw_property(out.conn.into(), out.conn_props.handle("CRTC_ID")?, 0);
+    if let Some(default) = reset {
+        req.add_raw_property(out.conn.into(), out.conn_props.handle("Colorspace")?, default);
+        req.add_raw_property(out.conn.into(), out.conn_props.handle("HDR_OUTPUT_METADATA")?, 0);
+    }
     req.add_raw_property(out.crtc.into(), out.crtc_props.handle("ACTIVE")?, 0);
     req.add_raw_property(out.crtc.into(), out.crtc_props.handle("MODE_ID")?, 0);
     for p in std::iter::once(&out.primary).chain(&out.others) {
@@ -655,6 +661,8 @@ fn hold(secs: u64) -> bool {
 }
 
 struct Options {
+    /// Leaves HDR by disabling the output and exits: Some(true) resets the colour in that commit.
+    leave: Option<bool>,
     depth: Depth,
     mode: Option<(u16, u16, u32)>,
     card: Option<PathBuf>,
@@ -737,6 +745,7 @@ fn run(opts: Options) -> Result<(), String> {
     let hdr_on = Commit { fb: first_hdr, colorspace: bt2020, metadata: meta_blob, active: true, label: "HDR" };
 
     let answers = answers();
+    let left = std::cell::Cell::new(false);
     let screen = std::cell::RefCell::new(screen);
     const KEYS: &str = "Type y or n, then Enter.";
     let result = (|| -> Result<(), String> {
@@ -759,7 +768,7 @@ fn run(opts: Options) -> Result<(), String> {
             Ok(())
         };
         let disabled = || -> Result<(), String> {
-            let t = disable(&card, &out)?;
+            let t = disable(&card, &out, None)?;
             say!("output disabled in {t:?}");
             Ok(())
         };
@@ -769,6 +778,23 @@ fn run(opts: Options) -> Result<(), String> {
             question(&sdr, q)?;
             Ok(())
         };
+
+        if let Some(reset) = opts.leave {
+            show(&sdr, &["Leave test. Press Enter for HDR."])?;
+            ask(&answers, "L0. Leave test. Enter for HDR");
+            let how = if reset {
+                "and its colour is reset in that commit"
+            } else {
+                "with its colour left in HDR"
+            };
+            let line = format!("HDR. Press Enter: the screen turns off {how}, and the program exits.");
+            show(&hdr_on, &[&line, "Then check whether the console's text looks normal."])?;
+            ask(&answers, "L1. Enter to leave");
+            let t = disable(&card, &out, reset.then_some(default))?;
+            say!("output disabled{} in {t:?}", if reset { " with the colour reset" } else { "" });
+            left.set(true);
+            return Ok(());
+        }
 
         show(&sdr, &["This is SDR. Look at the bars, then press Enter for HDR."])?;
         ask(&answers, "0. SDR bars showing. Enter to start");
@@ -813,11 +839,13 @@ fn run(opts: Options) -> Result<(), String> {
     if STOP.load(Ordering::SeqCst) {
         say!("interrupted");
     }
-    match commit(&card, &out, mode_blob, &sdr, false) {
-        Ok(t) => say!("left in SDR ({t:?})"),
-        Err(e) => say!("could not return to SDR: {e}"),
+    if !left.get() {
+        match commit(&card, &out, mode_blob, &sdr, false) {
+            Ok(t) => say!("left in SDR ({t:?})"),
+            Err(e) => say!("could not return to SDR: {e}"),
+        }
+        hold(2);
     }
-    hold(2);
     let _ = card.destroy_property_blob(meta_blob);
     let _ = card.destroy_property_blob(mode_blob);
     for (dumb, fb) in screen.into_inner().buffers {
@@ -976,18 +1004,20 @@ fn main() -> ExitCode {
             }
         };
     }
-    let mut opts = Options { depth: Depth::Ten, mode: None, card: None };
+    let mut opts = Options { leave: None, depth: Depth::Ten, mode: None, card: None };
     let mut command = "run";
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "gl" | "run" => command = if arg == "gl" { "gl" } else { "run" },
             "--eight" => opts.depth = Depth::Eight,
+            "--leave" => opts.leave = Some(true),
+            "--leave-unreset" => opts.leave = Some(false),
             "--mode" => opts.mode = it.next().and_then(|v| parse_mode(v)),
             "--card" => opts.card = it.next().map(PathBuf::from),
             _ => {
                 eprintln!(
-                    "usage: hdr-modeset [run] [--eight] [--mode WxH@HZ] [--card PATH]\n       hdr-modeset gl"
+                    "usage: hdr-modeset [run] [--leave | --leave-unreset] [--eight] [--mode WxH@HZ] [--card PATH]\n       hdr-modeset gl"
                 );
                 return ExitCode::from(2);
             }

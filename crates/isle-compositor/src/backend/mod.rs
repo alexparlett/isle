@@ -183,7 +183,10 @@ impl Backend {
         let size = output.current_mode().ok_or("the output has no mode")?.size;
         let renderer = self.renderer();
         let mut elements = Vec::new();
-        isle.render_elements(renderer, output, None, &mut |e| elements.push(e));
+        {
+            let _capturing = crate::colour::Capturing::start(&isle.capturing);
+            isle.render_elements(renderer, output, None, &mut |e| elements.push(e));
+        }
         let mut texture = render_offscreen(renderer, output, &elements)?;
         read_back(renderer, &mut texture, Rectangle::from_size(size), false)
     }

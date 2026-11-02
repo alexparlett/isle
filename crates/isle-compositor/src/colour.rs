@@ -157,6 +157,37 @@ impl Target {
     }
 }
 
+/// The screen being drawn's target until dropped, then SDR's.
+pub struct TargetFor<'a>(&'a std::cell::Cell<Target>);
+
+impl<'a> TargetFor<'a> {
+    pub fn set(cell: &'a std::cell::Cell<Target>, target: Target) -> Self {
+        cell.set(target);
+        TargetFor(cell)
+    }
+}
+
+impl Drop for TargetFor<'_> {
+    fn drop(&mut self) {
+        self.0.set(Target::SDR);
+    }
+}
+
+/// Elements built while this lives are for a picture, in SDR.
+pub struct Capturing<'a>(&'a std::cell::Cell<bool>, bool);
+
+impl<'a> Capturing<'a> {
+    pub fn start(cell: &'a std::cell::Cell<bool>) -> Self {
+        Capturing(cell, cell.replace(true))
+    }
+}
+
+impl Drop for Capturing<'_> {
+    fn drop(&mut self) {
+        self.0.set(self.1);
+    }
+}
+
 /// How a surface's texels are brought into the blend space: the `cm_*` uniforms.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Conversion {

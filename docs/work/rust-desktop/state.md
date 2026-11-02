@@ -714,4 +714,5 @@
   scRGB clients converted and tone-mapped, glass in half floats. 22.6 and
   22.7 built: HDR10 full-screen scan-out with a PQ pointer (host-proven
   in 22.10), night light in the pass and no scan-out while it warms.
-  Next: 22.8, captures.
+  22.8 built: captures SDR through an SDR target, HDR windows tone-mapped
+  into them. Next: 22.9, Settings › Displays.

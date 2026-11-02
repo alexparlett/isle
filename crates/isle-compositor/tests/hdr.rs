@@ -134,6 +134,22 @@ mod clients {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn a_screenshot_is_sdr_with_hdr10_white_at_sdr_white() {
+        let mut isle = Isle::start("hdr-shot").await;
+        let _sdr = isle.client_with(&["--app-id", "isle.test.Grey", "--colour", "808080", "--size", "800x600"]);
+        let grey = isle.wait_for_window("isle.test.Grey").await;
+        let (x, y) = hdr10(&mut isle, "ffffff").await;
+        let test = isle.test().await;
+        wait_until(|| async { near(test.screen_code("HEADLESS-1", x, y).await.unwrap(), pq(302.0)) }).await;
+        let shot = isle.shot("HEADLESS-1", "hdr").await;
+        // The HDR10 window opens centred over the larger grey one, which shows at its edge.
+        assert_eq!(shot.at(x as usize, y as usize), [255, 255, 255]);
+        let edge = (grey.x + 20) as usize;
+        let grey_px = shot.at(edge, (grey.y + grey.height / 2) as usize);
+        assert!(grey_px.iter().all(|&c| c.abs_diff(0x80) <= 1), "{grey_px:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn hdr10_below_the_peak_passes_through() {
         let mut isle = Isle::start("hdr-pass-through").await;
         let (x, y) = hdr10(&mut isle, "828282").await;

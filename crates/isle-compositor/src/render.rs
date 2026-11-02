@@ -205,6 +205,8 @@ impl Isle {
         push: &mut dyn FnMut(IsleElement),
     ) {
         let cursor = cursor.filter(|_| pointer);
+        // A picture is SDR: HDR windows are tone-mapped into SDR's white (P22 choice 20).
+        let _capturing = crate::colour::Capturing::start(&self.capturing);
         if self.lock.locked {
             self.render_locked(output, renderer, cursor, true, push);
         } else {
@@ -227,7 +229,7 @@ impl Isle {
         let Some(geometry) = self.space.output_geometry(output) else {
             return;
         };
-        self.colour_target.set(crate::colour::Target::of(output));
+        let _target = self.colour_target_for(output);
         let scale = Scale::from(output.current_scale().fractional_scale());
         let pointer = self
             .seat
@@ -430,6 +432,18 @@ impl Isle {
         true
     }
 
+    /// `output`'s colour target while building its elements, SDR's for a picture. Pieces keep
+    /// the conversion they were made with, so window pieces made anywhere else, for previews
+    /// and window captures, see SDR.
+    fn colour_target_for(&self, output: &Output) -> crate::colour::TargetFor<'_> {
+        let target = if self.capturing.get() {
+            crate::colour::Target::SDR
+        } else {
+            crate::colour::Target::of(output)
+        };
+        crate::colour::TargetFor::set(&self.colour_target, target)
+    }
+
     /// The windows and what lies under them, built once for the frame and the glass over
     /// them: [`Isle::frame_lower`] keeps it until the frame takes it.
     pub fn lower_elements_of(&self, renderer: &mut GlesRenderer, output: &Output) -> Vec<IsleElement> {
@@ -437,6 +451,7 @@ impl Isle {
         let Some(geometry) = self.space.output_geometry(output) else {
             return lower;
         };
+        let _target = self.colour_target_for(output);
         let scale = Scale::from(output.current_scale().fractional_scale());
         let mission = self.mission_on(output);
         self.lower_elements(renderer, output, geometry, scale, &[], None, mission, &mut |e| lower.push(e));

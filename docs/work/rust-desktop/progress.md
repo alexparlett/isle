@@ -125,6 +125,19 @@
   tests), and the ramp is never written on an HDR screen (22.3). Scan-out
   is not tried while night light warms, since a scanned-out frame would
   skip the warmth. Game Mode turns night light off for games.
+- 22.8: captures are SDR.
+  - **How.** Elements built for a picture use an SDR target, so an HDR
+    window's conversion tone-maps it (BT.2390) into SDR's white, and SDR
+    content is never converted.
+  - **What that covers:** screenshots, image-copy, PipeWire streams and
+    the recorder, the colour pick, window captures, and the switcher's and
+    Mission Control's previews, from one place and with no extra pass.
+  - **The target's lifetime.** It lives only while an element list is
+    built, including the frame's shared window list (`lower_elements_of`,
+    which the tests found had none). Pieces made anywhere else see SDR.
+  - **Tests.** A screenshot of an HDR screen keeps an SDR window's grey
+    exactly and shows an HDR10 white at 255. The capture, stream,
+    image-copy and switcher suites pass.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

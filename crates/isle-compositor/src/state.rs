@@ -259,6 +259,8 @@ pub struct Isle {
     /// Counts surfaces' description changes; a screen that has not drawn the latest redraws
     /// whole.
     pub colour_epoch: std::cell::Cell<u64>,
+    /// Elements are being built for a picture: HDR windows are tone-mapped to SDR.
+    pub capturing: std::cell::Cell<bool>,
     /// The screen being drawn, for surfaces converted into its blend space.
     pub colour_target: std::cell::Cell<crate::colour::Target>,
     /// Each window's shadow layers, kept so their ids hold still across frames.
@@ -648,6 +650,7 @@ impl Isle {
             colour_target: std::cell::Cell::new(crate::colour::Target::SDR),
             color_management,
             colour_epoch: std::cell::Cell::new(0),
+            capturing: std::cell::Cell::new(false),
             shadow_cache: Default::default(),
             leaving: Vec::new(),
             split: Default::default(),

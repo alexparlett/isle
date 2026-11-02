@@ -223,6 +223,8 @@ pub static PANES: &[Pane] = &[
             RowDef::new("brightness", "Brightness").keywords(&["ddc"]),
             RowDef::new("vrr", "Variable refresh rate").keywords(&["freesync", "g-sync", "adaptive sync"]),
             RowDef::new("tearing", "Allow tearing in games").keywords(&["tearing"]),
+            RowDef::new("hdr", "High Dynamic Range").keywords(&["hdr", "hdr10"]),
+            RowDef::new("sdr-white", "SDR Brightness").keywords(&["hdr", "reference white"]),
             RowDef::new("schedule", "Night Light schedule").key("night-light.schedule").within("Night Light…").keywords(&["night shift", "blue light"]),
             RowDef::new("warmth", "Warmth").key("night-light.warmth").within("Night Light…").keywords(&["colour temperature"]),
             RowDef::new("graphics-card", "Graphics card").key("render-device").within("Advanced…").keywords(&["gpu", "render device"]),

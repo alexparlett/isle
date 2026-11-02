@@ -490,6 +490,47 @@ impl Component for Displays {
                 .description("A game that asks is shown without waiting for the display.")
                 .into_element(),
             );
+            if d.hdr_peak > 0. {
+                let id = id.clone();
+                let mut about = "Shows HDR games and video with more brightness and colour. The screen \
+                                 goes dark for a moment when this changes."
+                    .to_owned();
+                if d.hdr && d.bit_depth == 8 {
+                    about.push_str(" Running at 8-bit.");
+                }
+                rows.push(
+                    r.row("hdr", "High Dynamic Range", None)
+                        .control(isle_ui::Switch::new(d.hdr, "High Dynamic Range", move |on: bool| {
+                            configure(services, &id, serde_json::json!({ "hdr": on }))
+                        }))
+                        .description(about)
+                        .into_element(),
+                );
+            }
+            if d.hdr {
+                let key = format!("output[{id}].sdr-white");
+                let (lo, hi) = (80., d.hdr_peak.round().max(81.));
+                rows.push(
+                    r.row("sdr-white", "SDR Brightness", Some(&key))
+                        .control(
+                            rect().width(Size::px(200.)).child(isle_ui::Slider::new(
+                                ((d.sdr_white - lo) / (hi - lo)).clamp(0., 1.) as f32,
+                                "SDR Brightness",
+                                move |v: f32| {
+                                    let nits = (lo + f64::from(v) * (hi - lo)).round() as i64;
+                                    if desktop.value(&key) != Some(Value::Int(nits)) {
+                                        desktop.set(key.clone(), Value::Int(nits))
+                                    }
+                                },
+                            )),
+                        )
+                        .description(
+                            "How bright everything that isn't HDR looks. Games see HDR only while this \
+                             is below the screen's peak.",
+                        )
+                        .into_element(),
+                );
+            }
             body = body.child(form::group(Some(label(&d)), rows));
         }
 

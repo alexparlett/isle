@@ -97,6 +97,24 @@ fn click_control(test: &mut TestingRunner, caption: &str) {
     settle(test);
 }
 
+/// Clicks the control of the row labelled `caption` whose description starts `described`:
+/// a described row centres its control on the label and description together.
+fn click_described(test: &mut TestingRunner, caption: &str, described: &str) {
+    let area = |test: &TestingRunner, wanted: &dyn Fn(&str) -> bool| {
+        test.find(|node, element| {
+            Label::try_downcast(element)
+                .filter(|label| wanted(&label.text))
+                .map(|_| node.layout().area)
+        })
+        .unwrap_or_else(|| panic!("no label for {caption:?}: {:?}", labels(test)))
+    };
+    let top = area(test, &|t| t == caption).min_y();
+    let bottom = area(test, &|t| t.starts_with(described)).max_y();
+    let x = (900. - 220.) / 2. + 220. + 600. / 2. - 30.;
+    test.click_cursor((x as f64, f64::from((top + bottom) / 2.)));
+    settle(test);
+}
+
 /// Settings opened at `uri` with the defaults, after `setup` gives its state.
 fn open(uri: &str, setup: impl Fn(Desktop, Services) + 'static) -> (TestingRunner, Handles) {
     let dir = std::env::temp_dir().join(format!(
@@ -394,6 +412,45 @@ fn a_scale_applies_at_once_without_asking() {
         Value::Float(1.5)
     )));
     assert!(!shows(&test, "Do you want to keep these display settings?"));
+}
+
+#[test]
+fn hdr_shows_for_a_screen_that_takes_it_and_asks_to_keep_the_change() {
+    let (mut test, handles) = open("isle-settings://displays", |_, services| {
+        let mut displays = services.displays;
+        displays.set(Snapshot {
+            available: true,
+            state: vec![display()],
+        });
+    });
+    assert!(!shows(&test, "High Dynamic Range"));
+
+    let mut displays = handles.services().displays;
+    displays.set(Snapshot {
+        available: true,
+        state: vec![isle_ipc::DisplayInfo { hdr_peak: 302., ..display() }],
+    });
+    settle(&mut test);
+    assert!(shows(&test, "High Dynamic Range"), "{:?}", labels(&test));
+    assert!(!shows(&test, "SDR Brightness"));
+    click_described(&mut test, "High Dynamic Range", "Shows HDR games");
+    let configured = handles.acts().into_iter().find_map(|a| match a {
+        Act::Configure(json) => Some(json),
+        _ => None,
+    });
+    assert_eq!(configured.as_deref(), Some(r#"{"Dell U2723 1":{"hdr":true}}"#));
+
+    displays.set(Snapshot {
+        available: true,
+        state: vec![isle_ipc::DisplayInfo { hdr_peak: 302., hdr: true, bit_depth: 8, ..display() }],
+    });
+    settle(&mut test);
+    assert!(shows(&test, "SDR Brightness"), "{:?}", labels(&test));
+    assert!(
+        labels(&test).iter().any(|l| l.ends_with("Running at 8-bit.")),
+        "{:?}",
+        labels(&test)
+    );
 }
 
 #[test]

@@ -715,4 +715,5 @@
   22.7 built: HDR10 full-screen scan-out with a PQ pointer (host-proven
   in 22.10), night light in the pass and no scan-out while it warms.
   22.8 built: captures SDR through an SDR target, HDR windows tone-mapped
-  into them. Next: 22.9, Settings › Displays.
+  into them. 22.9 built: the High Dynamic Range switch and SDR Brightness
+  in Settings › Displays. Next: 22.10, the host run with the user.

@@ -138,6 +138,17 @@
   - **Tests.** A screenshot of an HDR screen keeps an SDR window's grey
     exactly and shows an HDR10 white at 255. The capture, stream,
     image-copy and switcher suites pass.
+- 22.9: Settings › Displays.
+  - **High Dynamic Range.** A switch for a screen that takes HDR10 (its
+    EDID peak above 0), through Configure and so the Keep alert, with
+    choice 23's footnote and "Running at 8-bit." on the fallback.
+  - **SDR Brightness.** A slider from 80 cd/m² to the screen's peak while
+    HDR is on. It writes `sdr-white` straight to the settings, so it
+    applies live without asking.
+  - **Search.** Both rows join the pane's index.
+  - **Tests.** A pane test covers the row hidden and shown, the change
+    asked for, and the slider and 8-bit line in HDR. Its helper clicks a
+    described row's control at the centre of its label and description.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

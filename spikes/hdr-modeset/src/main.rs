@@ -9,7 +9,7 @@ use std::{
     path::PathBuf,
     process::ExitCode,
     sync::{
-        Mutex,
+        Mutex, mpsc,
         atomic::{AtomicBool, Ordering},
     },
     thread,
@@ -41,6 +41,7 @@ use smithay::{
     },
     utils::{DeviceFd, Rectangle, Size, Transform},
 };
+use ab_glyph::{Font as _, FontVec, PxScale, ScaleFont as _, point};
 
 static STOP: AtomicBool = AtomicBool::new(false);
 static LOG: Mutex<Option<File>> = Mutex::new(None);
@@ -339,25 +340,128 @@ fn scene(x: u32, y: u32, w: u32, h: u32, signal: Signal) -> [f64; 3] {
     }
 }
 
-fn paint(card: &Card, dumb: &mut Dumb, depth: Depth, signal: Signal) -> Result<(), String> {
-    let (w, h) = dumb.buffer.size();
-    let pitch = dumb.buffer.pitch() as usize;
-    let mut map = card
-        .map_dumb_buffer(&mut dumb.buffer)
-        .map_err(|e| format!("map: {e}"))?;
+/// The pattern for `signal`, packed, with each bar and patch labelled.
+fn pattern(w: u32, h: u32, depth: Depth, signal: Signal, font: &FontVec) -> Vec<u32> {
+    let mut px = vec![0u32; (w * h) as usize];
     for y in 0..h {
-        let row = &mut map.as_mut()[y as usize * pitch..];
         for x in 0..w {
-            let c = scene(x, y, w, h, signal);
-            let e = match signal {
-                Signal::Pq => c.map(pq),
-                Signal::Sdr => c.map(|v| srgb(v / SDR_WHITE)),
-            };
-            let px = depth.pack(e).to_le_bytes();
-            row[x as usize * 4..x as usize * 4 + 4].copy_from_slice(&px);
+            px[(y * w + x) as usize] = depth.pack(encode(scene(x, y, w, h, signal), signal));
         }
     }
-    Ok(())
+    let bar = w / BARS.len() as u32;
+    for (i, n) in BARS.iter().enumerate() {
+        let label = format!("{}: {n}", i + 1);
+        text(&mut px, w, depth, signal, font, i as u32 * bar + 10, h * 2 / 3 - 60, 30.0, &[&label]);
+    }
+    let names = ["709 red", "709 green", "709 blue", "2020 red", "2020 green", "2020 blue"];
+    for (i, name) in names.iter().enumerate() {
+        text(&mut px, w, depth, signal, font, i as u32 * (w / 6) + 10, h - 60, 30.0, &[name]);
+    }
+    px
+}
+
+fn encode(c: [f64; 3], signal: Signal) -> [f64; 3] {
+    match signal {
+        Signal::Pq => c.map(pq),
+        Signal::Sdr => c.map(|v| srgb(v / SDR_WHITE)),
+    }
+}
+
+/// `lines` in white at SDR's white on a black box whose top left is (x, y).
+#[allow(clippy::too_many_arguments)]
+fn text(px: &mut [u32], w: u32, depth: Depth, signal: Signal, font: &FontVec, x: u32, y: u32, size: f32, lines: &[&str]) {
+    let scaled = font.as_scaled(PxScale::from(size));
+    let line_h = (scaled.height() + scaled.line_gap()).ceil() as u32;
+    let width = lines
+        .iter()
+        .map(|l| l.chars().map(|c| scaled.h_advance(font.glyph_id(c))).sum::<f32>().ceil() as u32)
+        .max()
+        .unwrap_or(0);
+    let h = px.len() as u32 / w;
+    let (bx0, by0) = (x.saturating_sub(12), y.saturating_sub(8));
+    let (bx1, by1) = ((x + width + 12).min(w), (y + line_h * lines.len() as u32 + 8).min(h));
+    for yy in by0..by1 {
+        for xx in bx0..bx1 {
+            px[(yy * w + xx) as usize] = depth.pack([0.0; 3]);
+        }
+    }
+    let white = encode([SDR_WHITE; 3], signal);
+    for (row, line) in lines.iter().enumerate() {
+        let mut caret = x as f32;
+        let base = y as f32 + row as f32 * line_h as f32 + scaled.ascent();
+        for c in line.chars() {
+            let id = font.glyph_id(c);
+            let glyph = id.with_scale_and_position(PxScale::from(size), point(caret, base));
+            caret += scaled.h_advance(id);
+            let Some(outline) = font.outline_glyph(glyph) else { continue };
+            let bounds = outline.px_bounds();
+            outline.draw(|gx, gy, cov| {
+                let (px_x, px_y) = (bounds.min.x as i64 + gx as i64, bounds.min.y as i64 + gy as i64);
+                if px_x >= 0 && px_y >= 0 && (px_x as u32) < w && (px_y as u32) < h {
+                    px[(px_y as u32 * w + px_x as u32) as usize] = depth.pack(white.map(|v| v * cov as f64));
+                }
+            });
+        }
+    }
+}
+
+/// Two buffers for each signal, so the one being drawn is never the one on screen.
+struct Screen {
+    w: u32,
+    depth: Depth,
+    patterns: [Vec<u32>; 2],
+    buffers: Vec<(Dumb, framebuffer::Handle)>,
+    flip: [usize; 2],
+    font: FontVec,
+}
+
+impl Screen {
+    fn new(card: &Card, w: u32, h: u32, depth: Depth) -> Result<Screen, String> {
+        let path = std::process::Command::new("fc-match")
+            .args(["-f", "%{file}", "sans:bold"])
+            .output()
+            .ok()
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .filter(|p| !p.is_empty())
+            .unwrap_or("/usr/share/fonts/noto/NotoSans-Bold.ttf".into());
+        let font = FontVec::try_from_vec(fs::read(&path).map_err(|e| format!("{path}: {e}"))?)
+            .map_err(|e| format!("{path}: {e}"))?;
+        let patterns = [Signal::Sdr, Signal::Pq].map(|s| pattern(w, h, depth, s, &font));
+        let format = depth.format();
+        let mut buffers = Vec::new();
+        for _ in 0..4 {
+            let buffer = card
+                .create_dumb_buffer((w, h), format, 32)
+                .map_err(|e| format!("dumb buffer: {e}"))?;
+            let dumb = Dumb { buffer, format };
+            let fb = card
+                .add_planar_framebuffer(&dumb, FbCmd2Flags::empty())
+                .map_err(|e| format!("framebuffer {format:?}: {e}"))?;
+            buffers.push((dumb, fb));
+        }
+        Ok(Screen { w, depth, patterns, buffers, flip: [0; 2], font })
+    }
+
+    /// A buffer holding `signal`'s pattern with `lines` across its top.
+    fn frame(&mut self, card: &Card, signal: Signal, lines: &[&str]) -> Result<framebuffer::Handle, String> {
+        let s = (signal == Signal::Pq) as usize;
+        self.flip[s] ^= 1;
+        let mut px = self.patterns[s].clone();
+        if !lines.is_empty() {
+            text(&mut px, self.w, self.depth, signal, &self.font, 40, 40, 48.0, lines);
+        }
+        let (dumb, fb) = &mut self.buffers[s * 2 + self.flip[s]];
+        let pitch = dumb.buffer.pitch() as usize;
+        let w = self.w as usize;
+        let mut map = card.map_dumb_buffer(&mut dumb.buffer).map_err(|e| format!("map: {e}"))?;
+        for (y, row) in px.chunks_exact(w).enumerate() {
+            let dst = &mut map.as_mut()[y * pitch..y * pitch + w * 4];
+            for (d, p) in dst.chunks_exact_mut(4).zip(row) {
+                d.copy_from_slice(&p.to_le_bytes());
+            }
+        }
+        Ok(*fb)
+    }
 }
 
 struct Output {
@@ -436,6 +540,7 @@ fn blob_id(v: property::Value<'_>) -> u64 {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Commit<'a> {
     fb: framebuffer::Handle,
     colorspace: u64,
@@ -488,6 +593,55 @@ fn commit(card: &Card, out: &Output, mode_blob: u64, c: &Commit, test: bool) -> 
     Ok(started.elapsed())
 }
 
+/// Turns the output off the way Smithay's `DrmCompositor::clear` does: no CRTC, no mode, no planes.
+fn disable(card: &Card, out: &Output) -> Result<Duration, String> {
+    let mut req = AtomicModeReq::new();
+    req.add_raw_property(out.conn.into(), out.conn_props.handle("CRTC_ID")?, 0);
+    req.add_raw_property(out.crtc.into(), out.crtc_props.handle("ACTIVE")?, 0);
+    req.add_raw_property(out.crtc.into(), out.crtc_props.handle("MODE_ID")?, 0);
+    for p in std::iter::once(&out.primary).chain(&out.others) {
+        let props = &out.plane_props[p];
+        req.add_raw_property((*p).into(), props.handle("FB_ID")?, 0);
+        req.add_raw_property((*p).into(), props.handle("CRTC_ID")?, 0);
+    }
+    let started = Instant::now();
+    card.atomic_commit(AtomicCommitFlags::ALLOW_MODESET, req)
+        .map_err(|e| format!("disable: {e}"))?;
+    Ok(started.elapsed())
+}
+
+/// Lines typed on the console, read on a thread so a question can time out.
+fn answers() -> mpsc::Receiver<String> {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        for line in std::io::stdin().lines().map_while(Result::ok) {
+            if tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    rx
+}
+
+/// Logs `question` and the answer typed: y is yes, n is no, anything else or three minutes' silence is none.
+fn ask(answers: &mpsc::Receiver<String>, question: &str) -> Option<bool> {
+    say!("? {question} [y/n]");
+    let until = Instant::now() + Duration::from_secs(180);
+    while Instant::now() < until && !STOP.load(Ordering::SeqCst) {
+        if let Ok(line) = answers.recv_timeout(Duration::from_millis(100)) {
+            let answer = match line.trim() {
+                "y" | "Y" => Some(true),
+                "n" | "N" => Some(false),
+                _ => None,
+            };
+            say!("  answer: {}", line.trim());
+            return answer;
+        }
+    }
+    say!("  no answer");
+    None
+}
+
 /// Waits `secs`, false if interrupted.
 fn hold(secs: u64) -> bool {
     let until = Instant::now() + Duration::from_secs(secs);
@@ -501,9 +655,6 @@ fn hold(secs: u64) -> bool {
 }
 
 struct Options {
-    cycles: u32,
-    hold: u64,
-    dpms: bool,
     depth: Depth,
     mode: Option<(u16, u16, u32)>,
     card: Option<PathBuf>,
@@ -528,7 +679,9 @@ fn run(opts: Options) -> Result<(), String> {
     card.set_client_capability(ClientCapability::Atomic, true)
         .map_err(|e| format!("atomic: {e}"))?;
     if let Err(e) = card.acquire_master_lock() {
-        say!("master: {e} (continuing; the first commit says whether the card is free)");
+        return Err(format!(
+            "master: {e}. Another session holds the card: run this from a free console (Ctrl+Option+F3)"
+        ));
     }
 
     let out = find_output(&card, opts.mode)?;
@@ -574,66 +727,83 @@ fn run(opts: Options) -> Result<(), String> {
     let bt2020 = out.conn_props.entry("Colorspace", "BT2020_RGB")?;
 
     let format = opts.depth.format();
-    let mut fbs = Vec::new();
-    for signal in [Signal::Sdr, Signal::Pq] {
-        let buffer = card
-            .create_dumb_buffer((w as u32, h as u32), format, 32)
-            .map_err(|e| format!("dumb buffer: {e}"))?;
-        let mut dumb = Dumb { buffer, format };
-        paint(&card, &mut dumb, opts.depth, signal)?;
-        let fb = card
-            .add_planar_framebuffer(&dumb, FbCmd2Flags::empty())
-            .map_err(|e| format!("framebuffer {format:?}: {e}"))?;
-        fbs.push((dumb, fb));
-    }
-    let (sdr_fb, hdr_fb) = (fbs[0].1, fbs[1].1);
+    let mut screen = Screen::new(&card, w as u32, h as u32, opts.depth)?;
+    let first_sdr = screen.frame(&card, Signal::Sdr, &[])?;
+    let first_hdr = screen.frame(&card, Signal::Pq, &[])?;
     let mode_blob = blob_id(card.create_property_blob(&out.mode).map_err(|e| format!("mode blob: {e}"))?);
     let meta_blob = blob_id(card.create_property_blob(&meta).map_err(|e| format!("metadata blob: {e}"))?);
 
-    let sdr = Commit { fb: sdr_fb, colorspace: default, metadata: 0, active: true, label: "SDR" };
-    let hdr_on = Commit { fb: hdr_fb, colorspace: bt2020, metadata: meta_blob, active: true, label: "HDR" };
-    let dark = Commit { active: false, label: "HDR, screen off", ..hdr_on };
+    let sdr = Commit { fb: first_sdr, colorspace: default, metadata: 0, active: true, label: "SDR" };
+    let hdr_on = Commit { fb: first_hdr, colorspace: bt2020, metadata: meta_blob, active: true, label: "HDR" };
 
+    let answers = answers();
+    let screen = std::cell::RefCell::new(screen);
+    const KEYS: &str = "Type y or n, then Enter.";
     let result = (|| -> Result<(), String> {
         commit(&card, &out, mode_blob, &hdr_on, true)?;
         say!("HDR passes TEST_ONLY at {format:?}");
+        let signal = |c: &Commit| if c.colorspace == bt2020 { Signal::Pq } else { Signal::Sdr };
+        let show = |c: &Commit, lines: &[&str]| -> Result<(), String> {
+            let fb = screen.borrow_mut().frame(&card, signal(c), lines)?;
+            let t = commit(&card, &out, mode_blob, &Commit { fb, ..*c }, false)?;
+            say!("{} committed in {t:?}", c.label);
+            Ok(())
+        };
+        let question = |c: &Commit, q: &str| -> Result<Option<bool>, String> {
+            show(c, &[q, KEYS])?;
+            Ok(ask(&answers, q))
+        };
+        let off = |c: &Commit| -> Result<(), String> {
+            let t = commit(&card, &out, mode_blob, &Commit { active: false, ..*c }, false)?;
+            say!("{}: screen off (ACTIVE=0) in {t:?}", c.label);
+            Ok(())
+        };
+        let disabled = || -> Result<(), String> {
+            let t = disable(&card, &out)?;
+            say!("output disabled in {t:?}");
+            Ok(())
+        };
+        let reset = |q: &str| -> Result<(), String> {
+            disabled()?;
+            hold(2);
+            question(&sdr, q)?;
+            Ok(())
+        };
 
-        say!("SDR baseline: note the OSD");
-        let t = commit(&card, &out, mode_blob, &sdr, false)?;
-        say!("SDR committed in {t:?}");
-        if !hold(5) {
-            return Ok(());
+        show(&sdr, &["This is SDR. Look at the bars, then press Enter for HDR."])?;
+        ask(&answers, "0. SDR bars showing. Enter to start");
+
+        question(&hdr_on, "1. HDR now. Does the monitor say it is in HDR (its menu, or a sign)?")?;
+        question(&hdr_on, "2. Do bars 9 to 12 (302 and up) look alike, and bars 1 to 8 differ?")?;
+        question(&hdr_on, "3. Are the three 2020 patches deeper than the three 709 patches?")?;
+        question(&hdr_on, "4. Is bar 7 (203) about as bright as SDR's white was?")?;
+
+        show(&sdr, &["Test A, in SDR: the screen goes off for 5 seconds, then comes back."])?;
+        hold(4);
+        off(&sdr)?;
+        hold(5);
+        if question(&sdr, "5. Test A (SDR, off and on): can you read this?")? != Some(true) {
+            reset("5r. After a full reset: can you read this?")?;
         }
-        for i in 1..=opts.cycles {
-            say!("HDR on, cycle {i}: the OSD should say HDR; the bars from 302 up should look alike");
-            let t = commit(&card, &out, mode_blob, &hdr_on, false)?;
-            say!("HDR committed in {t:?}");
-            if !hold(opts.hold) {
-                return Ok(());
-            }
-            let t = commit(&card, &out, mode_blob, &sdr, false)?;
-            say!("SDR, cycle {i}, committed in {t:?}");
-            if !hold(5) {
-                return Ok(());
-            }
+
+        show(&hdr_on, &["Test B, in HDR: the screen goes off for 5 seconds, then comes back."])?;
+        hold(4);
+        off(&hdr_on)?;
+        hold(5);
+        if question(&hdr_on, "6. Test B (HDR, off and on): can you read this, and is it HDR (8 bars)?")? != Some(true) {
+            reset("6r. After a full reset: can you read this?")?;
         }
-        if opts.dpms {
-            let t = commit(&card, &out, mode_blob, &hdr_on, false)?;
-            say!("HDR for the screen-off test, committed in {t:?}");
-            if !hold(5) {
-                return Ok(());
-            }
-            let t = commit(&card, &out, mode_blob, &dark, false)?;
-            say!("screen off in {t:?}");
-            if !hold(5) {
-                return Ok(());
-            }
-            let t = commit(&card, &out, mode_blob, &hdr_on, false)?;
-            say!("screen on in HDR in {t:?}: is it lit, and in HDR?");
-            if !hold(opts.hold) {
-                return Ok(());
-            }
+
+        show(&hdr_on, &["Test C, in HDR: the screen is disabled for 5 seconds, then relit, as Isle sleeps."])?;
+        hold(4);
+        disabled()?;
+        hold(5);
+        if question(&hdr_on, "7. Test C (HDR, disabled and relit): can you read this, and is it HDR (8 bars)?")? != Some(true) {
+            reset("7r. After a full reset: can you read this?")?;
         }
+
+        show(&sdr, &["Done. Press Enter to exit."])?;
+        ask(&answers, "8. Done, in SDR. Enter to exit");
         Ok(())
     })();
 
@@ -650,7 +820,7 @@ fn run(opts: Options) -> Result<(), String> {
     hold(2);
     let _ = card.destroy_property_blob(meta_blob);
     let _ = card.destroy_property_blob(mode_blob);
-    for (dumb, fb) in fbs {
+    for (dumb, fb) in screen.into_inner().buffers {
         let _ = card.destroy_framebuffer(fb);
         let _ = card.destroy_dumb_buffer(dumb.buffer);
     }
@@ -772,6 +942,20 @@ fn scanout_target(
     Ok(bytes.iter().take(8).map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" "))
 }
 
+/// Writes the SDR frame of question 2 as a PPM, to check the drawing without the card.
+fn preview(path: &str) -> Result<(), String> {
+    let (w, h) = (3440u32, 1440u32);
+    let font = FontVec::try_from_vec(fs::read("/usr/share/fonts/noto/NotoSans-Bold.ttf").map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+    let mut px = pattern(w, h, Depth::Ten, Signal::Sdr, &font);
+    text(&mut px, w, Depth::Ten, Signal::Sdr, &font, 40, 40, 48.0, &["2. Do bars 9 to 12 (302 and up) look alike?", "Type y or n, then Enter."]);
+    let mut out = format!("P6 {w} {h} 255\n").into_bytes();
+    for p in px {
+        out.extend([p & 0x3ff, (p >> 10) & 0x3ff, (p >> 20) & 0x3ff].map(|v| (v >> 2) as u8));
+    }
+    fs::write(path, out).map_err(|e| e.to_string())
+}
+
 fn main() -> ExitCode {
     *START.lock().unwrap() = Some(Instant::now());
     if let Ok(f) = OpenOptions::new().create(true).append(true).open("hdr-modeset.log") {
@@ -783,27 +967,33 @@ fn main() -> ExitCode {
     }
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let mut opts = Options { cycles: 3, hold: 10, dpms: false, depth: Depth::Ten, mode: None, card: None };
+    if args.first().map(String::as_str) == Some("preview") {
+        return match preview(args.get(1).map(String::as_str).unwrap_or("preview.ppm")) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("{e}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    let mut opts = Options { depth: Depth::Ten, mode: None, card: None };
     let mut command = "run";
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "gl" | "run" => command = if arg == "gl" { "gl" } else { "run" },
-            "--cycles" => opts.cycles = it.next().and_then(|v| v.parse().ok()).unwrap_or(3),
-            "--hold" => opts.hold = it.next().and_then(|v| v.parse().ok()).unwrap_or(10),
-            "--dpms" => opts.dpms = true,
             "--eight" => opts.depth = Depth::Eight,
             "--mode" => opts.mode = it.next().and_then(|v| parse_mode(v)),
             "--card" => opts.card = it.next().map(PathBuf::from),
             _ => {
                 eprintln!(
-                    "usage: hdr-modeset [run] [--cycles N] [--hold SECS] [--dpms] [--eight] [--mode WxH@HZ] [--card PATH]\n       hdr-modeset gl"
+                    "usage: hdr-modeset [run] [--eight] [--mode WxH@HZ] [--card PATH]\n       hdr-modeset gl"
                 );
                 return ExitCode::from(2);
             }
         }
     }
-    say!("hdr-modeset {command} {}", args.join(" "));
+    say!("hdr-modeset {}", args.join(" "));
     let result = if command == "gl" { gl() } else { run(opts) };
     match result {
         Ok(()) => ExitCode::SUCCESS,

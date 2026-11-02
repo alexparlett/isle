@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
+ab_glyph = "0.2"
 libc = "0.2"
 smithay = { git = "https://github.com/alexparlett/smithay", rev = "3e5b6fe4559ea98c4df536db5db37f7a39cd3d5f", default-features = false, features = [
     "backend_drm",

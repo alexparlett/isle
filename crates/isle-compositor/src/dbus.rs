@@ -1817,6 +1817,35 @@ impl Test {
             .map_err(fdo::Error::Failed)
     }
 
+    /// Makes a virtual display a pretend HDR screen; headless only.
+    async fn make_hdr(&self, name: String, peak: f64, sdr_white: f64) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| match &mut state.backend {
+                crate::backend::Backend::Headless(headless) => {
+                    let made = headless.make_hdr(&name, peak, sdr_white);
+                    let output = state.isle.space.outputs().find(|o| o.name() == name).cloned();
+                    if let Some(output) = output {
+                        state.isle.queue_redraw(&output);
+                    }
+                    made
+                }
+                _ => Err("only headless outputs are made HDR".into()),
+            })
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
+    /// A pretend HDR screen's 10-bit code values at a pixel.
+    async fn screen_code(&self, name: String, x: i32, y: i32) -> fdo::Result<(u32, u32, u32)> {
+        self.to_loop
+            .call(move |state| match &mut state.backend {
+                crate::backend::Backend::Headless(headless) => headless.screen_code(&name, x, y),
+                _ => Err("headless only".into()),
+            })
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
     async fn remove_output(&self, name: String) -> fdo::Result<bool> {
         Ok(self
             .to_loop

@@ -707,6 +707,7 @@
   and 22.2 ported as alexparlett/smithay#6 (connector state) and #7 (the
   protocol), merged; the workspace pins `isle` at `1d78177e`. 22.3 built:
   capability, `hdr` and `sdr-white`, the 10-bit HDR relight, SDR on
-  leaving the console and on exit. Next: 22.4, the composite (FP16
-  intermediate and the PQ pass); until then an HDR screen's picture is
-  wrong, and nothing turns it on.
+  leaving the console and on exit. 22.4 built: the FP16 intermediate and
+  the PQ pass, tested on the GPU and on a pretend HDR headless screen;
+  `hdr true` in settings.kdl now gives a correct SDR desktop in HDR10
+  (no Settings row yet). Next: 22.5, HDR clients.

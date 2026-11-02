@@ -158,10 +158,6 @@ impl HdrPass {
             encode,
         }
     }
-
-    pub fn texture(&self) -> &GlesTexture {
-        &self.texture
-    }
 }
 
 #[derive(Clone)]

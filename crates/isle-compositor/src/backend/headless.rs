@@ -39,6 +39,8 @@ struct Target {
     drawn: bool,
     /// The buffers the last frame was drawn from, held as the hardware backend holds them.
     in_flight: Vec<smithay::backend::renderer::utils::Buffer>,
+    /// A pretend HDR screen's intermediate.
+    hdr_pass: Option<crate::hdr_pass::HdrPass>,
 }
 
 impl Headless {
@@ -81,18 +83,39 @@ impl Headless {
             .get_mut(&output.name())
             .ok_or_else(|| format!("no target for {}", output.name()))?;
         let age = usize::from(target.drawn);
-        let mut framebuffer = self
-            .renderer
-            .bind(&mut target.texture)
-            .map_err(|e| e.to_string())?;
         let mut elements = Vec::new();
         isle.render_elements(&mut self.renderer, output, None, &mut |e| elements.push(e));
-        let result = target
-            .damage_tracker
-            .render_output(&mut self.renderer, &mut framebuffer, age, &elements, CLEAR)
-            .map_err(|e| format!("{e:?}"))?;
-        let damaged = result.damage.is_some();
-        let states = result.states;
+        let (damaged, states) = if let Some(hdr) = crate::hdr::OutputHdr::of(output).cloned() {
+            if !target.hdr_pass.as_ref().is_some_and(|p| p.fits(output)) {
+                target.hdr_pass = Some(crate::hdr_pass::HdrPass::new(&mut self.renderer, output)?);
+            }
+            let pass = target.hdr_pass.as_mut().expect("made above");
+            let states = pass.composite(&mut self.renderer, &elements, CLEAR)?;
+            let element = pass.element(crate::hdr_pass::Encode {
+                sdr_white: hdr.sdr_white.get() as f32,
+                peak: hdr.caps.peak as f32,
+                gains: [1.0; 3],
+            });
+            let mut framebuffer = self
+                .renderer
+                .bind(&mut target.texture)
+                .map_err(|e| e.to_string())?;
+            let result = target
+                .damage_tracker
+                .render_output(&mut self.renderer, &mut framebuffer, age, &[element], CLEAR)
+                .map_err(|e| format!("{e:?}"))?;
+            (result.damage.is_some(), states)
+        } else {
+            let mut framebuffer = self
+                .renderer
+                .bind(&mut target.texture)
+                .map_err(|e| e.to_string())?;
+            let result = target
+                .damage_tracker
+                .render_output(&mut self.renderer, &mut framebuffer, age, &elements, CLEAR)
+                .map_err(|e| format!("{e:?}"))?;
+            (result.damage.is_some(), result.states)
+        };
         target.drawn = true;
         if damaged {
             target.in_flight = super::sampled_buffers(isle, output, &elements);
@@ -165,6 +188,7 @@ impl Headless {
                 global,
                 drawn: false,
                 in_flight: Vec::new(),
+                hdr_pass: None,
             },
         );
         let x = isle
@@ -176,6 +200,45 @@ impl Headless {
             .unwrap_or(0);
         isle.add_output(&output, (x, 0).into());
         Ok(output)
+    }
+
+    /// Makes an output a pretend HDR screen: drawn through the HDR pass into 10 bits.
+    pub fn make_hdr(&mut self, name: &str, peak: f64, sdr_white: f64) -> Result<(), String> {
+        let target = self.targets.get_mut(name).ok_or("no such output")?;
+        let caps = crate::hdr::HdrCaps::from_luminances(peak, peak, 0.0);
+        if crate::hdr::OutputHdr::of(&target.output).is_some() {
+            return Err(format!("{name} is HDR already"));
+        }
+        target
+            .output
+            .user_data()
+            .insert_if_missing(|| crate::hdr::OutputHdr::new(caps, sdr_white, true));
+        let size = smithay::backend::renderer::Texture::size(&target.texture);
+        target.texture =
+            Offscreen::<GlesTexture>::create_buffer(&mut self.renderer, Fourcc::Abgr2101010, size)
+                .map_err(|e| e.to_string())?;
+        target.damage_tracker = OutputDamageTracker::from_output(&target.output);
+        target.drawn = false;
+        Ok(())
+    }
+
+    /// A pretend HDR screen's 10-bit code values at a pixel, as last presented.
+    pub fn screen_code(&mut self, name: &str, x: i32, y: i32) -> Result<(u32, u32, u32), String> {
+        use smithay::backend::renderer::ExportMem;
+        let target = self.targets.get_mut(name).ok_or("no such output")?;
+        let framebuffer = self.renderer.bind(&mut target.texture).map_err(|e| e.to_string())?;
+        let mapping = self
+            .renderer
+            .copy_framebuffer(
+                &framebuffer,
+                smithay::utils::Rectangle::new((x, y).into(), (1, 1).into()),
+                Fourcc::Abgr2101010,
+            )
+            .map_err(|e| e.to_string())?;
+        drop(framebuffer);
+        let bytes = self.renderer.map_texture(&mapping).map_err(|e| e.to_string())?;
+        let px = u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        Ok((px & 0x3ff, (px >> 10) & 0x3ff, (px >> 20) & 0x3ff))
     }
 
     pub fn remove_output(&mut self, isle: &mut Isle, name: &str) -> bool {

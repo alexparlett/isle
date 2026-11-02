@@ -56,6 +56,27 @@
   The spike's `--leave` tests found the reset in the disabling commit
   safe, and found that this monitor cannot show the difference. The
   picture is still SDR until 22.4.
+- 22.4: the composite.
+  - **The intermediate.** An HDR screen's frame goes into an FP16
+    intermediate in extended sRGB (BT.709, gamma 2.2 mirrored below zero,
+    1.0 the reference white), through its own damage tracker. The display
+    gets one element: the intermediate drawn by the PQ pass.
+  - **The PQ pass:** decode 2.2, × `sdr-white`, BT.709 to BT.2020, night
+    light's gains, clip at the peak, PQ.
+  - **Redraws.** A new white, peak or warmth redraws all of it; night
+    light redraws HDR screens.
+  - **What HDR screens give up for now:** tearing and scanning out a
+    client, until 22.6. The pointer is composited through the pass, so
+    no PQ cursor plane is needed until 22.6.
+  - **Tests:**
+    - six GPU tests of the pass's 10-bit code values;
+    - three on a pretend HDR headless screen (`MakeHdr`, `ScreenCode`):
+      white at the reference, SDR Brightness live, and an idle HDR
+      desktop drawing no frames;
+    - the SDR presentation tests still pass.
+  - **Not built here:** glass and backdrops in the intermediate's format
+    wait for HDR clients (22.5), since only they put values above 1.0
+    under the glass.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

@@ -36,6 +36,26 @@
   pixel-format check was a TODO, and Isle does not serve it), so #7 leaves
   `Cargo.toml` alone. The workspace pins `isle` at `1d78177e`, and the
   compositor builds on it.
+- 22.3: a screen's HDR10 capability and state.
+  - **Capability:** from the EDID's HDR block through libdisplay-info,
+    with `v0_3`, and the connector's `Colorspace` and
+    `HDR_OUTPUT_METADATA`.
+  - **Settings:** `hdr` and `sdr-white`, with `Displays1`'s fields and
+    Configure's edits.
+  - **The relight:** a 10-bit swapchain (XB30, then AB30, else 8-bit) and
+    the screen's own volume as its metadata, through `use_color_state`.
+    Night light leaves its ramp on an HDR screen.
+  - **Leaving:**
+    - an HDR output is turned off when the session leaves the console, its
+      colour reset in that commit, and the first frame back asks for HDR
+      again;
+    - Smithay's own disabling commit resets the colour, so exiting leaves
+      SDR;
+    - the greeter's defaults are SDR.
+
+  The spike's `--leave` tests found the reset in the disabling commit
+  safe, and found that this monitor cannot show the difference. The
+  picture is still SDR until 22.4.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

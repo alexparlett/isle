@@ -705,5 +705,8 @@
   the host (no hang, wakes in HDR); 203 cd/m² looks dimmer than the
   panel's SDR white; one black wake in the first run stays open. 22.1
   and 22.2 ported as alexparlett/smithay#6 (connector state) and #7 (the
-  protocol), merged; the workspace pins `isle` at `1d78177e`. Next: 22.3,
-  the screen's HDR state.
+  protocol), merged; the workspace pins `isle` at `1d78177e`. 22.3 built:
+  capability, `hdr` and `sdr-white`, the 10-bit HDR relight, SDR on
+  leaving the console and on exit. Next: 22.4, the composite (FP16
+  intermediate and the PQ pass); until then an HDR screen's picture is
+  wrong, and nothing turns it on.

@@ -1121,6 +1121,15 @@ impl State {
                 // The console or another session gets its screens untinted.
                 udev.restore_gamma();
                 for device in udev.devices.values_mut() {
+                    for lit in device.lit.values_mut() {
+                        // Turned off with its colour reset to SDR, so the console is not sent
+                        // HDR; the first frame back is a modeset that asks for it again.
+                        if crate::hdr::OutputHdr::of(&lit.output).is_some()
+                            && let Err(err) = lit.surface.with_compositor(|c| c.clear())
+                        {
+                            warn!(output = lit.output.name(), "could not leave HDR: {err:?}");
+                        }
+                    }
                     device.manager.pause();
                     for lit in device.lit.values_mut() {
                         lit.in_flight.clear();

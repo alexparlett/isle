@@ -298,6 +298,16 @@ impl State {
             Err(err) => {
                 warn!(output = output.name(), "rendering failed: {err}");
                 OutputState::of(output).borrow_mut().redraw = RedrawState::Idle;
+                // Clients that drew for this frame wait on its callbacks: try again shortly,
+                // as a flip refused while the last one is still pending soon succeeds.
+                let output = output.clone();
+                let _ = self.isle.loop_handle.insert_source(
+                    Timer::from_duration(Duration::from_millis(10)),
+                    move |_, _, state| {
+                        state.isle.queue_redraw(&output);
+                        TimeoutAction::Drop
+                    },
+                );
                 return;
             }
         };

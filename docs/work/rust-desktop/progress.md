@@ -157,6 +157,20 @@
   - `shell.rs`'s six-frames-in-the-open test failed once under the full
     suite and passes alone, as P19p recorded.
 - 22.10's checklist is in `hdr-2026.md` §10.
+- 22.10, first try (2026-11-04), on package `r691.g1c32970`.
+  - **Settings showed "no displays"** until the session restarted. The
+    old compositor's `DisplayInfo` lacked the new fields, so the D-Bus
+    signatures differed.
+  - **HDR came on** with a 10-bit swapchain at the EDID's 302 cd/m². The
+    first frame took 383 ms.
+  - **A red cast.** Night light was on. The SDR ramp stayed on the CRTC
+    under the PQ signal, which already carried the pass's warmth. Fixed:
+    an identity ramp is loaded before an HDR screen's modeset.
+  - **Lag after the revert.** The relight's first flip failed with EBUSY,
+    and a failed render left the output idle, so clients waiting on that
+    frame's callbacks stalled until something else redrew. Fixed: a failed
+    render is tried again 10 ms later. This predates P22, and every HDR
+    toggle relights.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

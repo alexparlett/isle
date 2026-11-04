@@ -967,8 +967,16 @@ impl State {
             }
             _ => None,
         };
-        // Night light on an HDR screen is the final pass's, never the ramp (P22 choice 18).
-        let gamma = if hdr.is_some() { None } else { gamma };
+        // Night light on an HDR screen is the final pass's, never the ramp (P22 choice 18). A
+        // ramp left on the CRTC from SDR would warm the PQ signal again, on the wrong curve.
+        let gamma = match (gamma, &hdr) {
+            (Some(mut gamma), Some(_)) => {
+                let identity = crate::night_light::ramp([1.0; 3], gamma.size());
+                gamma.set(device.manager.device(), crtc, &identity);
+                None
+            }
+            (gamma, _) => gamma,
+        };
         if let Some(hdr) = hdr {
             output.user_data().insert_if_missing(|| hdr);
         }

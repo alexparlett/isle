@@ -226,11 +226,16 @@ impl Isle {
         if let (Some(x), Some(y)) = (config.x, config.y) {
             self.space.map_output(output, (x, y));
         }
-        if let Some(hdr) = crate::hdr::OutputHdr::of(output)
-            && hdr.sdr_white.get() != config.sdr_white as f64
-        {
-            hdr.sdr_white.set(config.sdr_white as f64);
-            self.refresh_colour_preferences();
+        if let Some(hdr) = crate::hdr::OutputHdr::of(output) {
+            if hdr.sdr_white.get() != config.sdr_white as f64 {
+                hdr.sdr_white.set(config.sdr_white as f64);
+                self.refresh_colour_preferences();
+            }
+            // HDR windows are converted against the SDR colour, so all are drawn again.
+            if hdr.sdr_colour.get() != config.sdr_colour {
+                hdr.sdr_colour.set(config.sdr_colour);
+                self.colour_epoch.set(self.colour_epoch.get() + 1);
+            }
         }
         self.sync_shell_outputs();
         self.queue_redraw(output);

@@ -13,6 +13,12 @@
   were listed for Login Items' groups. `compositor.md` Session 7 ("a new
   session only") and `platform.md` 5 ("each compositor start") disagree;
   the plan takes the second, with P1's "Your apps were reopened.".
+- The user declined the dropdown terminal. P20a planned in
+  `p20a-windows.md`. Read for it: winit 0.30 has no `xdg_popup`, Freya's
+  fork opens windows at run time and Isle's apps draw in software, Smithay
+  serves `xdg_toplevel_tag`, keep on top is a stacking flag only (P6), and
+  the host's browsers are Chromium and Vivaldi ("Picture in picture") with
+  mpv, which has no PiP window.
 
 ## 2026-11-02 (P22)
 
@@ -196,7 +202,17 @@
     predates P22.
   - **Fixed.** `active_output` reads the position `move_pointer` keeps,
     and every pointer move goes through `move_pointer`.
-  - **The look.** The user reports washed-out colours with HDR on.
+  - **The look.** The user reports washed-out colours with HDR on: less
+    colourful, not dimmer. SDR mode on this panel stretches sRGB to its
+    near-P3 gamut, and HDR showed exact BT.709. **SDR Colour** is added
+    (Accurate to Vivid, default Vivid, the user's choice):
+    - the final pass's BT.709-to-BT.2020 matrix becomes a uniform mixed
+      toward the panel's primaries;
+    - HDR surfaces are converted through its inverse, so they stay exact;
+    - the PQ pointer is widened alike.
+
+    Unit tests check that Accurate is BT.709, that Vivid keeps white and
+    reddens SDR red, and that BT.2020 content round-trips.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

@@ -31,8 +31,9 @@ pub struct Cursors {
     size: u32,
     /// By icon and scale in thousandths.
     cache: HashMap<(CursorIcon, u32), Loaded>,
-    /// The same images encoded in PQ, by icon, scale and reference white in cd/m².
-    pq: HashMap<(CursorIcon, u32, u32), Loaded>,
+    /// The same images encoded in PQ, by icon, scale, reference white in cd/m² and the
+    /// widening's first coefficient in millionths.
+    pq: HashMap<(CursorIcon, u32, u32, i64), Loaded>,
 }
 
 impl Cursors {
@@ -72,14 +73,26 @@ impl Cursors {
         })
     }
 
-    /// The image for `icon` encoded as BT.2020 PQ with its white at `white` cd/m², for the
-    /// cursor plane of an HDR screen, which has no colour pipeline of its own.
-    pub fn get_pq(&mut self, icon: CursorIcon, scale: f64, white: f64) -> Option<NamedCursor<'_>> {
-        let key = (icon, (scale * 1000.0).round() as u32, white.round() as u32);
+    /// The image for `icon` encoded as BT.2020 PQ with its white at `white` cd/m², widened by
+    /// `to2020` as the screen's SDR content is, for the cursor plane of an HDR screen, which
+    /// has no colour pipeline of its own.
+    pub fn get_pq(
+        &mut self,
+        icon: CursorIcon,
+        scale: f64,
+        white: f64,
+        to2020: [[f64; 3]; 3],
+    ) -> Option<NamedCursor<'_>> {
+        let key = (
+            icon,
+            (scale * 1000.0).round() as u32,
+            white.round() as u32,
+            (to2020[0][0] * 1e6).round() as i64,
+        );
         if !self.pq.contains_key(&key) {
             self.get(icon, scale);
             let loaded = self.cache[&(icon, key.1)].as_ref().map(|image| {
-                let pixels = to_pq(&image.pixels, white);
+                let pixels = to_pq(&image.pixels, white, to2020);
                 Image_ {
                     buffer: MemoryRenderBuffer::from_slice(
                         &pixels,
@@ -177,12 +190,7 @@ impl Cursors {
 
 /// Premultiplied Argb8888 in sRGB (gamma 2.2) re-encoded as BT.2020 PQ, its white at `white`
 /// cd/m².
-fn to_pq(pixels: &[u8], white: f64) -> Vec<u8> {
-    const BT709_TO_BT2020: [[f64; 3]; 3] = [
-        [0.6274, 0.3293, 0.0433],
-        [0.0691, 0.9195, 0.0114],
-        [0.0164, 0.0880, 0.8956],
-    ];
+fn to_pq(pixels: &[u8], white: f64, to2020: [[f64; 3]; 3]) -> Vec<u8> {
     let pq = |nits: f64| {
         let y = (nits / 10000.0).clamp(0.0, 1.0).powf(2610.0 / 16384.0);
         ((0.8359375 + 18.8515625 * y) / (1.0 + 18.6875 * y)).powf(78.84375)
@@ -195,7 +203,7 @@ fn to_pq(pixels: &[u8], white: f64) -> Vec<u8> {
         }
         // Little-endian ARGB: blue, green, red, alpha.
         let rgb = [px[2], px[1], px[0]].map(|c| ((c as f64 / 255.0) / a).min(1.0).powf(2.2) * white);
-        let wide = BT709_TO_BT2020.map(|row| row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]);
+        let wide = to2020.map(|row| row[0] * rgb[0] + row[1] * rgb[1] + row[2] * rgb[2]);
         let [r, g, b] = wide.map(|v| (pq(v) * a * 255.0).round() as u8);
         px[0] = b;
         px[1] = g;
@@ -230,7 +238,7 @@ fn resample(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
 mod tests {
     #[test]
     fn white_is_pq_at_the_reference_and_alpha_stays() {
-        let white = super::to_pq(&[255, 255, 255, 255, 0, 0, 0, 0], 203.0);
+        let white = super::to_pq(&[255, 255, 255, 255, 0, 0, 0, 0], 203.0, crate::colour::Target::SDR.sdr_to_2020);
         // PQ of 203 cd/m² is 0.581.
         assert!(white[..3].iter().all(|&c| c.abs_diff(148) <= 1), "{white:?}");
         assert_eq!(white[3], 255);

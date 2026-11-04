@@ -89,15 +89,18 @@ pub struct OutputHdr {
     pub caps: HdrCaps,
     /// The reference white in cd/m², changed live by `sdr-white`.
     pub sdr_white: std::rc::Rc<std::cell::Cell<f64>>,
+    /// `sdr-colour`: SDR content kept to BT.709 at 0, stretched to the panel's gamut at 1.
+    pub sdr_colour: std::rc::Rc<std::cell::Cell<f64>>,
     /// False when the swapchain fell back to 8 bits.
     pub ten_bit: bool,
 }
 
 impl OutputHdr {
-    pub fn new(caps: HdrCaps, sdr_white: f64, ten_bit: bool) -> OutputHdr {
+    pub fn new(caps: HdrCaps, sdr_white: f64, sdr_colour: f64, ten_bit: bool) -> OutputHdr {
         OutputHdr {
             caps,
             sdr_white: std::rc::Rc::new(std::cell::Cell::new(sdr_white)),
+            sdr_colour: std::rc::Rc::new(std::cell::Cell::new(sdr_colour)),
             ten_bit,
         }
     }

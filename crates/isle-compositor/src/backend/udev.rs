@@ -372,7 +372,10 @@ impl Udev {
             Some(hdr) if self.warmth >= crate::night_light::NEUTRAL && hdr10_in_front(isle, output, &elements) => {
                 let white = hdr.sdr_white.get();
                 let cursor = match &isle.cursor_status {
-                    CursorImageStatus::Named(icon) => self.cursors.get_pq(*icon, scale, white),
+                    CursorImageStatus::Named(icon) => {
+                        self.cursors
+                            .get_pq(*icon, scale, white, crate::colour::Target::of(output).sdr_to_2020)
+                    }
                     _ => None,
                 };
                 let mut direct = Vec::new();
@@ -429,6 +432,7 @@ impl Udev {
                 sdr_white: hdr.sdr_white.get() as f32,
                 peak: hdr.caps.peak as f32,
                 gains: crate::night_light::gains(self.warmth).map(|g| g as f32),
+                to2020: crate::colour::column_major(crate::colour::Target::of(output).sdr_to_2020),
             });
             let pass_elements = [element];
             let result = lit
@@ -963,7 +967,7 @@ impl State {
         };
         let hdr = match hdr_caps {
             Some(caps) if config.hdr => {
-                light_hdr(&surface, device.manager.allocator(), renderer, caps, config.sdr_white as f64, &name)
+                light_hdr(&surface, device.manager.allocator(), renderer, caps, (config.sdr_white as f64, config.sdr_colour), &name)
             }
             _ => None,
         };
@@ -1493,7 +1497,7 @@ fn light_hdr(
     allocator: &GbmAllocator<DrmDeviceFd>,
     renderer: &mut GlesRenderer,
     caps: crate::hdr::HdrCaps,
-    sdr_white: f64,
+    (sdr_white, sdr_colour): (f64, f64),
     name: &str,
 ) -> Option<crate::hdr::OutputHdr> {
     let modifiers = |code: Fourcc| -> Vec<smithay::backend::allocator::Modifier> {
@@ -1515,7 +1519,7 @@ fn light_hdr(
     match surface.with_compositor(|c| c.use_color_state(caps.colour_state())) {
         Ok(()) => {
             info!(name, peak = caps.peak, ten_bit = ten_bit.is_some(), "HDR10");
-            Some(crate::hdr::OutputHdr::new(caps, sdr_white, ten_bit.is_some()))
+            Some(crate::hdr::OutputHdr::new(caps, sdr_white, sdr_colour, ten_bit.is_some()))
         }
         Err(err) => {
             warn!(name, "the connector refused HDR10: {err:?}");

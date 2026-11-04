@@ -170,6 +170,15 @@ What the evidence settles:
    mode feels dim. The spike found 203 dimmer than this monitor's SDR
    white, so 22.10 sets the default against the panel.
 
+   **SDR Colour** (added 2026-11-04, the user's choice). A slider under
+   SDR Brightness, Accurate to Vivid, defaulting to Vivid.
+   - **Why.** In SDR mode this wide-gamut panel shows sRGB stretched to its
+     own primaries. With HDR on, exact BT.709 looked washed out beside it.
+   - **How.** At Vivid, the final pass widens SDR content as if its values
+     were the panel's own primaries (from the EDID); at Accurate, from
+     BT.709. HDR surfaces are converted against the same matrix, so they
+     stay exact. Captures stay accurate.
+
 ### Composition
 
 10. **Blend in extended sRGB, in FP16, then encode PQ in a final pass.**

@@ -139,22 +139,56 @@ varying vec2 v_coords;
 "#
 }
 
-/// The white and peak of the screen being drawn, in cd/m²; an SDR screen's peak is its white.
+/// The white and peak of the screen being drawn, in cd/m², an SDR screen's peak being its
+/// white, and how its final pass widens the blend space's BT.709 into BT.2020.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Target {
     pub white: f64,
     pub peak: f64,
+    pub sdr_to_2020: [[f64; 3]; 3],
 }
 
 impl Target {
-    pub const SDR: Target = Target { white: SDR_WHITE, peak: SDR_WHITE };
+    pub const SDR: Target = Target {
+        white: SDR_WHITE,
+        peak: SDR_WHITE,
+        sdr_to_2020: BT709_TO_BT2020,
+    };
 
     pub fn of(output: &Output) -> Target {
         crate::hdr::OutputHdr::of(output).map_or(Target::SDR, |h| Target {
             white: h.sdr_white.get(),
             peak: h.caps.peak,
+            sdr_to_2020: sdr_to_bt2020(&h.caps, h.sdr_colour.get()),
         })
     }
+}
+
+/// BT.709 to BT.2020 in linear light, both D65.
+const BT709_TO_BT2020: [[f64; 3]; 3] = [
+    [0.627404, 0.329283, 0.043313],
+    [0.069097, 0.919540, 0.011362],
+    [0.016391, 0.088013, 0.895595],
+];
+
+/// How SDR content is widened on an HDR screen: at 0 exactly, its BT.709 kept; at 1 as the
+/// screen shows SDR itself, its values taken as the panel's own primaries.
+pub fn sdr_to_bt2020(caps: &crate::hdr::HdrCaps, colour: f64) -> [[f64; 3]; 3] {
+    let at = |[x, y]: [f64; 2]| ((x * 1e6).round() as i32, (y * 1e6).round() as i32);
+    let panel = Chromaticities {
+        red: at(caps.primaries[0]),
+        green: at(caps.primaries[1]),
+        blue: at(caps.primaries[2]),
+        white: at(caps.white),
+    };
+    let vivid = to_bt2020(&panel);
+    let t = colour.clamp(0.0, 1.0);
+    [0, 1, 2].map(|r| [0, 1, 2].map(|c| BT709_TO_BT2020[r][c] * (1.0 - t) + vivid[r][c] * t))
+}
+
+/// From `c`'s primaries to BT.2020's in linear light; the white points are taken as one.
+pub fn to_bt2020(c: &Chromaticities) -> [[f64; 3]; 3] {
+    mul(&invert(&rgb_to_xyz(&Chromaticities::from_named(Primaries::Bt2020))), &rgb_to_xyz(c))
 }
 
 /// The screen being drawn's target until dropped, then SDR's.
@@ -242,7 +276,8 @@ impl Conversion {
         };
         Some(Conversion {
             tf,
-            to709: column_major(to_bt709(&primaries)),
+            // Into the blend space, which the final pass takes to BT.2020 by the target's matrix.
+            to709: column_major(mul(&invert(&target.sdr_to_2020), &to_bt2020(&primaries))),
             scale: scale as f32,
             max: max as f32,
             white: target.white as f32,
@@ -277,7 +312,7 @@ impl Conversion {
 
 const IDENTITY: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 
-fn column_major(m: [[f64; 3]; 3]) -> [f32; 9] {
+pub fn column_major(m: [[f64; 3]; 3]) -> [f32; 9] {
     let mut out = [0.0; 9];
     for (col, chunk) in out.chunks_exact_mut(3).enumerate() {
         for (row, v) in chunk.iter_mut().enumerate() {
@@ -300,6 +335,7 @@ fn rgb_to_xyz(c: &Chromaticities) -> [[f64; 3]; 3] {
 }
 
 /// From `c`'s primaries to BT.709's in linear light; the white points are taken as one.
+#[cfg(test)]
 pub fn to_bt709(c: &Chromaticities) -> [[f64; 3]; 3] {
     let srgb = Chromaticities::from_named(Primaries::Srgb);
     mul(&invert(&rgb_to_xyz(&srgb)), &rgb_to_xyz(c))
@@ -480,12 +516,35 @@ mod tests {
 
     #[test]
     fn hdr10_maps_its_reference_to_the_screens_white_and_tone_maps_its_peak() {
-        let target = Target { white: 250.0, peak: 302.0 };
+        let target = Target { white: 250.0, peak: 302.0, ..Target::SDR };
         let c = Conversion::of(&pq_hdr10(), target).unwrap();
         assert_eq!(c.tf, 1.0);
         assert!((c.scale - 1.0 / 203.0).abs() < 1e-6);
         // 1000 cd/m² mastered against 203 is about 4.9 times the screen's white.
         assert!((c.max - (1000.0 / 203.0 * 250.0) as f32).abs() < 0.5);
+    }
+
+    #[test]
+    fn vivid_takes_sdr_as_the_panels_primaries_and_hdr_content_stays_exact() {
+        let panel = crate::hdr::HdrCaps {
+            primaries: [[0.6758, 0.3115], [0.2803, 0.6387], [0.1514, 0.0703]],
+            white: [0.3127, 0.3290],
+            ..crate::hdr::HdrCaps::from_luminances(302.0, 302.0, 0.0)
+        };
+        near(sdr_to_bt2020(&panel, 0.0), BT709_TO_BT2020);
+        let vivid = sdr_to_bt2020(&panel, 1.0);
+        // SDR red goes to the panel's own red, which is redder than BT.709's.
+        assert!(vivid[0][0] > BT709_TO_BT2020[0][0] + 0.05, "{vivid:?}");
+        // White stays white.
+        for row in vivid {
+            assert!((row.iter().sum::<f64>() - 1.0).abs() < 2e-3, "{vivid:?}");
+        }
+        // BT.2020 content, brought in and widened again, is where it was.
+        let target = Target { white: 203.0, peak: 302.0, sdr_to_2020: vivid };
+        let c = Conversion::of(&pq_hdr10(), target).unwrap();
+        let m = c.to709;
+        let back = mul(&vivid, &[0, 1, 2].map(|r| [0, 1, 2].map(|col| m[col * 3 + r] as f64)));
+        near(back, IDENTITY);
     }
 
     #[test]

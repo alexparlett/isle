@@ -29,13 +29,8 @@ uniform float alpha;
 uniform float sdr_white;
 uniform float peak;
 uniform vec3 gains;
+uniform mat3 to2020;
 varying vec2 v_coords;
-
-// Column-major.
-const mat3 BT709_TO_BT2020 = mat3(
-    0.6274, 0.0691, 0.0164,
-    0.3293, 0.9195, 0.0880,
-    0.0433, 0.0114, 0.8956);
 
 vec3 pq(vec3 nits) {
     vec3 y = pow(clamp(nits / 10000.0, 0.0, 1.0), vec3(0.1593017578125));
@@ -45,7 +40,7 @@ vec3 pq(vec3 nits) {
 void main() {
     vec3 c = texture2D(tex, v_coords).rgb;
     vec3 linear = sign(c) * pow(abs(c), vec3(2.2)) * sdr_white;
-    vec3 wide = max(BT709_TO_BT2020 * linear, 0.0) * gains;
+    vec3 wide = max(to2020 * linear, 0.0) * gains;
     gl_FragColor = vec4(pq(min(wide, vec3(peak))), 1.0);
 }
 "#;
@@ -60,6 +55,7 @@ pub fn compile(renderer: &mut GlesRenderer) -> Result<GlesTexProgram, GlesError>
             UniformName::new("sdr_white", UniformType::_1f),
             UniformName::new("peak", UniformType::_1f),
             UniformName::new("gains", UniformType::_3f),
+            UniformName::new("to2020", UniformType::Matrix3x3),
         ],
     )
 }
@@ -86,6 +82,8 @@ pub struct Encode {
     pub peak: f32,
     /// Night light's, in linear light; ones when it is off.
     pub gains: [f32; 3],
+    /// The blend space's BT.709 to BT.2020, column-major: `colour::Target::sdr_to_2020`.
+    pub to2020: [f32; 9],
 }
 
 impl HdrPass {
@@ -249,6 +247,13 @@ impl RenderElement<GlesRenderer> for HdrElement {
                 Uniform::new("sdr_white", self.encode.sdr_white),
                 Uniform::new("peak", self.encode.peak),
                 Uniform::new("gains", (self.encode.gains[0], self.encode.gains[1], self.encode.gains[2])),
+                Uniform::new(
+                    "to2020",
+                    smithay::backend::renderer::gles::UniformValue::Matrix3x3 {
+                        matrices: vec![self.encode.to2020],
+                        transpose: false,
+                    },
+                ),
             ],
         )
     }
@@ -338,7 +343,12 @@ mod tests {
         }
     }
 
-    const PLAIN: Encode = Encode { sdr_white: 203.0, peak: 302.0, gains: [1.0; 3] };
+    const PLAIN: Encode = Encode {
+        sdr_white: 203.0,
+        peak: 302.0,
+        gains: [1.0; 3],
+        to2020: [0.627404, 0.069097, 0.016391, 0.329283, 0.919540, 0.088013, 0.043313, 0.011362, 0.895595],
+    };
 
     #[test]
     fn sdr_white_is_the_reference_white() {

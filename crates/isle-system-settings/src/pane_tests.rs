@@ -446,6 +446,7 @@ fn hdr_shows_for_a_screen_that_takes_it_and_asks_to_keep_the_change() {
     });
     settle(&mut test);
     assert!(shows(&test, "SDR Brightness"), "{:?}", labels(&test));
+    assert!(shows(&test, "SDR Colour"), "{:?}", labels(&test));
     assert!(
         labels(&test).iter().any(|l| l.ends_with("Running at 8-bit.")),
         "{:?}",

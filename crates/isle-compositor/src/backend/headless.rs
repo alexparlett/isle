@@ -100,6 +100,7 @@ impl Headless {
                 sdr_white: hdr.sdr_white.get() as f32,
                 peak: hdr.caps.peak as f32,
                 gains: [1.0; 3],
+                to2020: crate::colour::column_major(crate::colour::Target::of(output).sdr_to_2020),
             });
             let mut framebuffer = self
                 .renderer
@@ -218,7 +219,7 @@ impl Headless {
         target
             .output
             .user_data()
-            .insert_if_missing(|| crate::hdr::OutputHdr::new(caps, sdr_white, true));
+            .insert_if_missing(|| crate::hdr::OutputHdr::new(caps, sdr_white, 1.0, true));
         let size = smithay::backend::renderer::Texture::size(&target.texture);
         target.texture =
             Offscreen::<GlesTexture>::create_buffer(&mut self.renderer, Fourcc::Abgr2101010, size)

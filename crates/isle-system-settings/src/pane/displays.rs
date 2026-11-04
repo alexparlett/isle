@@ -530,6 +530,18 @@ impl Component for Displays {
                         )
                         .into_element(),
                 );
+                rows.push(
+                    r.slider_key(
+                        "sdr-colour",
+                        "SDR Colour",
+                        format!("output[{id}].sdr-colour"),
+                        (0., 1.),
+                        ("Accurate", "Vivid"),
+                        1.,
+                    )
+                    .description("How colourful everything that isn't HDR looks. Vivid matches this display in SDR.")
+                    .into_element(),
+                );
             }
             body = body.child(form::group(Some(label(&d)), rows));
         }

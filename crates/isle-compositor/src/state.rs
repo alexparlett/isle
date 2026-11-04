@@ -261,6 +261,8 @@ pub struct Isle {
     pub colour_epoch: std::cell::Cell<u64>,
     /// Elements are being built for a picture: HDR windows are tone-mapped to SDR.
     pub capturing: std::cell::Cell<bool>,
+    /// Where the pointer was last moved to.
+    pub pointer_at: std::cell::Cell<Point<f64, Logical>>,
     /// The screen being drawn, for surfaces converted into its blend space.
     pub colour_target: std::cell::Cell<crate::colour::Target>,
     /// Each window's shadow layers, kept so their ids hold still across frames.
@@ -651,6 +653,7 @@ impl Isle {
             color_management,
             colour_epoch: std::cell::Cell::new(0),
             capturing: std::cell::Cell::new(false),
+            pointer_at: std::cell::Cell::new(Point::default()),
             shadow_cache: Default::default(),
             leaving: Vec::new(),
             split: Default::default(),
@@ -834,10 +837,11 @@ impl Isle {
     }
 
     /// The output under the pointer, else the first.
+    /// The output under the pointer. Reads the position kept at its last move, not the
+    /// pointer's own, which is locked while a grab handles motion.
     pub fn active_output(&self) -> Option<Output> {
-        let pointer = self.seat.get_pointer()?.current_location();
         self.space
-            .output_under(pointer)
+            .output_under(self.pointer_at.get())
             .next()
             .or_else(|| self.space.outputs().next())
             .cloned()

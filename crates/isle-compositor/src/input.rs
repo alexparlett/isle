@@ -123,6 +123,7 @@ impl State {
     }
 
     fn move_pointer(&mut self, location: Point<f64, Logical>, time: InputTime) {
+        self.isle.pointer_at.set(location);
         if self.picking() {
             self.pick_pointer_to(location);
             return;

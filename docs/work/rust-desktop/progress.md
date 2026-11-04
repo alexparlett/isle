@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-11-04 (P20)
+
+- P20 split into seven packets at the user's choice; Software Update moved
+  to P14c with the update path. P20b planned first, at the user's word, in
+  `p20b-session.md`. Read for it: P1's session dialog, crash notice, Desktop
+  rows and Login Items list; P9's choice 22 (the checkbox left out);
+  P14a's Login Items engine and B102; the launch path's scopes; Files
+  reopening its windows unconditionally. On the host, `systemd-coredump` is
+  the core handler and each record names the app's scope in
+  `COREDUMP_CGROUP`; the host's autostart entries and user-enabled units
+  were listed for Login Items' groups. `compositor.md` Session 7 ("a new
+  session only") and `platform.md` 5 ("each compositor start") disagree;
+  the plan takes the second, with P1's "Your apps were reopened.".
+
 ## 2026-11-02 (P22)
 
 - 22.0 in part. The plan was reviewed with every recommendation taken. The
@@ -171,6 +185,18 @@
     frame's callbacks stalled until something else redrew. Fixed: a failed
     render is tried again 10 ms later. This predates P22, and every HDR
     toggle relights.
+- 22.10, second try (2026-11-04, `r692.gd2d4278d`).
+  - **What worked.** HDR came on, reverted itself when not kept, then came
+    on again and was kept.
+  - **The abort.** Fourteen seconds later the watchdog aborted the
+    compositor: the main loop had hung for 10 s. The core showed a window
+    drag that deadlocked. `MoveGrab::motion` → `move_window` →
+    `place_bar` → `output_of` fell back to `active_output`, whose
+    `current_location()` locks the pointer the grab already holds. This
+    predates P22.
+  - **Fixed.** `active_output` reads the position `move_pointer` keeps,
+    and every pointer move goes through `move_pointer`.
+  - **The look.** The user reports washed-out colours with HDR on.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

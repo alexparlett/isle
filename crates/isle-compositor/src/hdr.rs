@@ -30,17 +30,24 @@ impl HdrCaps {
         if !meta.pq {
             return None;
         }
-        let colour = info.default_color_primaries();
         let mut caps = HdrCaps::from_luminances(
             meta.desired_content_max_luminance as f64,
             meta.desired_content_max_frame_avg_luminance as f64,
             meta.desired_content_min_luminance as f64,
         );
-        if colour.has_primaries {
-            caps.primaries = colour.primary.map(|p| [p.x as f64, p.y as f64]);
-        }
-        if colour.has_default_white_point {
-            caps.white = [colour.default_white.x as f64, colour.default_white.y as f64];
+        // The panel's own chromaticities, from the base block. libdisplay-info's default
+        // colour primaries are sRGB's when the EDID says sRGB is its default colour space.
+        if let Some(edid) = info.edid() {
+            let c = edid.chromaticity_coords();
+            let xy = [c.red_x, c.red_y, c.green_x, c.green_y, c.blue_x, c.blue_y, c.white_x, c.white_y];
+            if xy.iter().all(|v| *v > 0.0) {
+                caps.primaries = [
+                    [c.red_x as f64, c.red_y as f64],
+                    [c.green_x as f64, c.green_y as f64],
+                    [c.blue_x as f64, c.blue_y as f64],
+                ];
+                caps.white = [c.white_x as f64, c.white_y as f64];
+            }
         }
         Some(caps)
     }
@@ -170,6 +177,17 @@ mod tests {
         assert_eq!(meta.min_display_mastering_luminance, 0);
         assert_eq!(meta.display_primaries[0], CtaCoordinate { x: 33790, y: 15575 });
         assert_eq!(meta.white_point, CtaCoordinate { x: 15675, y: 16455 });
+    }
+
+    #[test]
+    fn an_edid_defaulting_to_srgb_still_gives_the_panels_primaries() {
+        // The AOC U34G2G4R3's: its default colour space is sRGB, its panel near DCI-P3.
+        let edid = include_bytes!("../tests/data/aoc-u34g2g4r3.edid");
+        let info = Info::parse_edid(edid).unwrap();
+        let caps = HdrCaps::from_info(&info).unwrap();
+        assert!((caps.peak - 301.8).abs() < 0.1, "{caps:?}");
+        assert!((caps.primaries[0][0] - 0.676).abs() < 0.002, "{caps:?}");
+        assert!((caps.primaries[1][1] - 0.639).abs() < 0.002, "{caps:?}");
     }
 
     #[test]

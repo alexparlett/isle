@@ -203,3 +203,29 @@ mod clients {
         wait_until(|| async { near(test.screen_code("HEADLESS-1", x, y).await.unwrap(), peak) }).await;
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn sdr_colour_changes_how_sdr_red_is_shown() {
+    let mut isle = Isle::start("hdr-sdr-colour").await;
+    let _client = isle.client("isle.test.Red", "ff0000");
+    let window = isle.wait_for_window("isle.test.Red").await;
+    let (x, y) = (window.x + window.width / 2, window.y + window.height / 2);
+    let test = isle.test().await;
+    test.make_hdr("HEADLESS-1", 302.0, 203.0).await.unwrap();
+    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    let info = displays.list().await.unwrap().into_iter().find(|d| d.name == "HEADLESS-1").unwrap();
+    let identity = format!("{} {} {}", info.make, info.model, info.serial);
+    let settings = SettingsProxy::new(&isle.bus).await.unwrap();
+    let mut codes = Vec::new();
+    for colour in [1.0f64, 0.0] {
+        settings
+            .set(&format!("output[{identity}].sdr-colour"), &zvariant::Value::from(colour))
+            .await
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        codes.push(test.screen_code("HEADLESS-1", x, y).await.unwrap());
+    }
+    assert_ne!(codes[0], codes[1], "SDR Colour changed nothing: {codes:?}");
+    // Accurate red is BT.709's: some green and blue in BT.2020 terms.
+    assert!(codes[1].1 > codes[0].1, "{codes:?}");
+}

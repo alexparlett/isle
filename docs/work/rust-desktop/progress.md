@@ -270,6 +270,15 @@
     off and check a setting does not bring it back.
   - **Against the code before the keep fix** it fails with "sdr-colour
     turned HDR off".
+- **SDR Colour did nothing on the host.** The AOC's EDID declares sRGB as
+  its default colour space, so libdisplay-info's default colour primaries
+  were sRGB's, and Vivid equalled Accurate. The HDR caps now take the
+  panel's chromaticities from the EDID's base block (R 0.676, 0.312;
+  G 0.280, 0.639). They feed both Vivid and the HDR metadata's mastering
+  primaries.
+  - A unit test parses the host's EDID, kept as
+    `tests/data/aoc-u34g2g4r3.edid`.
+  - A headless test checks that SDR Colour changes how SDR red is shown.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

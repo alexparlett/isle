@@ -73,9 +73,10 @@ pub struct RestoreState {
     pub reopened: Vec<String>,
     /// Isle's crash notice waits for the restore, so it can say the apps came back.
     pub crash_note_owed: bool,
-    /// Login Items started beside the restore, whose windows open behind while the front
-    /// app's are due.
+    /// Login Items started beside a restore that brought back a front app, whose windows
+    /// open behind until the restore's windows stop waiting.
     behind: Vec<String>,
+    behind_since: Option<Instant>,
     /// Each app's windows as last seen, kept after they go, for a crashed app's Reopen.
     pub last_windows: HashMap<String, Vec<RestoreWindow>>,
 }
@@ -96,6 +97,7 @@ impl Default for RestoreState {
             reopened: Vec::new(),
             crash_note_owed: false,
             behind: Vec::new(),
+            behind_since: None,
             last_windows: HashMap::new(),
         }
     }
@@ -265,15 +267,14 @@ impl Isle {
             .or_else(|| self.main_output())
     }
 
-    /// Whether a new window of `app` opens behind: a Login Item's while the front app's
-    /// windows are due.
+    /// Whether a new window of `app` opens behind: a Login Item's, beside a restore that
+    /// brought the front app back.
     pub fn opens_behind(&self, app: &str) -> bool {
         self.restore.behind.iter().any(|a| a == app)
             && self
                 .restore
-                .pending
-                .iter()
-                .any(|p| p.since.elapsed() < PENDING_FOR && p.slots.iter().any(|s| s.focus))
+                .behind_since
+                .is_some_and(|at| at.elapsed() < PENDING_FOR)
     }
 
     /// Whether `token` is a restored launch's that opens behind.
@@ -419,7 +420,9 @@ impl State {
         }
         info!(?launched, "restored");
         self.isle.restore.reopened = launched.clone();
-        self.isle.restore.behind = items;
+        let front = record.front.as_ref().is_some_and(|f| launched.contains(f));
+        self.isle.restore.behind = if front { items } else { Vec::new() };
+        self.isle.restore.behind_since = front.then(Instant::now);
         self.restore_after_dispatch();
         if std::mem::take(&mut self.isle.restore.crash_note_owed) {
             self.crash_note();
@@ -521,7 +524,11 @@ impl State {
         let ranks = &self.isle.restore.ranks;
         let records = &mut self.isle.wm.records;
         // The front app's windows stay in front, where they mapped.
-        if let Some(from) = records.iter().position(|r| r.id == id).filter(|_| !slot.focus) {
+        if let Some(from) = records
+            .iter()
+            .position(|r| r.id == id)
+            .filter(|_| !slot.focus)
+        {
             let record = records.remove(from);
             let to = records
                 .iter()

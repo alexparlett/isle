@@ -291,6 +291,10 @@ impl State {
             return;
         }
         let (desk, app) = (record.desktop, self.isle.owner_app(record).to_owned());
+        // A restored window other than the front app's shown one joins the strip.
+        let behind = self.isle.restore.slots.get(&id).is_some_and(|s| {
+            !s.focus || s.window.hidden || s.window.minimised
+        });
         let owner = |isle: &Isle, w: u64| isle.wm.get(w).map(|r| isle.owner_app(r).to_owned());
         let Some(stage) = self.isle.stage_mut(desk).cloned() else {
             return;
@@ -312,8 +316,20 @@ impl State {
             },
         };
         set.windows.retain(|w| *w != id);
-        set.windows.insert(0, id);
-        stage.sets.insert(0, set);
+        match (behind, at) {
+            (true, Some(i)) => {
+                set.windows.push(id);
+                stage.sets.insert(i, set);
+            }
+            (true, None) => {
+                set.windows.push(id);
+                stage.sets.push(set);
+            }
+            (false, _) => {
+                set.windows.insert(0, id);
+                stage.sets.insert(0, set);
+            }
+        }
         if let Some(output) = self.isle.output_of_desktop(desk) {
             self.apply_stage(&output);
         }

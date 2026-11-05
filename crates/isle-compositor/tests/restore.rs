@@ -468,3 +468,40 @@ async fn restored_windows_are_only_ever_on_their_own_desktops_and_launch_at_once
         }
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn under_stage_manager_the_front_app_holds_the_stage() {
+    let apps = serde_json::json!([
+        { "id": "isle.test.B", "windows": [{ "output": OUTPUT, "desktop": 0, "minimised": true }] },
+        { "id": "isle.test.A", "windows": [{ "output": OUTPUT, "desktop": 0 }] },
+    ]);
+    let isle = Isle::start_env(
+        "restore-stage",
+        "wallpaper {\n    source \"#1c1c1f\"\n}\n",
+        move |dir| {
+            prepare_restore(dir, &record(apps, "isle.test.A", false));
+            fs::write(
+                dir.join("state/isle/desktops.json"),
+                format!("{{\"version\":1,\"data\":{{\"counts\":{{\"{OUTPUT}\":1}},\"stage\":{{\"{OUTPUT}\":[0]}}}}}}"),
+            )
+            .unwrap();
+            entry(dir, "isle.test.A", "--colour 00ff00");
+            // B, minimised, maps after the front app, as a slower app would.
+            let client = env!("CARGO_BIN_EXE_isle-test-client");
+            fs::write(
+                dir.join("data/applications/isle.test.B.desktop"),
+                format!("[Desktop Entry]\nType=Application\nName=B\nExec=sh -c \"sleep 1; exec {client} --app-id isle.test.B --colour ff0000\"\n"),
+            )
+            .unwrap();
+        },
+        |dir| env(dir, &[]),
+    )
+    .await;
+    isle.test().await.restore_now().await.unwrap();
+    wait_until(|| async { isle.windows().await.iter().any(|w| w.app == "isle.test.B") }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(
+        isle.shot("HEADLESS-1", "stage").await.at(960, 600),
+        [0, 255, 0]
+    );
+}

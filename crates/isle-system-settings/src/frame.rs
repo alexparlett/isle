@@ -49,6 +49,7 @@ fn first_location(dir: &std::path::Path) -> Location {
     let (memory, _) = dir.load::<Memory>();
     memory
         .pane
+        .filter(|_| isle_app::reopens_windows())
         .and_then(|p| Location::at(&p, None))
         .unwrap_or_else(|| Location::pane(panes::FIRST))
 }

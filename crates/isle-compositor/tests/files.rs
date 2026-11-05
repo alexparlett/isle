@@ -2171,3 +2171,51 @@ async fn v1s_keys_right_size_the_sidebar_edge_and_archives_expanding() {
     }
     assert!(!app.printed_part("panicked"));
 }
+
+/// The folders Files keeps as its windows' tabs, from its state.
+fn kept_tabs(isle: &Isle) -> String {
+    std::fs::read_to_string(isle.dir.join("files-state/isle/files.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .map(|v| v["data"]["windows"].to_string())
+        .unwrap_or_default()
+}
+
+async fn quit_files(isle: &Isle, app: &Client) {
+    isle.chord(&[SUPER, KEY_Q]).await;
+    wait_until(|| async { app.exited() }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn close_windows_when_quitting_opens_fresh_unless_restored() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-close-windows").await;
+    let home = isle.dir.join("files-home");
+    std::fs::create_dir_all(home.join("Documents")).unwrap();
+    let (app, _) = start_files(&mut isle, &bin, &[]);
+    app.wait_for_part("listed").await;
+    // Go › Documents: a window's tabs are kept as they change.
+    isle.chord(&[SHIFT, SUPER, KEY_O]).await;
+    wait_until(|| async { kept_tabs(&isle).contains("Documents") }).await;
+    quit_files(&isle, &app).await;
+
+    std::fs::create_dir_all(home.join(".config/isle")).unwrap();
+    std::fs::write(
+        home.join(".config/isle/settings.kdl"),
+        "windows {\n    close-windows-when-quitting #true\n}\n",
+    )
+    .unwrap();
+    // Session restore's launch reopens it whatever the switch says.
+    let (app, _) = start_files(&mut isle, "env", &["ISLE_RESTORED=1", &bin]);
+    app.wait_for_part("listed").await;
+    quit_files(&isle, &app).await;
+    assert!(kept_tabs(&isle).contains("Documents"), "{}", kept_tabs(&isle));
+
+    let (app, _) = start_files(&mut isle, &bin, &[]);
+    app.wait_for_part("listed").await;
+    quit_files(&isle, &app).await;
+    assert!(!kept_tabs(&isle).contains("Documents"), "{}", kept_tabs(&isle));
+}

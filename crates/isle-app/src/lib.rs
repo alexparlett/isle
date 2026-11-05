@@ -12,7 +12,12 @@ mod wayland;
 mod window;
 mod worker;
 
-use std::{cell::RefCell, collections::BTreeMap, path::Path, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use freya::prelude::*;
 use futures_channel::mpsc::unbounded;
@@ -207,6 +212,8 @@ fn shipped_theme() -> Rc<Theme> {
 /// event loop whose one window is this tree.
 #[cfg(feature = "testing")]
 pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
+    // A test's app reopens what it remembered, whatever the user's own settings say.
+    let _ = RESTORED.set(true);
     let worker = use_provide_context(Worker::start);
     use_provide_context(|| SessionBus(None));
     use_provide_context(|| Chrome(Rc::default()));
@@ -309,9 +316,15 @@ pub fn run<A: App + Clone + 'static>(spec: Spec, app: A) {
 /// Starts an app whose windows its delegate opens; or hands its request to the instance
 /// already running and returns.
 pub fn run_with(spec: Spec, delegate: impl Delegate) {
+    abort_on_panic();
     let token = std::env::var("XDG_ACTIVATION_TOKEN").ok();
-    // The token is this launch's alone; children never inherit it.
-    unsafe { std::env::remove_var("XDG_ACTIVATION_TOKEN") };
+    let restored = std::env::var("ISLE_RESTORED").as_deref() == Ok("1");
+    let _ = RESTORED.set(restored);
+    // The token and the restore are this launch's alone; children never inherit them.
+    unsafe {
+        std::env::remove_var("XDG_ACTIVATION_TOKEN");
+        std::env::remove_var("ISLE_RESTORED");
+    }
     let first = Request::from_args(std::env::args().skip(1).collect(), token);
 
     let worker = Worker::start();
@@ -363,6 +376,52 @@ pub fn run_with(spec: Spec, delegate: impl Delegate) {
             .with_exit_on_close(false)
             .with_future(move |proxy| app.serve(proxy, delegate, inbox)),
     );
+}
+
+/// Set once at start: session restore launched this app.
+static RESTORED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// Whether this launch reopens the app's windows with their content: always when session
+/// restore started it, else while "Close windows when quitting an application" is off
+/// (`p20b-session.md` choices 13 and 14).
+pub fn reopens_windows() -> bool {
+    static REOPENS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *REOPENS.get_or_init(|| {
+        RESTORED.get().copied().unwrap_or(false) || !closes_windows(&settings_path())
+    })
+}
+
+/// Whether `settings.kdl` at `path` has "Close windows when quitting an application" on.
+fn closes_windows(path: &Path) -> bool {
+    isle_settings::Store::<isle_settings::schema::Settings>::open(path)
+        .current()
+        .windows
+        .close_windows_when_quitting
+}
+
+/// The compositor's `settings.kdl`: `$ISLE_CONFIG_DIR`, else `$XDG_CONFIG_HOME/isle`.
+fn settings_path() -> PathBuf {
+    std::env::var_os("ISLE_CONFIG_DIR")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("XDG_CONFIG_HOME")
+                .map(PathBuf::from)
+                .filter(|p| p.is_absolute())
+                .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+                .map(|c| c.join("isle"))
+        })
+        .unwrap_or_else(|| PathBuf::from("/tmp/isle"))
+        .join("settings.kdl")
+}
+
+/// A panic prints its message and aborts, so the app leaves a core and a crash record, and
+/// nothing unwinds into Wayland objects freed on the way out.
+fn abort_on_panic() {
+    let print = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        print(info);
+        std::process::abort();
+    }));
 }
 
 /// An app of one window: a request raises it, or opens it again once closed, and is left in
@@ -448,4 +507,20 @@ pub(crate) fn resolve(info: &ThemeInfo) -> Rc<Theme> {
             .theme(&appearance)
             .expect("the shipped tokens resolve")
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn close_windows_is_read_from_the_windows_section() {
+        let dir = std::env::temp_dir().join(format!("isle-app-close-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("settings.kdl");
+        assert!(!closes_windows(&path), "off by default");
+        std::fs::write(&path, "windows {\n    close-windows-when-quitting #true\n}\n").unwrap();
+        assert!(closes_windows(&path));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

@@ -74,7 +74,16 @@ pub fn load() -> Remembered {
     ) {
         tracing::warn!(?loaded, "Cleaner's state");
     }
-    data
+    // The window's content comes back only when the app reopens its windows.
+    if isle_app::reopens_windows() {
+        data
+    } else {
+        Remembered {
+            view: View::default(),
+            list: false,
+            ..data
+        }
+    }
 }
 
 pub fn save(data: &Remembered) {

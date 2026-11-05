@@ -38,7 +38,15 @@ pub fn load() -> Remembered {
     ) {
         tracing::warn!(?loaded, "Keychain's state");
     }
-    data
+    // The window's content comes back only when the app reopens its windows.
+    if isle_app::reopens_windows() {
+        data
+    } else {
+        Remembered {
+            row: Row::All,
+            ..data
+        }
+    }
 }
 
 pub fn save(data: &Remembered) {

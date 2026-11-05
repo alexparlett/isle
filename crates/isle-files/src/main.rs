@@ -748,7 +748,12 @@ impl Delegate for Files {
             let reopened: Vec<WindowMemory> = memory.windows.into_values().filter(|w| !w.tabs.is_empty()).collect();
             self.shared.memory.borrow_mut().windows.clear();
             let asked_for_more = !matches!(request, Request::Activate { .. });
-            if !reopened.is_empty() && !asked_for_more {
+            let reopens = isle_app::reopens_windows();
+            if !reopens {
+                // Closed when it quit: nothing is left to come back later.
+                self.shared.save();
+            }
+            if !reopened.is_empty() && !asked_for_more && reopens {
                 for window in reopened {
                     let tabs = window.tabs.into_iter().map(|p| (p, None)).collect();
                     self.shared.open_window(tabs, window.current, request.token().map(str::to_owned));

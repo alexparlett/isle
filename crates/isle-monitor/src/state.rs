@@ -52,7 +52,16 @@ pub fn load() -> Remembered {
     if !matches!(loaded, isle_state::Loaded::Read | isle_state::Loaded::Missing) {
         tracing::warn!(?loaded, "Monitor's state");
     }
-    data
+    // The window's content comes back only when the app reopens its windows.
+    if isle_app::reopens_windows() {
+        data
+    } else {
+        Remembered {
+            resource: Resource::Cpu,
+            filter: Filter::All,
+            ..data
+        }
+    }
 }
 
 pub fn save(data: &Remembered) {

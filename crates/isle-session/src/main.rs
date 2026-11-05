@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, ExitCode, ExitStatus, Stdio},
     sync::{
-        Arc, Mutex,
+        Arc, Mutex, OnceLock,
         atomic::{AtomicBool, AtomicI32, Ordering},
     },
     thread,
@@ -44,7 +44,27 @@ extern "C" fn on_signal(_: libc::c_int) {
 }
 
 fn say(message: impl AsRef<str>) {
-    eprintln!("isle-session: {}", message.as_ref());
+    let line = format!("isle-session: {}", message.as_ref());
+    if on_console() {
+        Journal::open().send(&line);
+    } else {
+        eprintln!("{line}");
+    }
+}
+
+/// Stderr is a virtual console, as under greetd: what is written there shows full screen
+/// between the compositor letting go of the display and the greeter taking it.
+fn on_console() -> bool {
+    static ON_CONSOLE: OnceLock<bool> = OnceLock::new();
+    *ON_CONSOLE.get_or_init(|| {
+        fs::read_link("/proc/self/fd/2").is_ok_and(|target| is_console(&target))
+    })
+}
+
+fn is_console(path: &Path) -> bool {
+    path.to_str()
+        .and_then(|p| p.strip_prefix("/dev/tty"))
+        .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
 }
 
 fn now_secs() -> u64 {
@@ -270,7 +290,9 @@ impl Log {
 
     fn line(&self, line: &str) {
         let _ = writeln!(self.file.lock().unwrap(), "{line}");
-        eprintln!("{line}");
+        if !on_console() {
+            eprintln!("{line}");
+        }
         self.journal.send(line);
         let mut tail = self.tail.lock().unwrap();
         if tail.len() == LOG_TAIL {
@@ -538,6 +560,16 @@ mod tests {
         let closed = "NVRM version: NVIDIA UNIX x86_64 Kernel Module  580.95.05  Tue Sep 23 09:51:37 UTC 2025\n";
         assert_eq!(driver_version(closed).as_deref(), Some("580.95.05"));
         assert_eq!(driver_version(""), None);
+    }
+
+    #[test]
+    fn only_a_virtual_console_counts_as_the_console() {
+        assert!(is_console(Path::new("/dev/tty1")));
+        assert!(is_console(Path::new("/dev/tty12")));
+        assert!(!is_console(Path::new("/dev/tty")));
+        assert!(!is_console(Path::new("/dev/ttyS0")));
+        assert!(!is_console(Path::new("/dev/pts/3")));
+        assert!(!is_console(Path::new("pipe:[123]")));
     }
 
     #[test]

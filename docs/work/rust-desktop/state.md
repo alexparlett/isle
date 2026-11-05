@@ -740,3 +740,5 @@
   the lock's and greeter's keyboards, a board (20f.1) for where Sticky Keys
   shows; showing it on a text field's focus not built. Phases
   20f.0–20f.10. P20a and P20b are still for review.
+- P20b building from 2026-11-05 at the user's word: 20b.0 done
+  (`compositor.md` Session 7 corrected).

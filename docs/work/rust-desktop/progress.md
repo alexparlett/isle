@@ -2,6 +2,9 @@
 
 ## 2026-11-05 (P20)
 
+- P20b building at the user's word. 20b.0: `compositor.md` Session 7
+  corrected to restore at each compositor start (choice 7).
+
 - P20f planned in `p20f-keyboard.md`. Read for it: P1's keyboard sheets,
   P5's Sticky Keys and Slow Keys in the engine with no drawing, the
   `on-screen-keyboard` shortcut on ⌥⌘F5 marked P20, Control Centre's

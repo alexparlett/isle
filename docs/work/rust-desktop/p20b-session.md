@@ -1,6 +1,6 @@
 # P20b · Session
 
-Planned 2026-11-04, for review.
+Planned 2026-11-04; building from 2026-11-05 at the user's word.
 
 P20 is split into seven packets (the user's choice, 2026-11-04), and P20b
 goes first at the user's word. Signing in today brings back nothing but the

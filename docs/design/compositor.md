@@ -391,7 +391,7 @@ with tearing where the user allows it (B6).
 4. A session that crashed while locked comes back locked; a failing lock surface is replaced by a minimal lock that still takes the password; unlocked content is never shown because the lock failed.
 5. A watchdog thread logs any main-loop stall over one frame's budget, with the event source that was running.
 6. A client's protocol error disconnects that client only.
-7. Session restore relaunches apps by app and Space on a new session only, re-hides those that were hidden, skips apps autostart starts, and moves their windows to their Spaces as they map.
+7. Session restore relaunches apps by app and Space at each compositor start, a crash's restart included (never in the greeter or a safe start), after Login Items, skips apps autostart starts or that still run, re-hides and re-minimises what was, and moves their windows to their Spaces as they map (`p20b-session.md` choice 7).
 8. Log out asks every app to quit as Cmd+Q does, then ends the session.
 9. Started by greetd in greeter mode, the compositor lights the outputs, takes input with each keyboard's profile, and shows the lock screen's surface as the login prompt, drawn with the shipped tokens and the choices the user's session published for it (the wallpaper, light or dark, the accent, the keyboard layouts and per-device profiles, the main screen), else shipped defaults, and never the user's token file (`platform.md` Session start 2); it serves no app windows, Spaces, places or session restore, and exits once greetd starts the user's session (B26).
 

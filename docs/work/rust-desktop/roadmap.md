@@ -328,7 +328,7 @@ compositor's grab, so they pass the window's edge; P15b's compositor cuts
 parent, `x11:` parents, Escape and ⌘Tab during a drag). Intent:
 compositor.md, shell.md.
 
-**P20b · Session.** Planned 2026-11-04, for review: `p20b-session.md`.
+**P20b · Session.** Planned 2026-11-04, building from 2026-11-05: `p20b-session.md`.
 Restore by app and desktop at each compositor start, a crash's included,
 after Login Items and never twice; the session dialog's "Reopen windows
 when logging back in"; Isle's apps honouring "Close windows when quitting

@@ -3,7 +3,19 @@
 ## 2026-11-05 (P20)
 
 - P20b building at the user's word. 20b.0: `compositor.md` Session 7
-  corrected to restore at each compositor start (choice 7).
+  corrected to restore at each compositor start (choice 7). 20b.1–20b.7
+  built with headless tests (`tests/restore.rs`, `tests/crashes.rs`, the
+  Files and Spotlight additions, Settings' pane tests, `isle-apps`'
+  engine). Found while building: a sign-in and a crash's restart look the
+  same to the compositor, so isle-session now sets `ISLE_RESTART` on every
+  start after its first; a crashed app's windows are gone before its
+  record arrives, so the record keeps each app's last windows and the
+  process registry its pids and scopes for a minute after they go; Files
+  saved its windows only on a change, so it now forgets them at once when
+  it opens fresh; a Login Item could map after the front app and take
+  focus, so Login Items started beside a restore open behind while the
+  front app's windows are due. `an_emoji_reaches_an_x11_window` fails
+  about one run in three before and after these changes (Xwayland timing).
 
 - P20f planned in `p20f-keyboard.md`. Read for it: P1's keyboard sheets,
   P5's Sticky Keys and Slow Keys in the engine with no drawing, the

@@ -152,6 +152,7 @@ sudo systemd-run --unit="$unit" --collect \
     --setenv=ISLE_COMPOSITOR="$bin/isle-compositor" \
     --setenv=RUST_LOG="$log" \
     --setenv=ISLE_LOGIN_ITEMS=0 \
+    --setenv=ISLE_RESTORE=0 \
     "$bin/isle-session"
 
 session=

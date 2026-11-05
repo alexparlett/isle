@@ -23,7 +23,13 @@ pub struct Processes {
     scopes: HashMap<PathBuf, String>,
     /// Apps that have had a window, most recently windowless first.
     seen: Vec<String>,
+    /// Pids and scopes gone lately, with their app, for a crash record that comes after.
+    gone_pids: Vec<(i32, String, std::time::Instant)>,
+    gone_scopes: Vec<(PathBuf, String, std::time::Instant)>,
 }
+
+/// How long a gone pid or scope still names its app.
+const GONE_FOR: std::time::Duration = std::time::Duration::from_secs(60);
 
 impl Processes {
     /// Whether `app` has a live process it once had a window from, or a live launched scope.
@@ -56,6 +62,27 @@ impl Processes {
             at = parent_of(at).filter(|p| *p > 1)?;
         }
         None
+    }
+
+    /// The app a crash record's pid or cgroup belongs to, while it runs or lately gone: a
+    /// scope the launch path made, else a process that had a window.
+    pub fn app_of_crash(&self, pid: i32, cgroup: &str) -> Option<String> {
+        let unit = Path::new(cgroup).file_name()?;
+        let by_scope = self
+            .scopes
+            .iter()
+            .map(|(dir, app)| (dir.as_path(), app))
+            .chain(self.gone_scopes.iter().map(|(dir, app, _)| (dir.as_path(), app)))
+            .find(|(dir, _)| dir.file_name() == Some(unit))
+            .map(|(_, app)| app.clone());
+        by_scope.or_else(|| {
+            self.app_of(pid).or_else(|| {
+                self.gone_pids
+                    .iter()
+                    .find(|(p, _, _)| *p == pid)
+                    .map(|(_, app, _)| app.clone())
+            })
+        })
     }
 
     pub fn pids(&self, app: &str) -> Vec<i32> {
@@ -147,6 +174,9 @@ impl State {
     fn process_exited(&mut self, pid: i32) {
         if let Some((app, _)) = self.isle.processes.pids.remove(&pid) {
             debug!(pid, app, "process exited");
+            let gone = &mut self.isle.processes.gone_pids;
+            gone.retain(|(_, _, at)| at.elapsed() < GONE_FOR);
+            gone.push((pid, app, std::time::Instant::now()));
             self.isle.notify(crate::worker::Event::WindowsChanged);
         }
     }
@@ -158,7 +188,10 @@ impl State {
     }
 
     pub fn scope_emptied(&mut self, dir: &Path) {
-        if self.isle.processes.scopes.remove(dir).is_some() {
+        if let Some(app) = self.isle.processes.scopes.remove(dir) {
+            let gone = &mut self.isle.processes.gone_scopes;
+            gone.retain(|(_, _, at)| at.elapsed() < GONE_FOR);
+            gone.push((dir.to_owned(), app, std::time::Instant::now()));
             self.isle.notify(crate::worker::Event::WindowsChanged);
         }
     }

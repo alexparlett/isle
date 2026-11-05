@@ -19,6 +19,8 @@ pub enum Note {
     Drive(String),
     SettingsError,
     Crash(std::path::PathBuf),
+    /// An app's crash, with Reopen and Report….
+    AppCrash(Box<crate::crashes::Crash>),
     Capture,
 }
 
@@ -107,6 +109,8 @@ impl State {
             (Note::Crash(record), _) => {
                 self.launch(Launch::Open(record.to_string_lossy().into_owned()));
             }
+            (Note::AppCrash(crash), "report") => self.report_crash(&crash),
+            (Note::AppCrash(crash), _) => self.reopen_crashed(&crash.app),
             (Note::Capture, _) => {}
         }
     }

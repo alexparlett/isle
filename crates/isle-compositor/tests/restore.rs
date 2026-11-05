@@ -172,7 +172,7 @@ async fn the_record_keeps_apps_back_to_front_with_their_desktops_and_freezes_at_
         s["stop"] == "open isle.test.B"
     })
     .await;
-    isle.chord(&[RETURN]).await;
+    isle.test().await.session_act("show isle.test.B").await.unwrap();
     wait_until(|| async { status(&isle).await["frozen"] == false }).await;
     wait_until(|| async { app_ids(&status(&isle).await) == ["isle.test.B"] }).await;
 }

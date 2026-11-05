@@ -76,6 +76,8 @@ pub struct RestoreState {
     /// Login Items started beside the restore, whose windows open behind while the front
     /// app's are due.
     behind: Vec<String>,
+    /// Each app's windows as last seen, kept after they go, for a crashed app's Reopen.
+    pub last_windows: HashMap<String, Vec<RestoreWindow>>,
 }
 
 impl Default for RestoreState {
@@ -94,6 +96,7 @@ impl Default for RestoreState {
             reopened: Vec::new(),
             crash_note_owed: false,
             behind: Vec::new(),
+            last_windows: HashMap::new(),
         }
     }
 }
@@ -299,10 +302,15 @@ impl State {
     /// After each dispatch: the record worked out again if the windows changed, and written
     /// only when it differs.
     pub fn restore_after_dispatch(&mut self) {
-        if !self.isle.restore.dirty.take()
-            || self.isle.restore.frozen
-            || self.isle.restore.start != Start::Decided
-        {
+        if !self.isle.restore.dirty.take() {
+            return;
+        }
+        let mut seen: HashMap<String, Vec<RestoreWindow>> = HashMap::new();
+        for window in self.isle.seen_windows() {
+            seen.entry(window.app).or_default().push(window.window);
+        }
+        self.isle.restore.last_windows.extend(seen);
+        if self.isle.restore.frozen || self.isle.restore.start != Start::Decided {
             return;
         }
         self.isle
@@ -512,7 +520,8 @@ impl State {
         self.isle.restore.ranks.insert(id, slot.rank);
         let ranks = &self.isle.restore.ranks;
         let records = &mut self.isle.wm.records;
-        if let Some(from) = records.iter().position(|r| r.id == id) {
+        // The front app's windows stay in front, where they mapped.
+        if let Some(from) = records.iter().position(|r| r.id == id).filter(|_| !slot.focus) {
             let record = records.remove(from);
             let to = records
                 .iter()

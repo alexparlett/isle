@@ -9,6 +9,7 @@ mod binds;
 mod bluetooth_agent;
 pub mod build_info;
 pub mod crash;
+mod crashes;
 mod cursor;
 mod desktop_notes;
 mod displays;
@@ -436,6 +437,10 @@ fn start_clients(state: &mut State, ready_fd: &mut Option<i32>) -> bool {
     state.isle.xdisplay = display;
     if let Some(display) = display {
         child_env::set("DISPLAY", format!(":{display}"));
+    }
+    // Crash records are followed in a session, or from a test's file.
+    if ready_fd.is_some() || std::env::var_os("ISLE_CRASH_JOURNAL").is_some() {
+        state.watch_crashes();
     }
     if let Some(fd) = ready_fd.take() {
         report_ready(fd, &state.isle.socket_name, display);

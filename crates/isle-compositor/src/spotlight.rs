@@ -55,6 +55,8 @@ enum MenuCommand {
     AddFavourite(String),
     RemoveFavourite(String),
     KeepRunning(String, bool),
+    /// An app added to Login Items' Open at Login, or removed.
+    OpenAtLogin(String, bool),
     /// An app's desktop: `all`, a desktop's number, or none.
     Assign(String, Option<String>),
     ShowInLauncher(String),
@@ -1386,6 +1388,13 @@ impl State {
         }
         let mut options = Vec::new();
         if let Item::App(app) = &row.item {
+            let places = isle_apps::autostart::Places::session();
+            let at_login = isle_apps::autostart::opens_at_login(&places, &self.isle.apps, app);
+            let login = item(
+                "Open at login",
+                MenuCommand::OpenAtLogin(app.clone(), !at_login),
+            )
+            .mark(if at_login { Mark::Check } else { Mark::None });
             let on = self.isle.settings.windows.keep_running.contains(app);
             let keep = item(
                 "Keep running after last window",
@@ -1420,7 +1429,11 @@ impl State {
             ]);
             options.push(MenuEntry::Item(
                 item("Options", MenuCommand::Category(None))
-                    .submenu(vec![MenuEntry::Item(keep), MenuEntry::Item(assign)]),
+                    .submenu(vec![
+                        MenuEntry::Item(login),
+                        MenuEntry::Item(keep),
+                        MenuEntry::Item(assign),
+                    ]),
             ));
         }
         if let Item::Game(key) = &row.item
@@ -1587,6 +1600,23 @@ impl State {
                 let mut list = self.isle.spotlight.sources.apps.favourites.clone();
                 list.retain(|f| *f != target);
                 self.set_favourites(list)
+            }
+            MenuCommand::OpenAtLogin(app, on) => {
+                let entry = self.isle.apps.get(&app).cloned();
+                if let Some(runtime) = &self.isle.worker {
+                    runtime.spawn_blocking(move || {
+                        let places = isle_apps::autostart::Places::session();
+                        let done = match (on, entry) {
+                            (true, Some(entry)) => isle_apps::autostart::add(&places, &entry),
+                            (true, None) => return,
+                            (false, _) => isle_apps::autostart::remove(&places, &app),
+                        };
+                        if let Err(err) = done {
+                            tracing::warn!(app, "Open at login not changed: {err}");
+                        }
+                    });
+                }
+                Vec::new()
             }
             MenuCommand::KeepRunning(app, on) => {
                 let mut list = self.isle.settings.windows.keep_running.clone();

@@ -163,16 +163,126 @@ impl Component for General {
             }
             .into_element();
         }
-        let at = self.at.clone();
-        form::group(
-            None,
-            vec![
-                r.row("about", "About", None)
-                    .opens(None, move |_| super::open(nav, &at, "About"))
-                    .into_element(),
-            ],
-        )
-        .into_element()
+        if self.at.sub.as_deref() == Some("Login Items") {
+            return LoginItemsPage {
+                at: self.at.clone(),
+            }
+            .into_element();
+        }
+        let (at, at_items) = (self.at.clone(), self.at.clone());
+        rect()
+            .width(Size::fill())
+            .spacing(20.)
+            .child(form::group(
+                None,
+                vec![
+                    r.row("about", "About", None)
+                        .opens(None, move |_| super::open(nav, &at, "About"))
+                        .into_element(),
+                ],
+            ))
+            .child(form::group(
+                None,
+                vec![
+                    r.row("login-items", "Login Items", None)
+                        .opens(None, move |_| super::open(nav, &at_items, "Login Items"))
+                        .into_element(),
+                ],
+            ))
+            .into_element()
+    }
+}
+
+/// General › Login Items: apps opened at login, and what else runs in the background.
+#[derive(PartialEq)]
+struct LoginItemsPage {
+    at: Location,
+}
+
+impl Component for LoginItemsPage {
+    fn render(&self) -> impl IntoElement {
+        let services = use_follow(&[Follow::LoginItems, Follow::Apps]);
+        let r = Rows::new(&self.at);
+        let mut picking = use_state(|| false);
+        let items = services.login_items.read().state.clone();
+        let open: Vec<isle_apps::autostart::LoginItem> = items.open.clone();
+        let listed = open
+            .iter()
+            .map(|i| {
+                let icon = services.app(&i.id).and_then(|a| a.icon);
+                (i.name.clone(), Some(icon))
+            })
+            .collect();
+        let ids: Vec<String> = open.iter().map(|i| i.id.clone()).collect();
+        let background: Vec<Element> = items
+            .background
+            .iter()
+            .map(|item| {
+                let (id, unit) = (item.id.clone(), item.source == isle_apps::autostart::Source::Unit);
+                let enabled = !item.locked && item.only_in.is_empty();
+                let switch = isle_ui::Switch::new(item.on, item.name.clone(), move |on| {
+                    services.act(Act::LoginItem {
+                        id: id.clone(),
+                        unit,
+                        on,
+                    })
+                })
+                .enabled(enabled);
+                let row = r
+                    .row(&format!("item-{}", item.id), item.name.clone(), None)
+                    .control(switch)
+                    .enabled(enabled);
+                match item.only_in.is_empty() {
+                    true => row,
+                    false => row.description(format!(
+                        "Starts only in {}.",
+                        item.only_in.join(", ")
+                    )),
+                }
+                .into_element()
+            })
+            .collect();
+        rect()
+            .width(Size::fill())
+            .spacing(20.)
+            .child(ui::sub_header(
+                "power",
+                "Login Items",
+                "What opens when you log in, and what runs in the background.",
+            ))
+            .child(ui::ListEditor {
+                title: Some("Open at Login".into()),
+                items: listed,
+                empty: "No login items".into(),
+                on_add: EventHandler::new(move |_| picking.set(true)),
+                on_remove: EventHandler::new(move |i: usize| {
+                    if let Some(app) = ids.get(i) {
+                        services.act(Act::OpenAtLogin {
+                            app: app.clone(),
+                            on: false,
+                        });
+                    }
+                }),
+                on_move: None,
+                on_open: None,
+            })
+            .maybe(!background.is_empty(), |el| {
+                el.child(form::group(
+                    Some("Allow in the Background".into()),
+                    background,
+                ))
+            })
+            .maybe(*picking.read(), |el| {
+                el.child(ui::AppPicker {
+                    title: "Open at login".into(),
+                    on_pick: EventHandler::new(move |app: String| {
+                        services.act(Act::OpenAtLogin { app, on: true });
+                        picking.set(false);
+                    }),
+                    on_cancel: EventHandler::new(move |_| picking.set(false)),
+                })
+            })
+            .into_element()
     }
 }
 

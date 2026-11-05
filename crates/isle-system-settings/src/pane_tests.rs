@@ -685,3 +685,138 @@ fn stage_manager_turns_on_for_the_desktop_with_focus() {
         on: true,
     }));
 }
+
+fn login_item(id: &str, name: &str, on: bool) -> isle_apps::autostart::LoginItem {
+    isle_apps::autostart::LoginItem {
+        id: id.into(),
+        name: name.into(),
+        icon: None,
+        source: isle_apps::autostart::Source::Entry,
+        on,
+        locked: false,
+        only_in: Vec::new(),
+    }
+}
+
+/// The − under a list whose last row reads `last`.
+fn click_list_remove(test: &mut TestingRunner, last: &str) {
+    let row = test
+        .find(|node, element| {
+            Label::try_downcast(element)
+                .filter(|label| label.text == last)
+                .map(|_| node.layout().area)
+        })
+        .unwrap_or_else(|| panic!("no row {last:?}: {:?}", labels(test)));
+    let left = (900. - 220.) / 2. + 220. - 600. / 2.;
+    test.click_cursor((left as f64 + 28. + 14., f64::from(row.center().y) + 34.));
+    settle(test);
+}
+
+#[test]
+fn login_items_show_both_groups_and_act_on_them() {
+    use isle_apps::autostart::{LoginItems, Source};
+    let (mut test, handles) = open("isle-settings://general/open-at-login", |_, services| {
+        let mut items = services.login_items;
+        let unit = |id: &str, name: &str, locked: bool| isle_apps::autostart::LoginItem {
+            source: Source::Unit,
+            locked,
+            ..login_item(id, name, true)
+        };
+        items.set(Snapshot {
+            available: true,
+            state: LoginItems {
+                open: vec![login_item("org.app.Mail", "Mail", true)],
+                background: vec![
+                    login_item("gnome-keyring", "Keyring", true),
+                    isle_apps::autostart::LoginItem {
+                        only_in: vec!["GNOME".into()],
+                        ..login_item("gnomey", "Gnomey", true)
+                    },
+                    unit("isle-dev-sync.service", "Isle dev sync", true),
+                    unit("xremap.service", "xremap", false),
+                ],
+            },
+        });
+        let mut apps = services.apps;
+        apps.set(Snapshot {
+            available: true,
+            state: vec![crate::services::App {
+                id: "org.app.Chat".into(),
+                name: "Chat".into(),
+                icon: None,
+                listed: true,
+                game: false,
+            }],
+        });
+    });
+    for text in ["Open at Login", "Mail", "Allow in the Background", "Starts only in GNOME."] {
+        assert!(shows(&test, text), "{text}: {:?}", labels(&test));
+    }
+    click_control(&mut test, "Keyring");
+    click_control(&mut test, "xremap");
+    click_control(&mut test, "Isle dev sync");
+    assert_eq!(
+        handles.acts(),
+        [
+            Act::LoginItem { id: "gnome-keyring".into(), unit: false, on: false },
+            Act::LoginItem { id: "xremap.service".into(), unit: true, on: false },
+        ],
+        "a locked item does not switch"
+    );
+
+    click(&mut test, "Mail");
+    click_list_remove(&mut test, "Mail");
+    assert!(
+        handles.acts().contains(&Act::OpenAtLogin { app: "org.app.Mail".into(), on: false }),
+        "{:?}",
+        handles.acts()
+    );
+}
+
+#[test]
+fn login_items_add_an_app_from_the_picker_and_say_when_there_are_none() {
+    let (mut test, handles) = open("isle-settings://general/open-at-login", |_, services| {
+        let mut apps = services.apps;
+        apps.set(Snapshot {
+            available: true,
+            state: vec![crate::services::App {
+                id: "org.app.Chat".into(),
+                name: "Chat".into(),
+                icon: None,
+                listed: true,
+                game: false,
+            }],
+        });
+        let mut items = services.login_items;
+        items.set(Snapshot { available: true, state: Default::default() });
+    });
+    assert!(shows(&test, "No login items"));
+    assert!(!shows(&test, "Allow in the Background"));
+    let left = (900. - 220.) / 2. + 220. - 600. / 2.;
+    let row = test
+        .find(|node, element| {
+            Label::try_downcast(element)
+                .filter(|label| label.text == "No login items")
+                .map(|_| node.layout().area)
+        })
+        .unwrap();
+    test.click_cursor((left as f64 + 14., f64::from(row.center().y) + 34.));
+    settle(&mut test);
+    assert!(shows(&test, "Open at login"), "{:?}", labels(&test));
+    click(&mut test, "Chat");
+    click(&mut test, "Add");
+    assert!(handles.acts().contains(&Act::OpenAtLogin { app: "org.app.Chat".into(), on: true }));
+}
+
+#[test]
+fn desktop_has_close_windows_and_reopen_apps() {
+    let (mut test, handles) = open("isle-settings://desktop", |_, _| {});
+    click_described(&mut test, "Close windows when quitting an application", "When on");
+    click_described(&mut test, "Reopen apps when logging in", "The apps that were open");
+    let writes = handles.writes();
+    assert!(writes.contains(&Write::Set(
+        "windows.close-windows-when-quitting".into(),
+        Value::Bool(true)
+    )));
+    assert!(writes.contains(&Write::Set("windows.reopen-apps".into(), Value::Bool(false))));
+}

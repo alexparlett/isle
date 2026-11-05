@@ -80,6 +80,20 @@ impl Component for Desktop {
                     )
                     .into_element(),
                     r.switch(
+                        "close-windows",
+                        "Close windows when quitting an application",
+                        "windows.close-windows-when-quitting",
+                    )
+                    .description("When on, open documents and windows will not be restored when you re-open an application.")
+                    .into_element(),
+                    r.switch(
+                        "reopen-apps",
+                        "Reopen apps when logging in",
+                        "windows.reopen-apps",
+                    )
+                    .description("The apps that were open come back on their desktops after a log in or a restart.")
+                    .into_element(),
+                    r.switch(
                         "edge-tiling",
                         "Drag windows to screen edges to tile",
                         "windows.edge-tiling",

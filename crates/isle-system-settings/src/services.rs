@@ -55,6 +55,7 @@ pub enum Follow {
     NightLight,
     Focus,
     Desktops,
+    LoginItems,
 }
 
 /// Something a pane asks a daemon or the compositor to do.
@@ -145,6 +146,17 @@ pub enum Act {
         index: u32,
         on: bool,
     },
+    /// An app added to Open at Login, or removed.
+    OpenAtLogin {
+        app: String,
+        on: bool,
+    },
+    /// A background item's switch: an autostart entry, or a user unit.
+    LoginItem {
+        id: String,
+        unit: bool,
+        on: bool,
+    },
 }
 
 /// The followed state, shared by every pane.
@@ -169,6 +181,7 @@ pub struct Services {
     /// Night light's state as `Displays1.NightLight` gives it.
     pub night_light: State<Snapshot<serde_json::Value>>,
     pub desktops: State<Snapshot<Vec<DesktopInfo>>>,
+    pub login_items: State<Snapshot<isle_apps::autostart::LoginItems>>,
     /// The display change in force and not yet kept, by its id.
     pub display_change: State<Option<u64>>,
     /// Changes asked for and not yet sent, oldest first.
@@ -208,6 +221,7 @@ impl Services {
             focus: State::create(Snapshot::default()),
             night_light: State::create(Snapshot::default()),
             desktops: State::create(Snapshot::default()),
+            login_items: State::create(Snapshot::default()),
             display_change: State::create(None),
             acts: State::create(Vec::new()),
             started: State::create(BTreeSet::new()),
@@ -255,8 +269,104 @@ impl Services {
             Follow::NightLight => session(&worker, bus, self.night_light, night_light),
             Follow::Focus => session(&worker, bus, self.focus, focus),
             Follow::Desktops => session(&worker, bus, self.desktops, desktops),
+            Follow::LoginItems => {
+                let (publisher, rx) = isle_bus::snapshot();
+                worker.spawn(watch_login_items(publisher));
+                forward(rx, self.login_items);
+            }
         }
     }
+}
+
+/// The units switched off in Login Items, listed while their files remain.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct UnitsOff {
+    pub units: Vec<String>,
+}
+
+impl isle_state::Domain for UnitsOff {
+    const NAME: &'static str = "login-items";
+    const VERSION: u32 = 1;
+}
+
+fn units_off() -> isle_state::StateDir {
+    isle_state::StateDir::new(isle_state::StateDir::default_dir())
+}
+
+fn read_login_items() -> isle_apps::autostart::LoginItems {
+    let places = isle_apps::autostart::Places::session();
+    let apps = isle_apps::Index::scan(&isle_apps::Index::data_dirs());
+    let (off, _) = units_off().load::<UnitsOff>();
+    isle_apps::autostart::login_items(&places, &apps, "Isle", &off.units)
+}
+
+/// Login Items read again whenever their folders change, while Settings runs.
+async fn watch_login_items(publisher: Publisher<isle_apps::autostart::LoginItems>) {
+    use notify::Watcher;
+    let places = isle_apps::autostart::Places::session();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    let watcher = notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
+        if event.is_ok_and(|e| !matches!(e.kind, notify::EventKind::Access(_))) {
+            let _ = tx.send(());
+        }
+    });
+    let mut watcher = watcher.ok();
+    let watched = places.watched();
+    let last = watched.len() - 1;
+    for (i, dir) in watched.into_iter().enumerate() {
+        // The user's own folders, first and last, are made so the first item added is seen.
+        if i == 0 || i == last {
+            let _ = std::fs::create_dir_all(&dir);
+        }
+        if let Some(w) = &mut watcher {
+            let _ = w.watch(&dir, notify::RecursiveMode::Recursive);
+        }
+    }
+    loop {
+        let items = tokio::task::spawn_blocking(read_login_items)
+            .await
+            .unwrap_or_default();
+        publisher.publish(items);
+        if rx.recv().await.is_none() {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        while rx.try_recv().is_ok() {}
+    }
+}
+
+/// A unit enabled or disabled through the user manager, remembered when off.
+async fn switch_unit(bus: zbus::Connection, unit: String, on: bool) -> Result<(), String> {
+    let err = |e: &dyn std::fmt::Display| e.to_string();
+    let dir = units_off();
+    let (mut off, _) = dir.load::<UnitsOff>();
+    off.units.retain(|u| *u != unit);
+    if !on {
+        off.units.push(unit.clone());
+    }
+    dir.save(&off).map_err(|e| err(&e))?;
+    let manager = zbus::Proxy::new(
+        &bus,
+        "org.freedesktop.systemd1",
+        "/org/freedesktop/systemd1",
+        "org.freedesktop.systemd1.Manager",
+    )
+    .await
+    .map_err(|e| err(&e))?;
+    let files = vec![unit.as_str()];
+    let changed = if on {
+        manager
+            .call_method("EnableUnitFiles", &(files, false, false))
+            .await
+    } else {
+        manager.call_method("DisableUnitFiles", &(files, false)).await
+    };
+    changed.map_err(|e| err(&e))?;
+    manager
+        .call_method("Reload", &())
+        .await
+        .map(|_| ())
+        .map_err(|e| err(&e))
 }
 
 /// Every app with a desktop entry, A to Z, with its icon.
@@ -845,6 +955,25 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
                 .map(|_| ())
                 .map_err(|e| err(&e))
         }
+        Act::OpenAtLogin { app, on } => tokio::task::spawn_blocking(move || {
+            let places = isle_apps::autostart::Places::session();
+            if on {
+                let apps = isle_apps::Index::scan(&isle_apps::Index::data_dirs());
+                let entry = apps.get(&app).ok_or_else(|| format!("no app {app}"))?;
+                isle_apps::autostart::add(&places, entry).map_err(|e| e.to_string())
+            } else {
+                isle_apps::autostart::remove(&places, &app).map_err(|e| e.to_string())
+            }
+        })
+        .await
+        .map_err(|e| err(&e))?,
+        Act::LoginItem { id, unit: false, on } => tokio::task::spawn_blocking(move || {
+            let places = isle_apps::autostart::Places::session();
+            isle_apps::autostart::set_on(&places, &id, on).map_err(|e| e.to_string())
+        })
+        .await
+        .map_err(|e| err(&e))?,
+        Act::LoginItem { id, unit: true, on } => switch_unit(session()?, id, on).await,
         Act::Hostname(name) => {
             let system = zbus::Connection::system().await.map_err(|e| err(&e))?;
             system

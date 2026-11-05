@@ -829,3 +829,33 @@ async fn look() {
         .await
         .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_tiles_open_at_login_writes_and_removes_its_login_item() {
+    let isle = Isle::start("spotlight-login").await;
+    entries(&isle, &[("isle.test.Alpha", "Alpha", "Utility")]);
+    let test = isle.test().await;
+    wait_until(|| async {
+        isle.chord(&[SUPER, SPACE]).await;
+        isle.chord(&[SUPER, ONE]).await;
+        let found = !keys_listed(&isle).await.is_empty();
+        if !found {
+            press(&isle, ESCAPE).await;
+            press(&isle, ESCAPE).await;
+        }
+        found
+    })
+    .await;
+    let item = isle.dir.join("home/.config/autostart/isle.test.Alpha.desktop");
+    for on in [true, false] {
+        test.spotlight_act("secondary app:isle.test.Alpha").await.unwrap();
+        wait_until(|| async {
+            status(&isle).await["menu"]
+                .as_array()
+                .is_some_and(|m| m.iter().any(|l| l == "Open at login"))
+        })
+        .await;
+        test.spotlight_act("menu Open at login").await.unwrap();
+        wait_until(|| async { item.exists() == on }).await;
+    }
+}

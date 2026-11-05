@@ -143,6 +143,9 @@ pub static PANES: &[Pane] = &[
         keywords: &["about", "system", "version"],
         rows: &[
             RowDef::new("about", "About").keywords(&["version", "system"]),
+            RowDef::new("login-items", "Login Items").keywords(&["autostart", "startup", "background", "user services"]),
+            RowDef::new("open-at-login", "Open at Login").within("Login Items").keywords(&["autostart", "startup"]),
+            RowDef::new("background", "Allow in the Background").within("Login Items").keywords(&["services", "daemons"]),
             RowDef::new("name", "Name").within("About").keywords(&["hostname", "computer name"]),
             RowDef::new("processor", "Processor").within("About").keywords(&["cpu"]),
             RowDef::new("memory", "Memory").within("About").keywords(&["ram"]),
@@ -199,6 +202,8 @@ pub static PANES: &[Pane] = &[
         keywords: &["windows", "tiling", "hot corners", "mission control", "stage manager", "spaces"],
         rows: &[
             RowDef::new("titlebar-action", "Double-click a window's title bar to").key("windows.titlebar-action").keywords(&["zoom", "fill"]),
+            RowDef::new("close-windows", "Close windows when quitting an application").key("windows.close-windows-when-quitting").keywords(&["reopen windows", "resume"]),
+            RowDef::new("reopen-apps", "Reopen apps when logging in").key("windows.reopen-apps").keywords(&["session restore", "resume", "restart"]),
             RowDef::new("edge-tiling", "Drag windows to screen edges to tile").key("windows.edge-tiling").keywords(&["snap", "tiling"]),
             RowDef::new("tile-margin", "Margins around tiled windows").key("windows.tile-margin").keywords(&["gaps", "spacing"]),
             RowDef::new("rearrange-desktops", "Automatically rearrange desktops based on most recent use").key("mission-control.rearrange-desktops").keywords(&["spaces", "mission control"]),

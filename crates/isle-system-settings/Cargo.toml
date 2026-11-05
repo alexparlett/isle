@@ -33,6 +33,7 @@ isle-ui.workspace = true
 isle-providers.workspace = true
 futures-util = { workspace = true, features = ["std"] }
 libc.workspace = true
+notify.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

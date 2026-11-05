@@ -5203,6 +5203,7 @@ dependencies = [
  "isle-tokens",
  "isle-ui",
  "libc",
+ "notify",
  "serde",
  "serde_json",
  "tokio",

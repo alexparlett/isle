@@ -223,7 +223,7 @@ impl State {
             &name,
             summary,
             String::new(),
-            vec![("default", "Reopen"), ("report", "Report…")],
+            vec![("reopen", "Reopen"), ("report", "Report…")],
             Note::AppCrash(Box::new(Crash {
                 app: app.to_owned(),
                 name: name.clone(),

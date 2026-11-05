@@ -110,7 +110,8 @@ impl State {
                 self.launch(Launch::Open(record.to_string_lossy().into_owned()));
             }
             (Note::AppCrash(crash), "report") => self.report_crash(&crash),
-            (Note::AppCrash(crash), _) => self.reopen_crashed(&crash.app),
+            (Note::AppCrash(crash), "reopen") => self.reopen_crashed(&crash.app),
+            (Note::AppCrash(_), _) => {}
             (Note::Capture, _) => {}
         }
     }
@@ -212,7 +213,7 @@ impl State {
             "Isle",
             "Isle quit unexpectedly.".into(),
             body,
-            vec![("default", "Report…")],
+            vec![("default", "Report…"), ("report", "Report…")],
             Note::Crash(newest.path()),
         );
     }

@@ -127,7 +127,7 @@ async fn a_crashed_app_is_noticed_once_and_reopens_where_it_was() {
     let id = notice["id"].as_u64().unwrap() as u32;
     let proxy = NotificationsProxy::new(&isle.bus).await.unwrap();
     desktops.switch("", 1).await.unwrap();
-    assert!(proxy.invoke(id, "default").await.unwrap());
+    assert!(proxy.invoke(id, "reopen").await.unwrap());
     let back = isle.wait_for_window("isle.test.Crashy").await;
     assert_eq!(back.desktop, 2);
 

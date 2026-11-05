@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-11-05 (P20)
+
+- P20f planned in `p20f-keyboard.md`. Read for it: P1's keyboard sheets,
+  P5's Sticky Keys and Slow Keys in the engine with no drawing, the
+  `on-screen-keyboard` shortcut on ⌥⌘F5 marked P20, Control Centre's
+  Accessibility module and Settings' Keyboard group without keyboard rows,
+  no `text-input-v3` served. The host's word lists in `/usr/share/dict` are
+  unranked. P1's "resolved as the Mac keyboard's Cmd" and `compositor.md`'s
+  "untranslated" disagree for this keyboard; the plan takes P1's.
+
 ## 2026-11-04 (P20)
 
 - P20 split into seven packets at the user's choice; Software Update moved

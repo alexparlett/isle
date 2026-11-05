@@ -717,3 +717,26 @@
   22.8 built: captures SDR through an SDR target, HDR windows tone-mapped
   into them. 22.9 built: the High Dynamic Range switch and SDR Brightness
   in Settings › Displays. Next: 22.10, the host run with the user.
+- P20 split 2026-11-04 at the user's choice into P20a (windows), P20b
+  (session), P20c (providers), P20d (calendars), P20e (system panes), P20f
+  (the on-screen keyboard) and P20g (P15b's remaining cuts and the audit);
+  Software Update moved to P14c. P20b first, at the user's word: planned in
+  `p20b-session.md`, for review. Restore by app and desktop at each
+  compositor start, a crash's included, after Login Items; the record frozen
+  when the session's end starts; the dialog's checkbox; Isle's apps on
+  "Close windows when quitting an application"; app crashes from
+  `systemd-coredump`'s journal records, posted only when the app is gone;
+  Isle's apps abort after a panic; General › Login Items in macOS 13's two
+  groups. Phases 20b.0–20b.9; no gate (every surface is drawn in P1).
+- P20a planned 2026-11-04 in `p20a-windows.md`, for review; the dropdown
+  terminal declined by the user. Keep on top on every desktop, PiP by title
+  or `xdg_toplevel_tag`, focus by direction, Isle's menus as toplevels
+  marked by `isle_menu_v1` (winit has no `xdg_popup`) with a spike first on
+  their speed, P15b's compositor cuts. Phases 20a.0–20a.9. P20b's plan is
+  still for review.
+- P20f planned 2026-11-05 in `p20f-keyboard.md`, for review: the keyboard
+  as an engine device on the Mac profile, its latch Sticky Keys', suggestions
+  from a shipped list, `text-input-v3` served for the password purpose only,
+  the lock's and greeter's keyboards, a board (20f.1) for where Sticky Keys
+  shows; showing it on a text field's focus not built. Phases
+  20f.0–20f.10. P20a and P20b are still for review.

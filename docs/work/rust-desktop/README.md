@@ -36,5 +36,10 @@ one at a time.
 - `p19a-monitor.md`: P19a, Monitor.
 - `p19b-cleaner.md`: P19b, Cleaner.
 - `p19c-keychain.md`: P19c, Keychain.
+- `p20a-windows.md`: P20a, keep on top, picture-in-picture, focus by
+  direction and menus as windows.
+- `p20b-session.md`: P20b, session restore, the crash notice for apps and
+  Login Items.
+- `p20f-keyboard.md`: P20f, the on-screen keyboard.
 - `p22-hdr.md`: P22, HDR.
 - Evidence: `docs/research/rust-desktop/`.

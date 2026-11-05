@@ -313,16 +313,58 @@ that nothing is fetched and no canary leaks. Logins built as P1 draws
 them though the host's keyring holds app secrets only. Intent: apps.md
 Keychain.
 
-**P20 · The rest of v1.** Settings' remaining pages (General's Software
-Update, Storage, Passwords, Date & Time, Language & Region, Login Items and
-Snapshots; Users & Groups, Login Password, Calendars, Printers, Phone;
-TCP/IP and DNS editing; P13's Not in P13), session restore
-with the session dialog's "Reopen windows when logging back in" and the
-crash notice for apps (from P9),
-calendars with Notification Centre's agenda, the providers (vault, with
-Spotlight's `*` scope, VPN, snapshots, phone), the dropdown terminal and picture-in-picture, the on-screen
-keyboard (on the lock too), and an audit against the inventory that nothing of v1 is left.
-Intent: all.
+**P20 · The rest of v1.** Split 2026-11-04 at the user's choice into
+seven packets, each planned, walked and closed before the next; P20b first
+at the user's word. General's Software Update moved to P14c, with the
+update path. Intent: all.
+
+**P20a · Windows.** Planned 2026-11-04, for review: `p20a-windows.md`.
+The dropdown terminal declined (the user, 2026-11-04). Keep on top on
+every desktop with its shortcut; picture-in-picture by title or tag,
+placed at map in its corner, kept in aspect, snapping; focus by direction;
+Isle's menus as windows of their own through `isle_menu_v1`, with the
+compositor's grab, so they pass the window's edge; P15b's compositor cuts
+(Quick Look full screen over its caller, a panel clamped to a narrower
+parent, `x11:` parents, Escape and ⌘Tab during a drag). Intent:
+compositor.md, shell.md.
+
+**P20b · Session.** Planned 2026-11-04, for review: `p20b-session.md`.
+Restore by app and desktop at each compositor start, a crash's included,
+after Login Items and never twice; the session dialog's "Reopen windows
+when logging back in"; Isle's apps honouring "Close windows when quitting
+an application"; "{app} quit unexpectedly." from `systemd-coredump`'s
+records with Reopen and Report…; Settings › General › Login Items, Desktop's
+two rows and the Apps grid's Open at login. Intent: platform.md Login Items
+and session restore, compositor.md Session.
+
+**P20c · Providers.** The provider kinds on `isle-providers` and whether the
+shipped ones stay Python; the vault (Proton Pass, the keyring) with
+Spotlight's `*` scope and Keychain's Logins; VPN providers in Control Centre
+and VPN import; snapper and Timeshift; KDE Connect; the Passwords, Snapshots
+and Phone panes. Intent: platform.md Providers, apps.md.
+
+**P20d · Calendars.** Subscriptions by link or file with their cache;
+Notification Centre's agenda; the Calendar widget's data; an event's start
+as a notification; Focus's "Until the end of this event"; the Calendars
+pane. Intent: platform.md Calendars, shell.md.
+
+**P20e · System panes.** Storage on `isle-scan`, Date & Time, Language &
+Region, Users & Groups, Login Password, Printers, TCP/IP and DNS editing;
+General's provider row and bars 11 and 12 of P13. Intent: apps.md Settings.
+
+**P20f · On-screen keyboard.** Planned 2026-11-05, for review:
+`p20f-keyboard.md`. A keyboard device of the engine's own on the Mac
+profile, so chords and Cmd translation act as on the Mac keyboard, with
+the Sticky Keys latch shared; P1's panel, never taking focus or counting as
+a click outside, holding the bottom of its screen's work area; suggestions
+from a shipped ranked English list, none for a password; ⌥⌘F5, Control
+Centre, Spotlight and Accessibility's rows; the lock's and the greeter's
+own; Sticky Keys' latched modifiers shown while it is closed, at a board.
+Not shown by itself on a text field. Intent: shell.md On-screen keyboard.
+
+**P20g · The audit.** P15b's remaining Files cuts; then a walk of
+`isle-v1-inventory.md` that nothing of v1 is left, each line built, cut or
+declined. P18 stays set aside and is listed, not taken in. Intent: all.
 
 ## Milestone M2: Isle replaces v1 on the host
 
@@ -332,7 +374,8 @@ The one-time import of v1's preferences, window places and launch counts
 them (`session-2026.md` §7 and §8), with Qt apps reaching Isle's file
 panels (§6). The rest of `isle setup`: keyring and fingerprint PAM lines,
 autologin, groups, the bootstrap command. The update path through paru and
-pacman, and restart owed. Scan-out of a second GPU's connectors (moved from
+pacman, restart owed, and Settings › General › Software Update (from
+P20 at its split). Scan-out of a second GPU's connectors (moved from
 P2; §2), if a screen is on the iGPU by then. v1's user units disabled. Ends
 with the host booting into the new Isle. Intent: platform.md,
 compositor.md.

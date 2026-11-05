@@ -142,7 +142,7 @@ async fn a_kept_hdr_change_is_written() {
     let isle = start("display-keep-hdr").await;
     let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
     let before = first(&displays).await;
-    let change = format!(r#"{{"{}": {{"hdr": true, "sdr_white": 250}}}}"#, identity(&before));
+    let change = format!(r#"{{"{}": {{"hdr": true, "sdr-white": 250}}}}"#, identity(&before));
     let id = displays.configure(&change).await.unwrap();
     assert!(displays.keep(id).await.unwrap());
     let path = isle.dir.join("config/settings.kdl");
@@ -151,4 +151,17 @@ async fn a_kept_hdr_change_is_written() {
         file.contains("hdr #true") && file.contains("sdr-white 250")
     })
     .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_change_is_checked_by_the_settings_schema() {
+    let isle = start("display-schema").await;
+    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    let id = identity(&first(&displays).await);
+    for edit in [r#"{"brightness-boost": 2}"#, r#"{"scale": 9.0}"#, r#"{"hdr": "yes"}"#] {
+        let change = format!(r#"{{"{id}": {edit}}}"#);
+        assert!(displays.configure(&change).await.is_err(), "{edit} was taken");
+    }
+    let change = format!(r#"{{"{id}": {{"tearing": true}}}}"#);
+    displays.configure(&change).await.unwrap();
 }

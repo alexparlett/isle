@@ -249,6 +249,19 @@
   them). So the next settings write found the screen in HDR against a
   configuration that said SDR, and relit it. Both are written now, and a
   test keeps an HDR change and reads the file.
+- **No hand-kept lists of display keys.** The user's point:
+  - **Keeping a change** (`display_writes`) diffs the applied and saved
+    `output` sections through `Section::flatten` and writes every key that
+    differs.
+  - **Configure** takes any `output` key (null or an empty mode for the
+    default) and builds the result through the schema's `set` and
+    `check`, so names, types and ranges are the schema's.
+  - **What `Edit` was.** The hand-listed struct is gone; its hand-written
+    `sdr_white` range check had duplicated the schema's.
+  - **What stays explicit:** `relit()`, which keys need a modeset, is a
+    decision about each key, not a copy of the schema.
+  - **Tests.** A schema test refuses an unknown key, an out-of-range
+    scale and a string `hdr`.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

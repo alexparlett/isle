@@ -46,7 +46,7 @@ async fn sdr_brightness_applies_without_relighting() {
     let info = displays.list().await.unwrap().into_iter().find(|d| d.name == "HEADLESS-1").unwrap();
     let identity = format!("{} {} {}", info.make, info.model, info.serial);
     displays
-        .configure(&format!(r#"{{"{identity}": {{"sdr_white": 280}}}}"#))
+        .configure(&format!(r#"{{"{identity}": {{"sdr-white": 280}}}}"#))
         .await
         .unwrap();
     wait_until(|| async { near(test.screen_code("HEADLESS-1", x, y).await.unwrap(), pq(280.0)) }).await;

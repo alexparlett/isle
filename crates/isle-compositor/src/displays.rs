@@ -5,7 +5,6 @@
 use std::collections::BTreeMap;
 
 use isle_settings::{Value, schema::Output as OutputConfig};
-use serde::Deserialize;
 use smithay::reexports::calloop::{
     RegistrationToken,
     timer::{TimeoutAction, Timer},
@@ -17,20 +16,41 @@ use crate::{
     worker::Event,
 };
 
-/// One display's fields a change sets; those absent stay.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct Edit {
-    /// `WIDTHxHEIGHT@HZ`, or empty for the preferred size at its fastest rate.
-    pub mode: Option<String>,
-    pub scale: Option<f64>,
-    pub x: Option<i32>,
-    pub y: Option<i32>,
-    pub transform: Option<String>,
-    pub enabled: Option<bool>,
-    pub hdr: Option<bool>,
-    /// In cd/m².
-    pub sdr_white: Option<i64>,
+/// A change to one display: its section's keys and their new values; null takes a key
+/// back to its default.
+pub type Edit = serde_json::Map<String, serde_json::Value>;
+
+/// `edit` applied to `current` through the schema, which checks each key's name, type and
+/// range.
+fn edited(current: &OutputConfig, edit: &Edit) -> Result<OutputConfig, String> {
+    use isle_settings::Section as _;
+    let mut keys = BTreeMap::new();
+    current.flatten("", &mut keys);
+    for (key, value) in edit {
+        let value = match value {
+            serde_json::Value::Null => None,
+            serde_json::Value::Bool(b) => Some(Value::Bool(*b)),
+            serde_json::Value::Number(n) => Some(match n.as_i64() {
+                Some(i) => Value::Int(i),
+                None => Value::Float(n.as_f64().unwrap_or_default()),
+            }),
+            // An empty mode is the preferred one: the key unset.
+            serde_json::Value::String(s) if s.is_empty() => None,
+            serde_json::Value::String(s) => Some(Value::Str(s.clone())),
+            other => return Err(format!("{key}: {other} is not a setting's value")),
+        };
+        match value {
+            Some(value) => keys.insert(key.clone(), value),
+            None => keys.remove(key),
+        };
+    }
+    let mut next = OutputConfig::default();
+    for (key, value) in keys {
+        let path = isle_settings::parse_path(&key)?;
+        next.set(&path, value)?;
+    }
+    next.check().map_err(|e| e.message)?;
+    Ok(next)
 }
 
 /// A change in force and not yet kept.
@@ -193,34 +213,7 @@ impl State {
             let Some(current) = before.get(identity) else {
                 return Err(format!("no display is {identity}"));
             };
-            let mut next = current.clone();
-            if let Some(mode) = &edit.mode {
-                next.mode = Some(mode.clone()).filter(|m| !m.is_empty());
-            }
-            if let Some(scale) = edit.scale {
-                if !(0.5..=4.0).contains(&scale) {
-                    return Err("a scale is from 0.5 to 4".into());
-                }
-                next.scale = scale;
-            }
-            next.x = edit.x.or(next.x);
-            next.y = edit.y.or(next.y);
-            if let Some(word) = &edit.transform {
-                next.transform = isle_settings::Field::from_value(Value::Str(word.clone()))
-                    .map_err(|_| format!("{word} is not a rotation"))?;
-            }
-            if let Some(enabled) = edit.enabled {
-                next.enabled = enabled;
-            }
-            if let Some(hdr) = edit.hdr {
-                next.hdr = hdr;
-            }
-            if let Some(white) = edit.sdr_white {
-                if !(80..=1000).contains(&white) {
-                    return Err("SDR brightness is from 80 to 1000 cd/m²".into());
-                }
-                next.sdr_white = white;
-            }
+            let next = edited(current, edit)?;
             applied.insert(identity.clone(), next);
         }
         let on = known
@@ -257,34 +250,25 @@ impl State {
     }
 
     /// The keys that make change `id` the settings, for the worker to write; the change
-    /// stays in force until `kept`.
+    /// stays in force until `kept`. Every key of a display's section that differs is written,
+    /// so a new display setting needs nothing here.
     pub fn display_writes(&self, id: u64) -> Option<Vec<(String, Option<Value>)>> {
+        use isle_settings::Section as _;
         let pending = self.isle.display_change.as_ref().filter(|p| p.id == id)?;
         let mut writes = Vec::new();
         for (identity, config) in &pending.applied {
-            let key = |field: &str| format!("output[{identity}].{field}");
             let saved = self.isle.settings.output.get(identity).cloned().unwrap_or_default();
-            if config.mode != saved.mode {
-                writes.push((key("mode"), config.mode.clone().map(Value::Str)));
+            let prefix = format!("output[{identity}]");
+            let (mut was, mut now) = (BTreeMap::new(), BTreeMap::new());
+            saved.flatten(&prefix, &mut was);
+            config.flatten(&prefix, &mut now);
+            for (key, value) in &now {
+                if was.get(key) != Some(value) {
+                    writes.push((key.clone(), Some(value.clone())));
+                }
             }
-            if config.scale != saved.scale {
-                writes.push((key("scale"), Some(Value::Float(config.scale))));
-            }
-            if config.x != saved.x || config.y != saved.y {
-                writes.push((key("x"), config.x.map(|v| Value::Int(v.into()))));
-                writes.push((key("y"), config.y.map(|v| Value::Int(v.into()))));
-            }
-            if config.transform != saved.transform {
-                writes.push((key("transform"), Some(Value::Str(config.transform.as_str().into()))));
-            }
-            if config.enabled != saved.enabled {
-                writes.push((key("enabled"), Some(Value::Bool(config.enabled))));
-            }
-            if config.hdr != saved.hdr {
-                writes.push((key("hdr"), Some(Value::Bool(config.hdr))));
-            }
-            if config.sdr_white != saved.sdr_white {
-                writes.push((key("sdr-white"), Some(Value::Int(config.sdr_white))));
+            for key in was.keys().filter(|k| !now.contains_key(*k)) {
+                writes.push((key.clone(), None));
             }
         }
         Some(writes)

@@ -592,7 +592,8 @@ pub mod displays {
     )]
     pub trait Displays {
         fn list(&self) -> zbus::Result<Vec<DisplayInfo>>;
-        /// Display changes in force until Keep, as JSON by make, model and serial; the id.
+        /// Display changes in force until Keep, as JSON by make, model and serial, each an
+        /// object of `output` keys (`mode`, `hdr`, `sdr-white`, …; null for the default); the id.
         fn configure(&self, changes: &str) -> zbus::Result<u64>;
         /// Writes change `id` into settings.kdl.
         fn keep(&self, id: u64) -> zbus::Result<bool>;

@@ -749,6 +749,8 @@ pub mod test {
         fn remove_output(&self, name: &str) -> zbus::Result<bool>;
         /// Makes a virtual display a pretend HDR screen.
         fn make_hdr(&self, name: &str, peak: f64, sdr_white: f64) -> zbus::Result<()>;
+        /// Makes a virtual display one that takes HDR10, lit in HDR by its `hdr` setting.
+        fn make_hdr_capable(&self, name: &str, peak: f64) -> zbus::Result<()>;
         /// A pretend HDR screen's 10-bit code values at a pixel.
         fn screen_code(&self, name: &str, x: i32, y: i32) -> zbus::Result<(u32, u32, u32)>;
         /// Frames presented on an output since it was added.

@@ -262,6 +262,14 @@
     decision about each key, not a copy of the schema.
   - **Tests.** A schema test refuses an unknown key, an out-of-range
     scale and a string `hdr`.
+- **A test of the user's steps.** A headless display can now take HDR
+  (`Test.MakeHdrCapable`), lit in HDR by its `hdr` setting on a relight,
+  as a real screen is.
+  - **The steps:** switch HDR on, keep it, write `sdr-colour` and
+    `sdr-white` as Settings' sliders do, check HDR stays on, then switch it
+    off and check a setting does not bring it back.
+  - **Against the code before the keep fix** it fails with "sdr-colour
+    turned HDR off".
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

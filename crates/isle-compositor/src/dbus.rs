@@ -1836,6 +1836,20 @@ impl Test {
             .map_err(fdo::Error::Failed)
     }
 
+    /// Makes a virtual display one that takes HDR10, lit in HDR by its `hdr` setting.
+    async fn make_hdr_capable(&self, name: String, peak: f64) -> fdo::Result<()> {
+        self.to_loop
+            .call(move |state| match &mut state.backend {
+                crate::backend::Backend::Headless(headless) => {
+                    headless.make_hdr_capable(&name, peak);
+                    Ok(())
+                }
+                _ => Err("headless only".to_owned()),
+            })
+            .await?
+            .map_err(fdo::Error::Failed)
+    }
+
     /// A pretend HDR screen's 10-bit code values at a pixel.
     async fn screen_code(&self, name: String, x: i32, y: i32) -> fdo::Result<(u32, u32, u32)> {
         self.to_loop

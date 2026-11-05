@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use isle_ipc::displays::DisplaysProxy;
+use isle_ipc::{displays::DisplaysProxy, settings::SettingsProxy};
 
 mod common;
 
@@ -63,6 +63,42 @@ async fn a_still_hdr_desktop_presents_no_frames() {
     tokio::time::sleep(Duration::from_secs(2)).await;
     // The island's clock may turn a minute in the window.
     assert!(test.frames("HEADLESS-1").await.unwrap() - before <= 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn hdr_switched_on_and_kept_stays_on_through_other_settings_and_switches_off() {
+    let isle = Isle::start("hdr-flow").await;
+    let test = isle.test().await;
+    test.make_hdr_capable("HEADLESS-1", 302.0).await.unwrap();
+    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    let settings = SettingsProxy::new(&isle.bus).await.unwrap();
+    let info = || async {
+        displays.list().await.unwrap().into_iter().find(|d| d.name == "HEADLESS-1").unwrap()
+    };
+    let before = info().await;
+    assert_eq!((before.hdr_peak, before.hdr), (302.0, false));
+    let identity = format!("{} {} {}", before.make, before.model, before.serial);
+
+    let id = displays.configure(&format!(r#"{{"{identity}": {{"hdr": true}}}}"#)).await.unwrap();
+    wait_until(|| async { info().await.hdr }).await;
+    assert!(displays.keep(id).await.unwrap());
+
+    // Settings' sliders write their keys straight to the file.
+    for (key, value) in [("sdr-colour", zvariant::Value::from(0.5f64)), ("sdr-white", zvariant::Value::from(260i64))] {
+        settings.set(&format!("output[{identity}].{key}"), &value).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(info().await.hdr, "{key} turned HDR off");
+    }
+
+    let id = displays.configure(&format!(r#"{{"{identity}": {{"hdr": false}}}}"#)).await.unwrap();
+    wait_until(|| async { !info().await.hdr }).await;
+    assert!(displays.keep(id).await.unwrap());
+    settings
+        .set(&format!("output[{identity}].sdr-colour"), &zvariant::Value::from(1.0f64))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!info().await.hdr, "a setting turned HDR back on");
 }
 
 mod clients {

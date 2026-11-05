@@ -29,6 +29,9 @@ pub struct Headless {
     targets: HashMap<String, Target>,
     /// Outputs turned off by a display change: name, make, model, serial and size.
     parked: HashMap<String, (String, (String, String, String), (i32, i32))>,
+    /// Outputs that take HDR10, by name, with their peak in cd/m²: lit in HDR by their `hdr`
+    /// setting as a real screen is.
+    hdr_capable: HashMap<String, f64>,
 }
 
 struct Target {
@@ -65,6 +68,7 @@ impl Headless {
             render_node,
             targets: HashMap::new(),
             parked: HashMap::new(),
+            hdr_capable: HashMap::new(),
         })
     }
 
@@ -229,6 +233,11 @@ impl Headless {
         Ok(())
     }
 
+    /// Makes an output one that takes HDR10, so its `hdr` setting lights it in HDR.
+    pub fn make_hdr_capable(&mut self, name: &str, peak: f64) {
+        self.hdr_capable.insert(name.to_owned(), peak);
+    }
+
     /// A pretend HDR screen's 10-bit code values at a pixel, as last presented.
     pub fn screen_code(&mut self, name: &str, x: i32, y: i32) -> Result<(u32, u32, u32), String> {
         use smithay::backend::renderer::ExportMem;
@@ -302,6 +311,11 @@ impl State {
                     refresh: 60_000,
                 });
                 output.change_current_state(None, Some(crate::backend::udev::transform(config.transform)), None, None);
+                if config.hdr && let Some(&peak) = headless.hdr_capable.get(&name) {
+                    if let Err(err) = headless.make_hdr(&name, peak, config.sdr_white as f64) {
+                        warn!(identity, "could not light the display in HDR: {err}");
+                    }
+                }
                 self.isle.apply_output_settings(&output);
             }
             Err(err) => warn!(identity, "could not add the display again: {err}"),
@@ -313,16 +327,24 @@ impl State {
         let Backend::Headless(headless) = &self.backend else {
             return Vec::new();
         };
-        headless
+        let peak = |name: &str| headless.hdr_capable.get(name).copied().unwrap_or(0.0);
+        let lit = headless.targets.values().map(|t| {
+            let size = t.output.preferred_mode().map_or((1920, 1080), |m| (m.size.w, m.size.h));
+            (Isle::output_identity(&t.output), t.output.name(), size)
+        });
+        let parked = headless
             .parked
             .iter()
-            .map(|(identity, (name, _, size))| {
+            .map(|(identity, (name, _, size))| (identity.clone(), name.clone(), *size));
+        lit.chain(parked)
+            .map(|(identity, name, size)| {
                 let mode = isle_ipc::DisplayMode {
                     width: size.0,
                     height: size.1,
                     refresh: 60_000,
                 };
-                (identity.clone(), name.clone(), vec![mode], (0, 0), (0, 0), 0.0)
+                let peak = peak(&name);
+                (identity, name, vec![mode], (0, 0), (0, 0), peak)
             })
             .collect()
     }

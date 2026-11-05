@@ -280,6 +280,12 @@ impl State {
             if config.enabled != saved.enabled {
                 writes.push((key("enabled"), Some(Value::Bool(config.enabled))));
             }
+            if config.hdr != saved.hdr {
+                writes.push((key("hdr"), Some(Value::Bool(config.hdr))));
+            }
+            if config.sdr_white != saved.sdr_white {
+                writes.push((key("sdr-white"), Some(Value::Int(config.sdr_white))));
+            }
         }
         Some(writes)
     }

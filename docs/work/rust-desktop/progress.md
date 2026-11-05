@@ -244,6 +244,11 @@
     - **Test.** A window animating after a relight gets its frame
       callbacks at the refresh rate. Without the fix it got none in a
       second.
+- **HDR turned itself off at SDR Colour's first move.** A kept display
+  change never wrote `hdr` or `sdr-white` (`display_writes` predates
+  them). So the next settings write found the screen in HDR against a
+  configuration that said SDR, and relit it. Both are written now, and a
+  test keeps an HDR change and reads the file.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

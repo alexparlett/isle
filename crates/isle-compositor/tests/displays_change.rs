@@ -115,3 +115,24 @@ async fn identify_names_each_screen_and_goes() {
     tokio::time::sleep(Duration::from_secs(3)).await;
     wait_until(|| async { !open().await }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_relit_display_keeps_its_windows_frame_callbacks_at_its_refresh() {
+    let mut isle = start("display-relight-frames").await;
+    let client = isle.client("isle.test.Animate", "3366ff");
+    isle.wait_for_window("isle.test.Animate").await;
+    client.send("count-frames");
+    client.send("animate");
+    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    let before = first(&displays).await;
+    let change = format!(r#"{{"{}": {{"mode": "1280x720"}}}}"#, identity(&before));
+    let id = displays.configure(&change).await.unwrap();
+    wait_until(|| async { first(&displays).await.width == 1280 }).await;
+    assert!(displays.keep(id).await.unwrap());
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    client.clear();
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    let frames = client.lines_with("frame").len();
+    // The headless display runs at 60 Hz; a stale primary output gave one a second.
+    assert!(frames >= 30, "only {frames} frame callbacks in a second after the relight");
+}

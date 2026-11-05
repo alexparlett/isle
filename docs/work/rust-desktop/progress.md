@@ -228,8 +228,22 @@
       disagree, through Configure or a changed file.
   - **The way out.** The user was taken out of HDR with
     `isle displays redetect`.
-  - **Input lag**, in typed text, not the pointer, persisted in SDR after
-    that. Not yet explained.
+  - **Input lag** in typed text, not the pointer. It came with the first
+    HDR switch and stayed after turning HDR off.
+    - **Cause.** Each switch relights the display with a new `Output`.
+      Something still holds the old one, so Smithay's primary-output
+      comparison keeps it as every surface's primary output: same size,
+      same refresh, and alive.
+    - **Effect.** Frame callbacks then came only on the one-second
+      throttle, and presentation feedback not at all. Chromium logged
+      "buggy presentation feedback" after each switch.
+    - **Age.** This predates P22: any relight did it, a mode change
+      included.
+    - **Fixed.** An output no longer in the layout loses to the one being
+      drawn.
+    - **Test.** A window animating after a relight gets its frame
+      callbacks at the refresh rate. Without the fix it got none in a
+      second.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

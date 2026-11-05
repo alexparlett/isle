@@ -154,6 +154,17 @@ impl Isle {
 
     /// Also tells each surface the fractional scale of the output it is mostly on.
     pub fn update_primary_scanout_output(&self, output: &Output, states: &RenderElementStates) {
+        // An output taken out of the layout, as a relight does, may outlive it while anything
+        // holds it; Smithay keeps it as a surface's primary output against a new one of the
+        // same size and refresh, and the surface's frame callbacks then come only once a second.
+        let space = &self.space;
+        let compare = scanout_compare(move |current, current_state, next, next_state| {
+            if space.outputs().any(|o| o == current) {
+                default_primary_scanout_output_compare(current, current_state, next, next_state)
+            } else {
+                next
+            }
+        });
         for window in self.space.elements().chain(self.unmanaged.iter()) {
             window.with_surfaces(|surface, surface_states| {
                 let primary = update_surface_primary_scanout_output(
@@ -162,7 +173,7 @@ impl Isle {
                     surface_states,
                     None,
                     states,
-                    default_primary_scanout_output_compare,
+                    compare,
                 );
                 if let Some(primary) = primary {
                     with_fractional_scale(surface_states, |fractional| {
@@ -173,26 +184,12 @@ impl Isle {
         }
         for layer in layer_map_for_output(output).layers() {
             layer.with_surfaces(|surface, surface_states| {
-                update_surface_primary_scanout_output(
-                    surface,
-                    output,
-                    surface_states,
-                    None,
-                    states,
-                    default_primary_scanout_output_compare,
-                );
+                update_surface_primary_scanout_output(surface, output, surface_states, None, states, compare);
             });
         }
         if let CursorImageStatus::Surface(surface) = &self.cursor_status {
             with_surfaces_surface_tree(surface, |surface, surface_states| {
-                update_surface_primary_scanout_output(
-                    surface,
-                    output,
-                    surface_states,
-                    None,
-                    states,
-                    default_primary_scanout_output_compare,
-                );
+                update_surface_primary_scanout_output(surface, output, surface_states, None, states, compare);
             });
         }
     }
@@ -623,4 +620,17 @@ impl FramePhases {
             "a frame over its refresh"
         );
     }
+}
+
+/// States the lifetimes Smithay's comparison wants, which a closure cannot infer.
+fn scanout_compare<F>(compare: F) -> F
+where
+    F: for<'a> Fn(
+        &'a Output,
+        &'a smithay::backend::renderer::element::RenderElementState,
+        &'a Output,
+        &'a smithay::backend::renderer::element::RenderElementState,
+    ) -> &'a Output,
+{
+    compare
 }

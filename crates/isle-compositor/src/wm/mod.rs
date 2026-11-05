@@ -332,6 +332,9 @@ impl Isle {
         {
             self.mission_dirty.set(true);
         }
+        if matches!(event, Event::WindowsChanged | Event::DesktopsChanged) {
+            self.restore.dirty.set(true);
+        }
         if matches!(event, Event::WindowsChanged) {
             self.idle.windows_changed.set(true);
             self.image_copy.dirty.set(true);
@@ -759,6 +762,7 @@ impl State {
         self.isle.space.unmap_elem(&window);
         self.cast_window_closed(id);
         self.isle.wm.records.retain(|r| r.id != id);
+        self.restore_window_gone(id);
         if !self.isle.wm.records.iter().any(|r| r.app == app && r.mapped) {
             self.app_windowless(&app);
         }

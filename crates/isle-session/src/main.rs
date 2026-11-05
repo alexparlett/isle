@@ -404,6 +404,7 @@ fn main() -> ExitCode {
     say(format!("compositor: {}", compositor.display()));
 
     let mut exported_last: Vec<(String, String)> = Vec::new();
+    let mut restart = false;
     loop {
         if let Some((loaded, installed)) = nvidia_mismatch() {
             let line = format!(
@@ -445,6 +446,14 @@ fn main() -> ExitCode {
         } else {
             command.env_remove("ISLE_SAFE_START");
         }
+        // A start after the first is the same sign-in coming back, which a restore's skip
+        // does not cover (`p20b-session.md` choice 12).
+        if restart {
+            command.env("ISLE_RESTART", "1");
+        } else {
+            command.env_remove("ISLE_RESTART");
+        }
+        restart = true;
         unsafe {
             command.pre_exec(move || {
                 if libc::dup2(write_fd, READY_FD) < 0 {

@@ -266,6 +266,7 @@ impl State {
     fn call_off_ending(&mut self) {
         info!("the session's end called off");
         self.isle.session.ending = None;
+        self.thaw_restore();
         if let Some(token) = self.isle.session.check.take() {
             self.isle.loop_handle.remove(token);
         }
@@ -431,6 +432,8 @@ impl State {
             return;
         }
         info!(?choice, from_lock, "ending the session");
+        // The session as it was before the apps quit is what comes back.
+        self.freeze_restore(None);
         let apps = self.isle.apps_by_recency();
         for app in &apps {
             self.quit_app(app);
@@ -644,6 +647,7 @@ impl State {
         let Some(ending) = self.isle.session.ending.take_if(|e| e.from_lock) else {
             return;
         };
+        self.thaw_restore();
         if let Some(token) = self.isle.session.check.take() {
             self.isle.loop_handle.remove(token);
         }

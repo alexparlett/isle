@@ -347,13 +347,17 @@ impl XdgActivationHandler for State {
 
     fn request_activation(
         &mut self,
-        _token: XdgActivationToken,
+        token: XdgActivationToken,
         data: XdgActivationTokenData,
         surface: WlSurface,
     ) {
         let Some(id) = self.isle.wm.for_surface(&surface).filter(|r| r.mapped).map(|r| r.id) else {
             return;
         };
+        if self.isle.quiet_token(&token) {
+            debug!(id, "a restored window opens behind");
+            return;
+        }
         if data.timestamp.elapsed().as_secs() < 10 {
             self.activate(id);
         } else {

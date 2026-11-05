@@ -318,6 +318,12 @@ pub struct Windows {
     /// Apps whose new windows open on a given desktop, as `app:all` for every desktop or
     /// `app:2` for the second desktop of the screen they open on.
     pub assign: Vec<String>,
+    /// What was open comes back, on its desktops, after a sign-in or a restart.
+    #[setting(default = true)]
+    pub reopen_apps: bool,
+    /// Quitting an app closes its windows, so it opens none of them next time.
+    #[setting(default = false)]
+    pub close_windows_when_quitting: bool,
 }
 
 /// The tokens' spacing: none, `space-s`, `space-m` or `space-l`.

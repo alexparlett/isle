@@ -675,6 +675,10 @@ pub mod test {
         fn lock_status(&self) -> zbus::Result<String>;
         /// Starts the Login Items at once; their ids.
         fn login_items(&self) -> zbus::Result<Vec<String>>;
+        /// Decides the start's Login Items and restore at once; the apps restored.
+        fn restore_now(&self) -> zbus::Result<Vec<String>>;
+        /// Session restore as JSON.
+        fn restore_status(&self) -> zbus::Result<String>;
         /// What an output's last frame was made of, front to back.
         fn frame_kinds(&self, output: &str) -> zbus::Result<Vec<String>>;
         /// Acts on the banners as their controls would.

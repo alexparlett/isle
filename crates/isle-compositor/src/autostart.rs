@@ -1,5 +1,6 @@
 //! Login Items: the autostart entries started at every compositor start, once Isle's session
-//! carries the user manager (`p14a-session.md` choice 17).
+//! carries the user manager (`p14a-session.md` choice 17), then session restore from one read
+//! of them (`p20b-session.md` choice 8).
 
 use std::{
     path::{Path, PathBuf},
@@ -15,27 +16,47 @@ use crate::{launch::Launch, launch::unit_part, state::State};
 /// How long the supervisor has to export the session and start its target.
 const EXPORT_WAIT: Duration = Duration::from_secs(30);
 
+/// What a start does once the Login Items are read: those to start, and the apps restore
+/// leaves alone because an item starts them or they still run.
+pub struct Decided {
+    pub due: Vec<Entry>,
+    pub skip: Vec<String>,
+}
+
 impl State {
-    /// Called once the supervisor has the display; `ISLE_LOGIN_ITEMS=0` turns it off for a
-    /// session run beside another.
-    pub fn start_login_items_when_exported(&mut self) {
-        if std::env::var("ISLE_LOGIN_ITEMS").as_deref() == Ok("0") {
-            info!("Login Items are off for this run");
-            return;
-        }
+    /// Called once the supervisor has the display; `ISLE_LOGIN_ITEMS=0` turns Login Items
+    /// off for a session run beside another.
+    pub fn start_session_when_exported(&mut self) {
         let (Some(runtime), Some(to_loop)) = (self.isle.worker.clone(), self.isle.to_loop.clone())
         else {
             return;
         };
+        let items_on = std::env::var("ISLE_LOGIN_ITEMS").as_deref() != Ok("0");
+        if !items_on {
+            info!("Login Items are off for this run");
+        }
         let socket = self.isle.socket_name.to_string_lossy().into_owned();
+        let restore = self.restore_apps();
+        let apps = self.isle.apps.clone();
         runtime.spawn(async move {
-            if !session_carries_manager(&socket).await {
+            let carries = session_carries_manager(&socket).await;
+            if !carries {
                 info!("the user manager is not this session's; Login Items not started");
-                return;
             }
-            let items = due().await;
-            to_loop.post(move |state| state.start_login_items(items));
+            let decided = decide(&apps, &restore).await;
+            to_loop.post(move |state| {
+                if carries && items_on {
+                    state.start_login_items(decided.due);
+                }
+                state.restore_at_start(&decided.skip);
+            });
         });
+    }
+
+    /// The apps in the restore record.
+    pub fn restore_apps(&self) -> Vec<String> {
+        let record = &self.isle.restore.record;
+        record.apps.iter().map(|a| a.id.clone()).collect()
     }
 
     pub fn start_login_items(&mut self, items: Vec<Entry>) {
@@ -49,6 +70,12 @@ impl State {
 /// The items to start: every one that applies, but those still running from the compositor
 /// before this one.
 pub async fn due() -> Vec<Entry> {
+    decide(&isle_apps::Index::default(), &[]).await.due
+}
+
+/// One read of the autostart entries for Login Items and for the restore of `restore`: an app
+/// an item starts is skipped whether or not it runs, and so is one still running.
+pub async fn decide(apps: &isle_apps::Index, restore: &[String]) -> Decided {
     let items = tokio::task::spawn_blocking(|| {
         isle_apps::autostart::items(&isle_apps::autostart::dirs(), "Isle")
     })
@@ -56,17 +83,30 @@ pub async fn due() -> Vec<Entry> {
     .unwrap_or_default();
     let bus = zbus::Connection::session().await.ok();
     let slice = app_slice();
-    let mut due = Vec::new();
-    for item in items {
-        let named = match (&bus, item.dbus_activatable) {
-            (Some(bus), true) => name_owned(bus, &item.id).await,
+    let running = async |id: &str, dbus: bool| {
+        let named = match (&bus, dbus) {
+            (Some(bus), true) => name_owned(bus, id).await,
             _ => false,
         };
-        if !named && !scope_running(&slice, &item.id) {
-            due.push(item);
+        named || scope_running(&slice, id)
+    };
+    let mut decided = Decided {
+        due: Vec::new(),
+        skip: Vec::new(),
+    };
+    for app in restore {
+        let started = items.iter().any(|i| &i.id == app);
+        let dbus = apps.get(app).is_some_and(|e| e.dbus_activatable);
+        if started || running(app, dbus).await {
+            decided.skip.push(app.clone());
         }
     }
-    due
+    for item in items {
+        if !running(&item.id, item.dbus_activatable).await {
+            decided.due.push(item);
+        }
+    }
+    decided
 }
 
 /// The user manager's slice that the launch path's scopes go in.

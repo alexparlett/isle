@@ -78,6 +78,7 @@ mod perf;
 mod pointer;
 pub mod present;
 pub mod redraw;
+mod restore;
 mod sync;
 mod render;
 pub mod settings;
@@ -252,6 +253,13 @@ pub fn run(kind: backend::Kind, greeter: bool) -> Result<(), Box<dyn std::error:
     isle.load_capture_state(&runtime);
     isle.load_desktops(&runtime);
     isle.wallpapers.load(&runtime);
+    // Under the supervisor the start restores; a test holds it until it asks.
+    let restore_start = if ready_fd.is_some() || std::env::var("ISLE_RESTORE").as_deref() == Ok("manual") {
+        restore::Start::Deciding
+    } else {
+        restore::Start::Off
+    };
+    isle.load_restore(&runtime, restore_start);
     isle.safe_start = safe_start;
     if lock::marked() {
         isle.start_locked();
@@ -392,6 +400,7 @@ fn run_loop(
         state.mission_after_dispatch();
         state.sync_foreign_toplevels();
         state.idle_after_dispatch();
+        state.restore_after_dispatch();
         // Input this iteration reaches clients before a frame is drawn, not after.
         let _ = state.isle.display_handle.flush_clients();
         state.redraw_queued();
@@ -430,7 +439,7 @@ fn start_clients(state: &mut State, ready_fd: &mut Option<i32>) -> bool {
     }
     if let Some(fd) = ready_fd.take() {
         report_ready(fd, &state.isle.socket_name, display);
-        state.start_login_items_when_exported();
+        state.start_session_when_exported();
     }
     true
 }

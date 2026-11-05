@@ -184,6 +184,7 @@ impl State {
     /// Before a toplevel's first configure: a main window with a place is asked for its size.
     pub fn plan_window(&mut self, id: u64) {
         self.isle.refresh_identity(id);
+        self.take_restore_slot(id);
         if matches!(
             self.isle.wm.get(id).map(|r| &r.mode),
             Some(super::Mode::Filled { .. })
@@ -205,7 +206,7 @@ impl State {
             return;
         }
         let app = isle.wm.get(id).unwrap().app.clone();
-        let Some(output) = isle.output_with_focus() else {
+        let Some(output) = isle.opening_output(id) else {
             return;
         };
         let Some((place, zone)) = isle.place_for(&app, &output) else {
@@ -252,7 +253,7 @@ impl State {
     /// A window that asked to be maximised before it mapped opens filling the work area of
     /// the output with focus, returning to the default size centred there.
     pub fn plan_fill(&mut self, id: u64) {
-        let Some(output) = self.isle.output_with_focus() else {
+        let Some(output) = self.isle.opening_output(id) else {
             return;
         };
         let area = self.isle.work_area(&output);
@@ -281,7 +282,7 @@ impl State {
 
     /// A window that asked for full screen before it mapped is configured to its output.
     pub fn plan_full_screen(&mut self, id: u64) {
-        let Some(output) = self.isle.output_with_focus() else {
+        let Some(output) = self.isle.opening_output(id) else {
             return;
         };
         let area = self.isle.space.output_geometry(&output).unwrap_or_default();
@@ -299,6 +300,10 @@ impl State {
     /// any other window on the current desktop of its output, or the one a full-screen
     /// desktop came from.
     pub fn assign_desktop(&mut self, id: u64) {
+        // A restored window has no parent; it goes back to the desktop it left.
+        if self.assign_restored_desktop(id) {
+            return;
+        }
         let Some(record) = self.isle.wm.get(id) else {
             return;
         };
@@ -400,7 +405,7 @@ impl State {
             }
             return Some(under_bar(geometry::over_parent(frame, size, area)));
         }
-        let output = isle.output_with_focus()?;
+        let output = isle.opening_output(id)?;
         let screen = isle.space.output_geometry(&output)?;
         if client == screen.size {
             // Sized to its output by itself: a borderless full-screen window (D48).
@@ -489,6 +494,7 @@ impl State {
         let size = window.geometry().size;
         self.isle.refresh_identity(id);
         self.isle.refresh_game(id);
+        self.take_restore_slot(id);
         let Some(location) = self.place_new_window(id) else {
             return;
         };
@@ -509,10 +515,11 @@ impl State {
         self.assign_desktop(id);
         self.desktop_touched(id);
         self.stage_mapped(id);
+        let restored = self.restored_mapped(id);
         self.isle.sync_space();
         self.session_window_mapped(id);
         // A float leaves the keyboard with its caller unless it asked for it.
-        if self.isle.float_of(id).is_none_or(|f| f.normal) {
+        if restored.unwrap_or(true) && self.isle.float_of(id).is_none_or(|f| f.normal) {
             self.set_focus(Some(&window));
         }
         if full_screen {
@@ -523,7 +530,8 @@ impl State {
         if matches!(
             self.isle.wm.get(id).map(|r| &r.mode),
             Some(super::Mode::Floating | super::Mode::Tiled { .. } | super::Mode::Filled { .. })
-        ) {
+        ) && (restored.is_none() || self.isle.wm.is_shown(id))
+        {
             self.animate_arriving(id, None);
         }
     }

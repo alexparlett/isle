@@ -1216,6 +1216,28 @@ impl Test {
         Ok(ids)
     }
 
+    /// Decides the start's Login Items and restore now, as once the session carries the user
+    /// manager: the apps restored.
+    async fn restore_now(&self) -> fdo::Result<Vec<String>> {
+        let (apps, restore) = self
+            .to_loop
+            .call(|state| (state.isle.apps.clone(), state.restore_apps()))
+            .await?;
+        let decided = crate::autostart::decide(&apps, &restore).await;
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                state.start_login_items(decided.due);
+                state.restore_at_start(&decided.skip)
+            })
+            .await?)
+    }
+
+    /// Session restore as JSON: the record, the start, frozen, pending apps, those reopened.
+    async fn restore_status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.restore_status()).await?)
+    }
+
     /// The lock as JSON: whether locked, the dots typed, the status, failures, pending, and
     /// the minutes left of a lockout.
     async fn lock_status(&self) -> fdo::Result<String> {

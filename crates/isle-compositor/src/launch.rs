@@ -37,6 +37,9 @@ pub enum Launch {
     Command(String),
     /// A Login Item, by its autostart entry.
     Item(Box<isle_apps::Entry>),
+    /// An app brought back by session restore, told so by `ISLE_RESTORED=1`; its windows open
+    /// behind unless it was in front.
+    Restore { app: String, focus: bool },
 }
 
 /// What `entry` runs for `action`, and its activation when it is `DBusActivatable`; `None`
@@ -169,6 +172,16 @@ impl State {
                     None => return false,
                 }
             }
+            Launch::Restore { app, .. } => {
+                let Some(entry) = self.isle.apps.get(app).cloned() else {
+                    warn!(app, "no desktop entry to restore");
+                    return false;
+                };
+                match entry_argv(&entry, None, &[], &mut activate) {
+                    Some(argv) => (argv, app.clone()),
+                    None => return false,
+                }
+            }
             Launch::Item(entry) => match entry_argv(entry, None, &[], &mut activate) {
                 Some(argv) => (argv, entry.id.clone()),
                 None => return false,
@@ -198,11 +211,19 @@ impl State {
             .xdg_activation_state
             .create_external_token(XdgActivationTokenData::default());
         let token = token.to_string();
+        let restored = matches!(what, Launch::Restore { .. });
+        if let Launch::Restore { focus: false, .. } = &what {
+            self.isle
+                .restore
+                .quiet_tokens
+                .push((token.clone(), std::time::Instant::now()));
+        }
         let Some(runtime) = self.isle.worker.clone() else {
             return false;
         };
         let to_loop = self.isle.to_loop.clone();
-        let scope_app = matches!(what, Launch::App { .. } | Launch::Item(_)).then(|| name.clone());
+        let scope_app = matches!(what, Launch::App { .. } | Launch::Item(_) | Launch::Restore { .. })
+            .then(|| name.clone());
         let unit = format!(
             "app-isle-{}-{:08x}.scope",
             unit_part(&name),
@@ -228,10 +249,13 @@ impl State {
                     ),
                 }
             }
-            let envs = [
+            let mut envs = vec![
                 ("XDG_ACTIVATION_TOKEN", token.clone()),
                 ("DESKTOP_STARTUP_ID", token),
             ];
+            if restored {
+                envs.push(("ISLE_RESTORED", "1".to_owned()));
+            }
             let mut scoped = tokio::process::Command::new("systemd-run");
             // SAFETY: `as_an_app` only calls setpriority and prctl.
             unsafe { scoped.pre_exec(crate::child_env::as_an_app) };

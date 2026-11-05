@@ -1,4 +1,4 @@
-//! The state domains. Later packets add theirs (session restore, ...).
+//! The state domains.
 
 use std::collections::BTreeMap;
 
@@ -236,5 +236,55 @@ pub struct Greeter {
 
 impl Domain for Greeter {
     const NAME: &'static str = "greeter";
+    const VERSION: u32 = 1;
+}
+
+/// What was open, for the next compositor start to bring back (`p20b-session.md` choice 3).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Restore {
+    /// Apps with a desktop entry, back to front; one running with no window has none.
+    pub apps: Vec<RestoreApp>,
+    /// The app in front, by desktop id.
+    pub front: Option<String>,
+    /// The next sign-in restores nothing, and clears this.
+    pub skip: bool,
+    /// The session dialog's "Reopen windows when logging back in", as last left.
+    pub reopen_windows: bool,
+}
+
+impl Default for Restore {
+    fn default() -> Self {
+        Self {
+            apps: Vec::new(),
+            front: None,
+            skip: false,
+            reopen_windows: true,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoreApp {
+    /// The desktop id.
+    pub id: String,
+    /// Back to front.
+    pub windows: Vec<RestoreWindow>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoreWindow {
+    /// The output's identity.
+    pub output: String,
+    /// The desktop's index among the row's plain desktops, from 0.
+    pub desktop: u32,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub minimised: bool,
+}
+
+impl Domain for Restore {
+    const NAME: &'static str = "restore";
     const VERSION: u32 = 1;
 }

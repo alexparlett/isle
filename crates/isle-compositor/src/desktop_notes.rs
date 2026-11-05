@@ -178,8 +178,13 @@ impl State {
         );
     }
 
-    /// Isle's last crash, said once at the next start.
+    /// Isle's last crash, said once at the next start, after the start's restore so it can
+    /// say the apps came back.
     pub fn crash_note(&mut self) {
+        if self.isle.restore.start == crate::restore::Start::Deciding {
+            self.isle.restore.crash_note_owed = true;
+            return;
+        }
         let Ok(entries) = std::fs::read_dir(crate::crash::crashes_dir()) else {
             return;
         };
@@ -193,11 +198,16 @@ impl State {
             return;
         }
         self.isle.notifications.last_crash = Some(name);
+        let body = if self.isle.restore.reopened.is_empty() {
+            String::new()
+        } else {
+            "Your apps were reopened.".into()
+        };
         self.post_desktop(
             "",
             "Isle",
             "Isle quit unexpectedly.".into(),
-            String::new(),
+            body,
             vec![("default", "Report…")],
             Note::Crash(newest.path()),
         );

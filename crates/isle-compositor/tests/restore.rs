@@ -166,12 +166,17 @@ async fn the_record_keeps_apps_back_to_front_with_their_desktops_and_freezes_at_
     let on_disk: serde_json::Value =
         serde_json::from_str(&fs::read_to_string(&file).unwrap()).unwrap();
     assert_eq!(on_disk["data"]["apps"][0]["id"], "isle.test.A");
-    wait_until(|| async {
+    // The dialog waits five seconds for the apps before it says which stayed open.
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    loop {
         let s: serde_json::Value =
             serde_json::from_str(&isle.test().await.session().await.unwrap()).unwrap();
-        s["stop"] == "open isle.test.B"
-    })
-    .await;
+        if s["stop"] == "open isle.test.B" {
+            break;
+        }
+        assert!(std::time::Instant::now() < deadline, "never stopped: {s}");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
     isle.test()
         .await
         .session_act("show isle.test.B")
@@ -278,11 +283,11 @@ async fn restore_brings_apps_back_on_their_desktops_after_login_items() {
     let environ = fs::read(format!("/proc/{}/environ", a1.pid)).unwrap();
     assert!(environ.split(|b| *b == 0).any(|v| v == b"ISLE_RESTORED=1"));
 
-    // The record taken again keeps them as they came back, A's windows behind the Login
-    // Item's, which was not restored.
+    // The record taken again keeps them as they came back: B in front, A and the Login
+    // Item, which opened behind, in whichever order they mapped.
     wait_until(|| async {
-        let s = status(&isle).await;
-        app_ids(&s) == ["isle.test.A", "isle.test.Item", "isle.test.B"]
+        let ids = app_ids(&status(&isle).await);
+        ids.len() == 3 && ids[2] == "isle.test.B"
     })
     .await;
 }
@@ -292,10 +297,19 @@ async fn a_skip_restores_nothing_and_is_cleared() {
     let apps = serde_json::json!([
         { "id": "isle.test.B", "windows": [{ "output": OUTPUT, "desktop": 0 }] },
     ]);
-    let isle = start_restoring("restore-skip", record(apps, "isle.test.B", true), &[]).await;
+    // No Login Item either: nothing changes the window list to write the record.
+    let isle = start_restoring(
+        "restore-skip",
+        record(apps, "isle.test.B", true),
+        &[("XDG_CONFIG_HOME", "/nonexistent/isle-test")],
+    )
+    .await;
     assert!(isle.test().await.restore_now().await.unwrap().is_empty());
     let s = status(&isle).await;
     assert_eq!(s["record"]["skip"], false);
+    let file = isle.dir.join("state/isle/restore.json");
+    wait_until(|| async { fs::read_to_string(&file).is_ok_and(|t| t.contains("\"skip\": false")) })
+        .await;
     assert_eq!(
         s["record"]["reopen_windows"], false,
         "the checkbox as last left"
@@ -499,9 +513,6 @@ async fn under_stage_manager_the_front_app_holds_the_stage() {
     .await;
     isle.test().await.restore_now().await.unwrap();
     wait_until(|| async { isle.windows().await.iter().any(|w| w.app == "isle.test.B") }).await;
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    assert_eq!(
-        isle.shot("HEADLESS-1", "stage").await.at(960, 600),
-        [0, 255, 0]
-    );
+    wait_until(|| async { isle.shot("HEADLESS-1", "stage").await.at(960, 600) == [0, 255, 0] })
+        .await;
 }

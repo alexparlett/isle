@@ -424,6 +424,10 @@ impl State {
         self.isle.restore.behind = if front { items } else { Vec::new() };
         self.isle.restore.behind_since = front.then(Instant::now);
         self.restore_after_dispatch();
+        // Written whether or not it changed, so a skip used here is cleared on disk too.
+        if let Some(saver) = &self.isle.restore.saver {
+            saver.save(self.isle.restore.record.clone());
+        }
         if std::mem::take(&mut self.isle.restore.crash_note_owed) {
             self.crash_note();
         }

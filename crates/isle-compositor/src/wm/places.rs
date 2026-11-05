@@ -516,10 +516,15 @@ impl State {
         self.desktop_touched(id);
         self.stage_mapped(id);
         let restored = self.restored_mapped(id);
+        let behind = restored.is_none() && self.isle.opens_behind(&app);
+        if behind && let Some(at) = self.isle.wm.records.iter().position(|r| r.id == id) {
+            let record = self.isle.wm.records.remove(at);
+            self.isle.wm.records.insert(0, record);
+        }
         self.isle.sync_space();
         self.session_window_mapped(id);
         // A float leaves the keyboard with its caller unless it asked for it.
-        let focus = restored.unwrap_or_else(|| !self.isle.opens_behind(&app));
+        let focus = restored.unwrap_or(!behind);
         if focus && self.isle.float_of(id).is_none_or(|f| f.normal) {
             self.set_focus(Some(&window));
         }

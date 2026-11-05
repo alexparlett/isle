@@ -45,10 +45,12 @@ impl State {
             }
             let decided = decide(&apps, &restore).await;
             to_loop.post(move |state| {
+                let mut items = Vec::new();
                 if carries && items_on {
+                    items = decided.due.iter().map(|e| e.id.clone()).collect();
                     state.start_login_items(decided.due);
                 }
-                state.restore_at_start(&decided.skip);
+                state.restore_at_start(&decided.skip, items);
             });
         });
     }

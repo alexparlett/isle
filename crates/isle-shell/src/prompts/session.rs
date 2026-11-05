@@ -11,7 +11,8 @@ use freya::prelude::*;
 use freya_embed::AppComponent;
 use isle_tokens::Theme;
 use isle_ui::{
-    AppIcon, Button, Glass, Glyph, Hit, Spinner, button::Kind, colour, shadows, text, use_theme,
+    AppIcon, Button, CheckRow, Glass, Glyph, Hit, Spinner, button::Kind, colour, shadows, text,
+    use_theme,
 };
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
@@ -142,6 +143,8 @@ pub struct Frame {
     pub stop: Option<Stop>,
     pub armed: bool,
     pub solid: bool,
+    /// "Reopen windows when logging back in", while Reopen apps is on.
+    pub reopen: Option<bool>,
 }
 
 impl Frame {
@@ -167,6 +170,8 @@ pub enum SessionAction {
     Hold,
     ShowApp(String),
     ForceQuit(String),
+    /// "Reopen windows when logging back in" ticked or not.
+    Reopen(bool),
 }
 
 #[derive(Default)]
@@ -397,6 +402,20 @@ impl Component for SessionView {
                 words,
             ));
 
+        let reopen = frame.reopen.map(|on| {
+            let actions = actions.clone();
+            rect()
+                .width(Size::fill())
+                .padding((t.space_l, 0., t.space_s, 0.))
+                .horizontal()
+                .main_align(Alignment::Center)
+                .child(
+                    CheckRow::new("Reopen windows when logging back in", on)
+                        .on_toggle(move |on: bool| send(&actions, SessionAction::Reopen(on))),
+                )
+        });
+        let gap = if reopen.is_some() { 0. } else { t.space_l };
+
         // Cancel, then the action; once stopped, Show {app} or Force Quit {app}.
         let main = match &frame.stop {
             Some(Stop::Open(app)) => Some((
@@ -471,7 +490,8 @@ impl Component for SessionView {
                 ))
                 .child(rect().height(Size::px(t.space_l)))
                 .child(apps)
-                .child(rect().height(Size::px(t.space_l)))
+                .maybe_child(reopen)
+                .child(rect().height(Size::px(gap)))
                 .child(line)
                 .child(rect().height(Size::px(t.space_l)))
                 .child(
@@ -514,7 +534,8 @@ impl Component for SessionView {
                     )
                     .child(rect().height(Size::px(t.space_l)))
                     .child(apps)
-                    .child(rect().height(Size::px(t.space_l)))
+                    .maybe_child(reopen)
+                    .child(rect().height(Size::px(gap)))
                     .child(line)
                     .maybe_child(main_button.map(|button| {
                         rect()

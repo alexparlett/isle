@@ -73,6 +73,9 @@ pub struct RestoreState {
     pub reopened: Vec<String>,
     /// Isle's crash notice waits for the restore, so it can say the apps came back.
     pub crash_note_owed: bool,
+    /// Login Items started beside the restore, whose windows open behind while the front
+    /// app's are due.
+    behind: Vec<String>,
 }
 
 impl Default for RestoreState {
@@ -90,6 +93,7 @@ impl Default for RestoreState {
             quiet_tokens: Vec::new(),
             reopened: Vec::new(),
             crash_note_owed: false,
+            behind: Vec::new(),
         }
     }
 }
@@ -258,6 +262,17 @@ impl Isle {
             .or_else(|| self.main_output())
     }
 
+    /// Whether a new window of `app` opens behind: a Login Item's while the front app's
+    /// windows are due.
+    pub fn opens_behind(&self, app: &str) -> bool {
+        self.restore.behind.iter().any(|a| a == app)
+            && self
+                .restore
+                .pending
+                .iter()
+                .any(|p| p.since.elapsed() < PENDING_FOR && p.slots.iter().any(|s| s.focus))
+    }
+
     /// Whether `token` is a restored launch's that opens behind.
     pub fn quiet_token(&mut self, token: &str) -> bool {
         self.restore
@@ -359,8 +374,9 @@ impl State {
     }
 
     /// The start's restore, once Login Items are decided: `skip` names the apps something
-    /// else starts or that still run. The skip is cleared whatever happens.
-    pub fn restore_at_start(&mut self, skip: &[String]) -> Vec<String> {
+    /// else starts or that still run, `items` the Login Items just started. The skip is
+    /// cleared whatever happens.
+    pub fn restore_at_start(&mut self, skip: &[String], items: Vec<String>) -> Vec<String> {
         let sign_in = std::env::var("ISLE_RESTART").as_deref() != Ok("1");
         let refused = self.restore_refused(sign_in);
         let record = std::mem::take(&mut self.isle.restore.record);
@@ -395,6 +411,7 @@ impl State {
         }
         info!(?launched, "restored");
         self.isle.restore.reopened = launched.clone();
+        self.isle.restore.behind = items;
         self.restore_after_dispatch();
         if std::mem::take(&mut self.isle.restore.crash_note_owed) {
             self.crash_note();

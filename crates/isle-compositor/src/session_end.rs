@@ -38,6 +38,8 @@ pub struct Dialog {
     pub since: Instant,
     pub countdown: Option<u32>,
     pub armed: bool,
+    /// "Reopen windows when logging back in", from the record as last left.
+    pub reopen: bool,
 }
 
 /// The session ending: what it ends in, since when the apps were asked, and what stopped it.
@@ -147,6 +149,9 @@ impl Isle {
             }),
             "asking": ending.and_then(|e| e.asking),
             "lock_power": format!("{:?}", self.session.lock_power),
+            "reopen": dialog
+                .filter(|_| self.settings.windows.reopen_apps)
+                .map(|d| d.reopen),
         })
         .to_string()
     }
@@ -189,6 +194,7 @@ impl State {
             since: Instant::now(),
             countdown: Some(COUNTDOWN),
             armed: false,
+            reopen: self.isle.restore.record.reopen_windows,
         });
         self.put_session_frame();
         let place = isle_shell::OutputPlace {
@@ -395,6 +401,14 @@ impl State {
                 self.call_off_ending();
                 self.activate_app(&app);
             }
+            SessionAction::Reopen(on) => {
+                if let Some(dialog) = &mut self.isle.session.dialog
+                    && !ending
+                {
+                    dialog.reopen = on;
+                    self.put_session_frame();
+                }
+            }
             SessionAction::ForceQuit(app) => {
                 self.force_quit_app(&app);
                 if let Some(ending) = &mut self.isle.session.ending {
@@ -433,7 +447,14 @@ impl State {
         }
         info!(?choice, from_lock, "ending the session");
         // The session as it was before the apps quit is what comes back.
-        self.freeze_restore(None);
+        let reopen = self
+            .isle
+            .session
+            .dialog
+            .as_ref()
+            .filter(|_| !from_lock && self.isle.settings.windows.reopen_apps)
+            .map(|d| d.reopen);
+        self.freeze_restore(reopen);
         let apps = self.isle.apps_by_recency();
         for app in &apps {
             self.quit_app(app);
@@ -672,6 +693,12 @@ impl State {
             solid: self.isle.game_mode_on()
                 || self.focus_is_game()
                 || theme.appearance.reduce_transparency,
+            reopen: self
+                .isle
+                .settings
+                .windows
+                .reopen_apps
+                .then_some(dialog.reopen),
         };
         let surface = self.isle.session.surface.clone();
         surface.set_model(frame.clone());

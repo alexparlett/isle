@@ -358,3 +358,56 @@ async fn noted_windows_wait_no_longer_than_their_app_maps_them() {
     assert_eq!(shown.len(), 2);
     assert!(shown.iter().all(|w| w.desktop == 2), "{shown:?}");
 }
+
+async fn session(isle: &Isle) -> serde_json::Value {
+    serde_json::from_str(&isle.test().await.session().await.unwrap()).unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_dialogs_checkbox_unticked_skips_the_next_sign_in() {
+    let mut isle = start("restore-checkbox", "", |dir| entry(dir, "isle.test.B", "")).await;
+    isle.test().await.restore_now().await.unwrap();
+    let b = isle.client("isle.test.B", "3366ff");
+    b.wait_for("keyboard-enter").await;
+
+    isle.chord(&[SHIFT, CMD, Q]).await;
+    wait_until(|| async { session(&isle).await["armed"] == true }).await;
+    assert_eq!(session(&isle).await["reopen"], true, "checked as last left");
+    isle.test().await.session_act("reopen false").await.unwrap();
+    wait_until(|| async { session(&isle).await["reopen"] == false }).await;
+    isle.keep_shot("session-reopen").await;
+    isle.chord(&[RETURN]).await;
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while isle.compositor_exit().is_none() {
+        assert!(std::time::Instant::now() < deadline, "never exited");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let file = isle.dir.join("state/isle/restore.json");
+    let on_disk: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(file).unwrap()).unwrap();
+    assert_eq!(on_disk["data"]["skip"], true);
+    assert_eq!(on_disk["data"]["reopen_windows"], false);
+    assert_eq!(
+        on_disk["data"]["apps"][0]["id"], "isle.test.B",
+        "noted before it quit"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn reopen_apps_off_hides_the_checkbox_and_notes_nothing() {
+    let isle = start(
+        "restore-off",
+        "windows {\n    reopen-apps #false\n}\n",
+        |dir| entry(dir, "isle.test.B", ""),
+    )
+    .await;
+    isle.test().await.restore_now().await.unwrap();
+    let mut isle = isle;
+    let b = isle.client("isle.test.B", "3366ff");
+    b.wait_for("keyboard-enter").await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(app_ids(&status(&isle).await).is_empty());
+    isle.chord(&[SHIFT, CMD, Q]).await;
+    wait_until(|| async { session(&isle).await["armed"] == true }).await;
+    assert!(session(&isle).await["reopen"].is_null());
+}

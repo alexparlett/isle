@@ -519,7 +519,8 @@ impl State {
         self.isle.sync_space();
         self.session_window_mapped(id);
         // A float leaves the keyboard with its caller unless it asked for it.
-        if restored.unwrap_or(true) && self.isle.float_of(id).is_none_or(|f| f.normal) {
+        let focus = restored.unwrap_or_else(|| !self.isle.opens_behind(&app));
+        if focus && self.isle.float_of(id).is_none_or(|f| f.normal) {
             self.set_focus(Some(&window));
         }
         if full_screen {

@@ -1227,8 +1227,9 @@ impl Test {
         Ok(self
             .to_loop
             .call(move |state| {
+                let items = decided.due.iter().map(|e| e.id.clone()).collect();
                 state.start_login_items(decided.due);
-                state.restore_at_start(&decided.skip)
+                state.restore_at_start(&decided.skip, items)
             })
             .await?)
     }
@@ -1293,6 +1294,7 @@ impl Test {
                     state.session_action(SessionAction::ForceQuit(app.to_owned()))
                 }
                 Some(("show", app)) => state.session_action(SessionAction::ShowApp(app.to_owned())),
+                Some(("reopen", on)) => state.session_action(SessionAction::Reopen(on == "true")),
                 _ if action == "restart" => state.lock_power(LockAction::Restart),
                 _ if action == "shut-down" => state.lock_power(LockAction::ShutDown),
                 _ => {}

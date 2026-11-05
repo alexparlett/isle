@@ -16,6 +16,27 @@
   focus, so Login Items started beside a restore open behind while the
   front app's windows are due. `an_emoji_reaches_an_x11_window` fails
   about one run in three before and after these changes (Xwayland timing).
+- 20b.8: the bars hold headless (`tests/restore.rs`: every app launched
+  within a second of Login Items being decided, A's windows only ever on
+  their own desktop; `tests/crashes.rs`: the notice within two seconds).
+  The VM walk on the packaged build, signed in by a greetd
+  `initial_session` (the test password was refused; undone after):
+  `kill -ABRT` of the compositor with kitty, Settings, Firefox and a
+  minimised Monitor on three desktops brought all four back on their
+  desktops with "Your apps were reopened."; log out ticked restored
+  them, unticked restored nothing; a restart through the chooser came back
+  with kitty started once by its Login Item and the rest restored;
+  `kill -SEGV` of kitty posted its notice, Reopen put it back on its
+  desktop, Report… wrote and opened the stack; a Firefox renderer crash
+  said nothing; Login Items' add, remove, an entry switched off and on and
+  a user unit disabled and enabled through the manager; the tile's Open at
+  login; Desktop's two rows. Found and fixed: a restored minimised app
+  took Stage Manager's stage from the front app; the crash notices'
+  Reopen and Isle's Report… were `default` actions and so never buttons;
+  a start cleared the skip only in memory; a Login Item mapping after the
+  front app came in front of it. Found, not P20b's: Spotlight's surface
+  panics (caught, rebuilt) when Escape closes a tile's menu and Spotlight
+  together, a hook called only while a menu is open in `spotlight::surface::Root`.
 
 - P20f planned in `p20f-keyboard.md`. Read for it: P1's keyboard sheets,
   P5's Sticky Keys and Slow Keys in the engine with no drawing, the

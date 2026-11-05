@@ -740,15 +740,15 @@
   the lock's and greeter's keyboards, a board (20f.1) for where Sticky Keys
   shows; showing it on a text field's focus not built. Phases
   20f.0–20f.10. P20a and P20b are still for review.
-- P20b building from 2026-11-05 at the user's word: 20b.0–20b.7 built and
-  the headless bars hold (20b.8's first half). The restore record
-  (`restore.json`) kept from the window list and frozen at the session's
-  end; restore at each supervised start after one autostart read, windows
-  taking their noted output and desktop as they map, behind, the front app
-  focused; `ISLE_RESTART` from isle-session so a sign-in's skip spares a
-  restart; the dialog's checkbox; `isle_app::reopens_windows()` with
-  `ISLE_RESTORED`; Isle's apps abort on panic; crash notices from
-  `systemd-coredump`'s journal records with Reopen and Report…;
-  `isle_apps::autostart`'s Login Items groups; Settings › General › Login
-  Items, Desktop's two rows, the tile's Open at login. Next: the VM walk
-  (20b.8), then the host run (20b.9).
+- P20b built and walked in the VM 2026-11-05 (20b.0–20b.8): the restore
+  record frozen at the session's end; restore at each supervised start
+  after one autostart read, windows taking their noted output and desktop
+  as they map, behind, the front app focused, Stage Manager's stage kept
+  for it; `ISLE_RESTART` from isle-session; the dialog's checkbox;
+  `isle_app::reopens_windows()` with `ISLE_RESTORED`; Isle's apps abort on
+  panic; crash notices from `systemd-coredump`'s journal records with
+  Reopen and Report…; Login Items' engine, Settings › General › Login
+  Items, Desktop's two rows, the tile's Open at login. Not walked: a second
+  output (the VM has one). Next: 20b.9, the host run with the user, then
+  the decisions, ARCHITECTURE's How a session comes back and the sheet's
+  outcome.

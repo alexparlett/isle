@@ -213,6 +213,23 @@
 
     Unit tests check that Accurate is BT.709, that Vivid keeps white and
     reddens SDR red, and that BT.2020 content round-trips.
+- 22.10, third try (2026-11-05, still `r692`).
+  - **The setting went missing.** HDR was kept at 06:28:40, then the SDR
+    Brightness slider's writes from Settings, whose store still held the
+    file as read before the keep, dropped `hdr` from `settings.kdl`. The
+    screen stayed in HDR.
+  - **The switch then did nothing.** Its Configure compared settings
+    with settings, and saw no change.
+  - **Fixed in two places:**
+    - `Store::set` and `reset` re-read the file first when it changed on
+      disk, report those keys too, and stay refusing while a safe start or
+      a broken file refuses;
+    - a display is relit whenever its HDR state and its configuration
+      disagree, through Configure or a changed file.
+  - **The way out.** The user was taken out of HDR with
+    `isle displays redetect`.
+  - **Input lag**, in typed text, not the pointer, persisted in SDR after
+    that. Not yet explained.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

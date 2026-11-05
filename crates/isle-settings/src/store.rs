@@ -168,8 +168,28 @@ impl<S: Section> Store<S> {
         all
     }
 
-    /// Validates and applies `value`, then writes it into the file. Returns the changed keys.
+    /// Validates and applies `value`, then writes it into the file. Returns the changed keys,
+    /// with any another process wrote to the file since it was last read.
     pub fn set(&mut self, key: &str, value: Value) -> Result<Vec<String>, SetError> {
+        let mut changed = self.catch_up();
+        changed.extend(self.set_read(key, value)?);
+        Ok(changed)
+    }
+
+    /// The keys another process changed in the file since it was read, now in force: a write
+    /// from the cached text would undo them.
+    fn catch_up(&mut self) -> Vec<String> {
+        // A safe start or a broken file refuses the write anyway, and stays as it is.
+        if self.error.is_some() {
+            return Vec::new();
+        }
+        match self.reload() {
+            Reload::Applied(changed) => changed,
+            _ => Vec::new(),
+        }
+    }
+
+    fn set_read(&mut self, key: &str, value: Value) -> Result<Vec<String>, SetError> {
         if let Some(err) = &self.error {
             return Err(SetError::Refused(err.clone()));
         }
@@ -200,6 +220,12 @@ impl<S: Section> Store<S> {
     /// Takes the node at `key` out of the file: a leaf goes back to its default, or unset
     /// when it has none; a section or a keyed entry goes back to all its defaults.
     pub fn reset(&mut self, key: &str) -> Result<Vec<String>, SetError> {
+        let mut changed = self.catch_up();
+        changed.extend(self.reset_read(key)?);
+        Ok(changed)
+    }
+
+    fn reset_read(&mut self, key: &str) -> Result<Vec<String>, SetError> {
         if let Some(err) = &self.error {
             return Err(SetError::Refused(err.clone()));
         }

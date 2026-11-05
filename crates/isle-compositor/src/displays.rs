@@ -331,8 +331,24 @@ impl State {
         );
     }
 
+    /// Whether a lit display that takes HDR is in HDR when its configuration says otherwise,
+    /// or the other way about: the settings file may have changed under it.
+    pub fn hdr_out_of_step(&self, identity: &str) -> bool {
+        let Some(output) = self
+            .isle
+            .space
+            .outputs()
+            .find(|o| crate::state::Isle::output_identity(o) == identity)
+        else {
+            return false;
+        };
+        let capable = self.connected_displays().iter().any(|c| c.0 == identity && c.5 > 0.0);
+        let on = crate::hdr::OutputHdr::of(output).is_some();
+        capable && on != self.isle.effective_output(identity).hdr
+    }
+
     /// Lights a display again from its effective configuration.
-    fn relight_display(&mut self, identity: &str) {
+    pub fn relight_display(&mut self, identity: &str) {
         if matches!(self.backend, crate::backend::Backend::Headless(_)) {
             self.relight_headless(identity);
         } else {
@@ -345,7 +361,7 @@ impl State {
     fn apply_displays(&mut self, before: &BTreeMap<String, OutputConfig>) {
         for (identity, was) in before {
             let now = self.isle.effective_output(identity);
-            if relit(was, &now) {
+            if relit(was, &now) || self.hdr_out_of_step(identity) {
                 self.relight_display(identity);
             }
         }

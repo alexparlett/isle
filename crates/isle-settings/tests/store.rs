@@ -417,3 +417,20 @@ fn a_dashboard_layout_unset_is_the_default_and_empty_is_kept() {
     let again: Store<Settings> = Store::open(dir.file());
     assert_eq!(again.current(), store.current());
 }
+
+#[test]
+fn a_set_keeps_what_another_process_wrote_since_and_reports_it() {
+    let dir = Dir::new("two-writers");
+    fs::write(dir.file(), "keyboard {\n    repeat-rate 30\n}\n").unwrap();
+    let mut compositor: Store<Settings> = Store::open(dir.file());
+    let mut settings: Store<Settings> = Store::open(dir.file());
+
+    compositor.set("keyboard.repeat-delay", Value::Int(300)).unwrap();
+    // Settings has not heard of that write when it makes its own.
+    let changed = settings.set("keyboard.repeat-rate", Value::Int(40)).unwrap();
+
+    assert!(changed.contains(&"keyboard.repeat-delay".to_owned()), "{changed:?}");
+    assert!(changed.contains(&"keyboard.repeat-rate".to_owned()), "{changed:?}");
+    let written = fs::read_to_string(dir.file()).unwrap();
+    assert!(written.contains("repeat-delay 300") && written.contains("repeat-rate 40"), "{written}");
+}

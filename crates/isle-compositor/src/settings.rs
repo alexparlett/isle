@@ -176,7 +176,12 @@ impl State {
         if touched("output[") {
             let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
             for output in &outputs {
-                self.isle.apply_output_settings(output);
+                let identity = crate::state::Isle::output_identity(output);
+                if self.hdr_out_of_step(&identity) {
+                    self.relight_display(&identity);
+                } else {
+                    self.isle.apply_output_settings(output);
+                }
             }
         }
         if touched("pointer[") {

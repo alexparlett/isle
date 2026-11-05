@@ -535,11 +535,14 @@ impl Component for Displays {
                         "sdr-colour",
                         "SDR Colour",
                         format!("output[{id}].sdr-colour"),
-                        (0., 1.),
+                        (0., 2.),
                         ("Accurate", "Vivid"),
                         1.,
                     )
-                    .description("How colourful everything that isn't HDR looks. Vivid matches this display in SDR.")
+                    .description(
+                        "How colourful everything that isn't HDR looks. The middle matches this display in \
+                         SDR; further adds more.",
+                    )
                     .into_element(),
                 );
             }

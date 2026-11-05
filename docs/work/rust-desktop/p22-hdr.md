@@ -170,14 +170,20 @@ What the evidence settles:
    mode feels dim. The spike found 203 dimmer than this monitor's SDR
    white, so 22.10 sets the default against the panel.
 
-   **SDR Colour** (added 2026-11-04, the user's choice). A slider under
-   SDR Brightness, Accurate to Vivid, defaulting to Vivid.
-   - **Why.** In SDR mode this wide-gamut panel shows sRGB stretched to its
-     own primaries. With HDR on, exact BT.709 looked washed out beside it.
-   - **How.** At Vivid, the final pass widens SDR content as if its values
-     were the panel's own primaries (from the EDID); at Accurate, from
-     BT.709. HDR surfaces are converted against the same matrix, so they
-     stay exact. Captures stay accurate.
+   **SDR Colour** (added 2026-11-04, the user's choice; widened 2026-11-05).
+   A slider under SDR Brightness, from 0 (Accurate) to 2, default 1.
+   - **What each end does:**
+     - 0 widens SDR content from BT.709 exactly;
+     - 1 takes its values as the panel's own primaries, read from the
+       EDID's chromaticities, as SDR mode shows it on this wide-gamut
+       panel;
+     - 2 takes them as BT.2020's, more saturated than the panel shows in
+       SDR.
+   - **Why the wider range.** On the AOC the step from 0 to 1 moves only
+     saturated reds and greens, and SDR mode's extra colour mostly comes
+     from the monitor.
+   - **What stays exact.** HDR surfaces are converted against the same
+     matrix, so they stay exact, and captures stay accurate.
 
 ### Composition
 

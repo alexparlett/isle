@@ -289,6 +289,9 @@
   - A unit test parses the host's EDID, kept as
     `tests/data/aoc-u34g2g4r3.edid`.
   - A headless test checks that SDR Colour changes how SDR red is shown.
+- **SDR Colour widened to 0–2.** On the host the step from 0 to 1 moved
+  only saturated colours, by about sRGB to the panel's gamut, which was
+  not enough. 2 takes SDR values as BT.2020's; the default stays 1.
 - ARCHITECTURE's and `Cargo.toml`'s notes on the fork's upstream base now
   say `24647fc8`.
 

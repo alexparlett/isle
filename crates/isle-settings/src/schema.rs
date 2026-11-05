@@ -177,8 +177,8 @@ pub struct Output {
     #[setting(default = 203, range = 80..=1000)]
     pub sdr_white: i64,
     /// While HDR is on, how colourful SDR content is: 0 exactly sRGB, 1 stretched to the
-    /// panel's gamut as SDR mode shows it.
-    #[setting(default = 1.0, range = 0.0..=1.0)]
+    /// panel's gamut as SDR mode shows it, 2 to BT.2020's.
+    #[setting(default = 1.0, range = 0.0..=2.0)]
     pub sdr_colour: f64,
 }
 

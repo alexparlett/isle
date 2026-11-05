@@ -172,7 +172,7 @@ const BT709_TO_BT2020: [[f64; 3]; 3] = [
 ];
 
 /// How SDR content is widened on an HDR screen: at 0 exactly, its BT.709 kept; at 1 as the
-/// screen shows SDR itself, its values taken as the panel's own primaries.
+/// screen shows SDR itself, its values taken as the panel's own primaries; at 2 as BT.2020's.
 pub fn sdr_to_bt2020(caps: &crate::hdr::HdrCaps, colour: f64) -> [[f64; 3]; 3] {
     let at = |[x, y]: [f64; 2]| ((x * 1e6).round() as i32, (y * 1e6).round() as i32);
     let panel = Chromaticities {
@@ -182,8 +182,15 @@ pub fn sdr_to_bt2020(caps: &crate::hdr::HdrCaps, colour: f64) -> [[f64; 3]; 3] {
         white: at(caps.white),
     };
     let vivid = to_bt2020(&panel);
-    let t = colour.clamp(0.0, 1.0);
-    [0, 1, 2].map(|r| [0, 1, 2].map(|c| BT709_TO_BT2020[r][c] * (1.0 - t) + vivid[r][c] * t))
+    let mix = |a: &[[f64; 3]; 3], b: &[[f64; 3]; 3], t: f64| {
+        [0, 1, 2].map(|r| [0, 1, 2].map(|c| a[r][c] * (1.0 - t) + b[r][c] * t))
+    };
+    let colour = colour.clamp(0.0, 2.0);
+    if colour <= 1.0 {
+        mix(&BT709_TO_BT2020, &vivid, colour)
+    } else {
+        mix(&vivid, &IDENTITY, colour - 1.0)
+    }
 }
 
 /// From `c`'s primaries to BT.2020's in linear light; the white points are taken as one.
@@ -532,6 +539,7 @@ mod tests {
             ..crate::hdr::HdrCaps::from_luminances(302.0, 302.0, 0.0)
         };
         near(sdr_to_bt2020(&panel, 0.0), BT709_TO_BT2020);
+        near(sdr_to_bt2020(&panel, 2.0), IDENTITY);
         let vivid = sdr_to_bt2020(&panel, 1.0);
         // SDR red goes to the panel's own red, which is redder than BT.709's.
         assert!(vivid[0][0] > BT709_TO_BT2020[0][0] + 0.05, "{vivid:?}");

@@ -172,7 +172,11 @@ async fn the_record_keeps_apps_back_to_front_with_their_desktops_and_freezes_at_
         s["stop"] == "open isle.test.B"
     })
     .await;
-    isle.test().await.session_act("show isle.test.B").await.unwrap();
+    isle.test()
+        .await
+        .session_act("show isle.test.B")
+        .await
+        .unwrap();
     wait_until(|| async { status(&isle).await["frozen"] == false }).await;
     wait_until(|| async { app_ids(&status(&isle).await) == ["isle.test.B"] }).await;
 }
@@ -410,4 +414,57 @@ async fn reopen_apps_off_hides_the_checkbox_and_notes_nothing() {
     isle.chord(&[SHIFT, CMD, Q]).await;
     wait_until(|| async { session(&isle).await["armed"] == true }).await;
     assert!(session(&isle).await["reopen"].is_null());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn restored_windows_are_only_ever_on_their_own_desktops_and_launch_at_once() {
+    let apps = serde_json::json!([
+        { "id": "isle.test.A", "windows": [
+            { "output": OUTPUT, "desktop": 2 },
+            { "output": OUTPUT, "desktop": 2 },
+        ] },
+        { "id": "isle.test.B", "windows": [{ "output": OUTPUT, "desktop": 0 }] },
+    ]);
+    let isle = Isle::start_env(
+        "restore-first-frame",
+        "",
+        move |dir| {
+            prepare_restore(dir, &record(apps, "isle.test.B", false));
+            entry(dir, "isle.test.A", "--colour 22aa44 --do window");
+        },
+        |dir| env(dir, &[]),
+    )
+    .await;
+    let asked = std::time::Instant::now();
+    let restored = isle.test().await.restore_now().await.unwrap();
+    assert!(
+        asked.elapsed() < Duration::from_secs(1),
+        "every app launched within a second"
+    );
+    assert_eq!(restored, ["isle.test.A", "isle.test.B"]);
+
+    // Every look at the window list while they map finds A's windows on desktop 3 only.
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        let windows = isle.windows().await;
+        for w in windows.iter().filter(|w| w.app == "isle.test.A") {
+            assert_eq!(w.desktop, 3, "{w:?}");
+        }
+        let a = windows.iter().filter(|w| w.app == "isle.test.A").count();
+        if a == 2 && windows.iter().any(|w| w.app == "isle.test.B") {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "never mapped: {}",
+            isle.log()
+        );
+    }
+    // Desktop 1, the front app's, is shown, and nothing of A's is drawn on it.
+    let shot = isle.shot("HEADLESS-1", "restored").await;
+    for y in (0..shot.height).step_by(16) {
+        for x in (0..shot.width).step_by(16) {
+            assert_ne!(shot.at(x, y), [0x22, 0xaa, 0x44], "A drawn at {x},{y}");
+        }
+    }
 }

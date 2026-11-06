@@ -337,8 +337,8 @@ impl Component for Root {
             frame: frame.clone(),
             solid,
         };
+        let actions = Actions::get();
         let menu = frame.menu.clone().map(|m| {
-            let actions = Actions::get();
             let (x, y) = match m.anchor {
                 MenuAnchor::Selected => *anchors.selected.read(),
                 MenuAnchor::Filter => *anchors.filter.read(),

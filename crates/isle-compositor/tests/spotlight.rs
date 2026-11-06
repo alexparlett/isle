@@ -859,3 +859,31 @@ async fn a_tiles_open_at_login_writes_and_removes_its_login_item() {
         wait_until(|| async { item.exists() == on }).await;
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_tiles_menu_opens_and_closes_without_the_surface_panicking() {
+    let isle = Isle::start("spotlight-tile-menu").await;
+    entries(&isle, &[("isle.test.Alpha", "Alpha", "Utility")]);
+    let test = isle.test().await;
+    wait_until(|| async {
+        isle.chord(&[SUPER, SPACE]).await;
+        isle.chord(&[SUPER, ONE]).await;
+        let found = !keys_listed(&isle).await.is_empty();
+        if !found {
+            press(&isle, ESCAPE).await;
+            press(&isle, ESCAPE).await;
+        }
+        found
+    })
+    .await;
+    test.spotlight_act("secondary app:isle.test.Alpha").await.unwrap();
+    wait_until(|| async { status(&isle).await["menu"].is_array() }).await;
+    press(&isle, ESCAPE).await;
+    wait_until(|| async { status(&isle).await["menu"].is_null() }).await;
+    wait_until(|| async {
+        press(&isle, ESCAPE).await;
+        status(&isle).await["open"] == false
+    })
+    .await;
+    assert!(!isle.log().contains("surface panicked"), "{}", isle.log());
+}

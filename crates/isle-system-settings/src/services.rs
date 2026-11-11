@@ -56,6 +56,7 @@ pub enum Follow {
     Focus,
     Desktops,
     LoginItems,
+    Holds,
 }
 
 /// Something a pane asks a daemon or the compositor to do.
@@ -119,6 +120,8 @@ pub enum Act {
     },
     PlaySound(String),
     Profile(String),
+    /// Monitor opened, from a hold's menu.
+    ShowMonitor,
     Configure(String),
     Keep(u64),
     Revert(u64),
@@ -182,6 +185,8 @@ pub struct Services {
     pub night_light: State<Snapshot<serde_json::Value>>,
     pub desktops: State<Snapshot<Vec<DesktopInfo>>>,
     pub login_items: State<Snapshot<isle_apps::autostart::LoginItems>>,
+    /// What keeps the computer awake now.
+    pub holds: State<Snapshot<Vec<isle_ipc::Hold>>>,
     /// The display change in force and not yet kept, by its id.
     pub display_change: State<Option<u64>>,
     /// Changes asked for and not yet sent, oldest first.
@@ -222,6 +227,7 @@ impl Services {
             night_light: State::create(Snapshot::default()),
             desktops: State::create(Snapshot::default()),
             login_items: State::create(Snapshot::default()),
+            holds: State::create(Snapshot::default()),
             display_change: State::create(None),
             acts: State::create(Vec::new()),
             started: State::create(BTreeSet::new()),
@@ -269,6 +275,7 @@ impl Services {
             Follow::NightLight => session(&worker, bus, self.night_light, night_light),
             Follow::Focus => session(&worker, bus, self.focus, focus),
             Follow::Desktops => session(&worker, bus, self.desktops, desktops),
+            Follow::Holds => session(&worker, bus, self.holds, holds),
             Follow::LoginItems => {
                 let (publisher, rx) = isle_bus::snapshot();
                 worker.spawn(watch_login_items(publisher));
@@ -546,6 +553,17 @@ fn focus(
             Ok(status["active"].as_str().map(str::to_owned))
         })
         .await
+    })
+}
+
+fn holds(
+    bus: zbus::Connection,
+    publisher: Publisher<Vec<isle_ipc::Hold>>,
+) -> futures_util::future::BoxFuture<'static, zbus::Result<()>> {
+    Box::pin(async move {
+        let proxy = isle_ipc::session::SessionProxy::new(&bus).await?;
+        let changed = proxy.receive_holds_changed().await?;
+        each_change(&publisher, changed, || proxy.holds()).await
     })
 }
 
@@ -838,6 +856,13 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
             None => Err(format!("no sound is called {name}")),
         },
         Act::Profile(profile) => isle_power::set_profile(&profile).await.map_err(|e| err(&e)),
+        Act::ShowMonitor => isle_ipc::windows::WindowsProxy::new(&session()?)
+            .await
+            .map_err(|e| err(&e))?
+            .launch("io.github.alexparlett.Isle.Monitor", "", &[])
+            .await
+            .map(|_| ())
+            .map_err(|e| err(&e)),
         Act::Configure(_) => Ok(()),
         Act::Keep(id) => {
             let proxy = isle_ipc::displays::DisplaysProxy::new(&session()?)

@@ -821,3 +821,53 @@ fn desktop_has_close_windows_and_reopen_apps() {
     )));
     assert!(writes.contains(&Write::Set("windows.reopen-apps".into(), Value::Bool(false))));
 }
+
+fn hold(app: &str, what: &str, why: &str) -> isle_ipc::Hold {
+    isle_ipc::Hold { pid: 0, app: app.into(), what: what.into(), why: why.into() }
+}
+
+#[test]
+fn energy_lists_what_keeps_the_computer_awake_and_lists_an_app_from_its_menu() {
+    let (mut test, handles) = open("isle-settings://energy", |_, services| {
+        let mut holds = services.holds;
+        holds.set(Snapshot {
+            available: true,
+            state: vec![
+                hold("Claude", "sleep", "Working on a task"),
+                hold("Claude", "sleep", ""),
+                hold("Vivaldi", "idle", "Playing video"),
+            ],
+        });
+        let mut network = services.network;
+        network.set(Snapshot { available: true, state: wifi_state() });
+    });
+    assert!(shows(&test, "Prevent automatic sleeping when the display is off"));
+    assert!(shows(&test, "This computer's network devices can't wake it."));
+    assert!(shows(&test, "Show the Session Dialog"));
+    assert!(shows(&test, "No apps"));
+    let count = |test: &TestingRunner, name: &str| labels(test).iter().filter(|l| *l == name).count();
+    assert_eq!(count(&test, "Claude"), 1, "one line per app");
+    assert!(shows(&test, "Keeps the computer running · Working on a task"), "{:?}", labels(&test));
+    assert!(shows(&test, "Keeps the display on · Playing video"));
+
+    click_described(&mut test, "Claude", "Keeps the computer running");
+    click_last(&mut test, "Keep the Display On for Claude");
+    assert!(
+        handles
+            .writes()
+            .contains(&Write::Set("energy.display-apps".into(), Value::List(vec!["Claude".into()]))),
+        "{:?}",
+        handles.writes()
+    );
+}
+
+#[test]
+fn energy_says_nothing_holds_when_nothing_does() {
+    let (test, _) = open("isle-settings://energy", |_, services| {
+        let mut holds = services.holds;
+        holds.set(Snapshot { available: true, state: Vec::new() });
+    });
+    assert!(shows(&test, "Keeping this computer awake"));
+    assert!(shows(&test, "Nothing"));
+}
+

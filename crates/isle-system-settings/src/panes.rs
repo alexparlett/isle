@@ -133,11 +133,16 @@ pub static PANES: &[Pane] = &[
     },
     pane("vpn", "VPN", "isle-vpn", Hue::Blue, 1, "Turn your VPN connections on and off."),
     Pane {
-        keywords: &["power", "performance", "power profile"],
+        keywords: &["power", "performance", "power profile", "sleep", "keep awake", "caffeinate"],
         rows: &[
             RowDef::new("energy-mode", "Energy Mode").keywords(&["low power", "high power", "performance", "power saver"]),
+            RowDef::new("prevent-sleep", "Prevent automatic sleeping when the display is off").keywords(&["sleep", "suspend", "idle"]),
+            RowDef::new("wake-for-network", "Wake for network access").keywords(&["wake on lan", "wol", "magic packet"]),
+            RowDef::new("power-button", "When the power button is pressed").keywords(&["power key"]),
+            RowDef::new("display-apps", "Apps that keep the display on").keywords(&["keep awake", "screen on", "lock"]),
+            RowDef::new("holds", "Keeping this computer awake").keywords(&["keep awake", "inhibit", "preventing sleep"]),
         ],
-        ..pane("energy", "Energy", "lightning", Hue::Orange, 1, "Choose how the computer trades speed for power.")
+        ..pane("energy", "Energy", "lightning", Hue::Orange, 1, "Choose how the computer trades speed for power, and when it sleeps.")
     },
     Pane {
         keywords: &["about", "system", "version"],

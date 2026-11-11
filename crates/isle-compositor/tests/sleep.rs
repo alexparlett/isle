@@ -362,3 +362,59 @@ async fn sound_playing_holds_sleep_and_not_the_display() {
     player.lock().unwrap().kill().unwrap();
     wait_until(|| async { names(&isle, "sleep_holders").await.is_empty() }).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn keep_awakes_module_page_and_glyph_are_drawn() {
+    let isle = Isle::start("sleep-keep-awake-shots").await;
+    set(
+        &isle,
+        "control-centre.modules",
+        zvariant::Value::from(vec!["keep-awake:m", "night-light:s", "energy-mode:s"]),
+    )
+    .await;
+    isle.open_panel(None).await;
+    isle.panel_settled().await;
+    isle.keep_shot("keep-awake-off").await;
+    isle.panel(serde_json::json!({ "toggle": "keep-awake" }))
+        .await;
+    isle.panel_settled().await;
+    isle.keep_shot("keep-awake-on").await;
+    isle.open_panel(Some("keep-awake")).await;
+    isle.panel_settled().await;
+    isle.keep_shot("keep-awake-page").await;
+    let rows = isle.rows().await;
+    assert!(
+        rows.iter()
+            .any(|r| r["label"] == "Until Turned Off" && r["checked"] == true),
+        "{rows:?}"
+    );
+    assert!(
+        rows.iter()
+            .any(|r| r["label"] == "Keep the Display On" && r["on"] == true)
+    );
+    isle.panel(serde_json::json!({ "switch": ["keep-awake", "display", false] }))
+        .await;
+    wait_until(|| async {
+        isle.rows()
+            .await
+            .iter()
+            .any(|r| r["label"] == "Keep the Display On" && r["on"] == false)
+    })
+    .await;
+    isle.panel_settled().await;
+    isle.keep_shot("keep-awake-page-display-off").await;
+    // Back to the grid, then closed.
+    isle.chord(&[1]).await;
+    isle.chord(&[1]).await;
+    wait_until(|| async { isle.island_output().await["panel"].is_null() }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("keep-awake-glyph-computer").await;
+    set(
+        &isle,
+        "energy.keep-awake-display",
+        zvariant::Value::from(true),
+    )
+    .await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.keep_shot("keep-awake-glyph-display").await;
+}

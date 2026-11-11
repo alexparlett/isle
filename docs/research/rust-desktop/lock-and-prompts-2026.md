@@ -645,7 +645,7 @@ u cookie`, `UnInhibit(u)`, `Throttle`, `UnThrottle`, signal
 
 | Caller | Order | Path |
 |---|---|---|
-| Chromium and Electron (`power_save_blocker_linux.cc`, 2026-10-07) | `org.gnome.SessionManager` if owned, else `org.freedesktop.ScreenSaver` for display locks; also a `zwp_idle_inhibitor_v1` on the focused window; no portal | `/org/freedesktop/ScreenSaver` |
+| Chromium and Electron (`power_save_blocker_linux.cc`, 2026-10-07) | `org.gnome.SessionManager` if owned, else `org.freedesktop.ScreenSaver` for display locks; also a `zwp_idle_inhibitor_v1` on the focused window; no portal. Corrected 2026-11-11: app-suspension holds go to `org.gnome.SessionManager` or `org.freedesktop.PowerManagement`, only if owned (`power-2026.md` §1) | `/org/freedesktop/ScreenSaver`, `/org/freedesktop/PowerManagement/Inhibit` |
 | Firefox (`WakeLockListener.cpp`, 2026-07-30) | ScreenSaver, FreeDesktop PowerManagement, portal, GNOME, XScreenSaver, Wayland idle-inhibit | **`/ScreenSaver`** |
 | SDL3 (`SDL_dbus.c`, 2026-09-14) | portal when sandboxed, else ScreenSaver; Wayland inhibitor as fallback; inhibits by default at video init; also `SimulateUserActivity` | `/org/freedesktop/ScreenSaver` |
 | mpv (2026-09-03) | Wayland idle-inhibit only | |

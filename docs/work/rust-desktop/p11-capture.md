@@ -284,6 +284,8 @@ compositor down (D55).
     A monitor's `screensaver-active` follows the lock, and `session-state`
     goes to query-end when `end_session` starts asking apps and to ending
     when it commits; a `QueryEndResponse` or a second's wait lets it go on.
+    Revised by P20h choice 4 (2026-11-11): Idle is a display hold and
+    Suspend a sleep hold, since Isle now sleeps on idle.
 
 ### Protocols and the rest
 

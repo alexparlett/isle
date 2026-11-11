@@ -263,18 +263,18 @@ leaving a screen dark.
 
 ### Idle, DPMS and sleep
 
-The screen dims, locks and sleeps on the user's timeouts, never while a
-video plays or a game runs.
+The screen dims, locks and turns off on the user's timeouts, never while a
+video plays or a game runs; the computer sleeps after, if the user lets it.
 
-1. Idle is measured from the last input on any device; the policy dims, then locks, then turns outputs off, each at its own timeout, and a timeout of zero turns that step off.
+1. Idle is measured from the last input on any device; the policy dims, then locks, then turns outputs off, each at its own timeout, and a timeout of zero turns that step off. Sleep is the fourth step, a minute after the outputs go off, only with Energy's "Prevent automatic sleeping when the display is off" turned off and display off not Never; it goes through logind, so the lock is on every screen first, and a refusal is not retried before the next input.
 2. Changing a timeout takes effect from the current idle time; it never fires at once and never stops firing.
-3. Idle is inhibited by idle-inhibit from a visible surface, by `org.freedesktop.ScreenSaver` inhibitors and by Game Mode; clients get ext-idle-notify.
-4. Input wakes outputs; the DPMS state is applied again whenever the set of outputs changes.
-5. logind's Lock signal locks; the session locks before sleep when the setting asks.
+3. Holds are of two kinds. A display hold holds every step: idle-inhibit from a visible surface, `org.freedesktop.ScreenSaver` inhibitors, the portal's Idle flag, logind's `idle` block, a game in front, and Keep Awake with the display. A sleep hold holds only sleep: `org.freedesktop.PowerManagement` inhibitors (Chromium's and Electron's keep-awake), the portal's Suspend flag, others' logind `sleep` block, a sound playing, the screen shared, Keep Awake without the display and `isle awake`. An app listed in `energy.display-apps` has its sleep holds count as display holds. Clients get ext-idle-notify.
+4. Input wakes outputs; the DPMS state is applied again whenever the set of outputs changes. Back from an idle sleep, the outputs come on to the lock.
+5. logind's Lock signal locks; the session locks before sleep when the setting asks. The power button shows the session dialog, sleeps or locks, as Energy says; while locked it wakes the lock's face.
 
 **v1 lessons kept.** D18: v1's idle monitor never fired after a timeout change and fired at once with zero, which locked at startup. D76: an output returning through a KVM saw no idle-to-active edge and stayed off.
 
-**Open for its packet.** Whether `org.freedesktop.ScreenSaver` is served here or by the service worker on the compositor's behalf.
+**Settled in P9 and P20h.** ScreenSaver and PowerManagement are served by the service worker on the compositor's behalf, with one cookie count (`p20h-power.md` choice 5).
 
 ### Pointer, touchpad and gestures
 
@@ -512,7 +512,7 @@ gave before.
 | Primary monitor, shell follows focus (§3.7) | Shell surface hosting 2; the choice in shell.md |
 | Night light, magnifier (§3.9, §3.10, D50) | Outputs 8, 9 |
 | Brightness, capture as compositor children (§3.7, §4) | platform.md; frames come from the compositor (B13) |
-| Idle dim, lock, DPMS, inhibitors (§3.10, §4, D18, D76) | Idle, DPMS and sleep |
+| Idle dim, lock, DPMS, inhibitors (§3.10, §4, D18, D76); v1 never slept on idle | Idle, DPMS and sleep; sleep on idle is new in P20h |
 | Mouse and touchpad, click to focus, `no_warps`, hardware cursors, no middle paste, Super+drag (§3.1, §3.9, D27) | Pointer, touchpad and gestures 1–4 |
 | Game-mode hot zone (§4) | Pointer, touchpad and gestures 5 |
 | Three-finger gestures (§3.1) | Pointer, touchpad and gestures 6, 7 |

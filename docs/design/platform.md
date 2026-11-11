@@ -445,7 +445,9 @@ by password or fingerprint, and stays locked whatever crashes.
    a step off. Timers are rebuilt when a time changes, never retuned.
 9. Idle is held off by idle-inhibit surfaces, by
    `org.freedesktop.ScreenSaver` Inhibit (which Isle serves on the session
-   bus), by logind idle inhibitors and by Game Mode.
+   bus), by logind idle inhibitors and by Game Mode. Sleep alone is held off
+   by `org.freedesktop.PowerManagement` Inhibit, which Isle also serves, so
+   Chromium's and Electron's keep-awake reach it (`p20h-power.md` choice 5).
 10. Screens are turned on at start, and the screen-off state is sent again
     whenever the screen list changes.
 

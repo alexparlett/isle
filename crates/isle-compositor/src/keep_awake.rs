@@ -171,7 +171,7 @@ impl Isle {
         page.push(PageRow::Status(if display {
             "The display stays on and the session stays unlocked.".into()
         } else {
-            "The computer stays on; the display dims, locks and turns off as usual.".into()
+            "The display still dims, locks and turns off as usual.".into()
         }));
         Some(Module {
             id: "keep-awake".into(),

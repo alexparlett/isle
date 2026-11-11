@@ -3,7 +3,7 @@
 
 use freya::prelude::*;
 use isle_settings::Value;
-use isle_ui::form;
+use isle_ui::{Glyph, colour, form, use_theme};
 
 use crate::{
     nav::Location,
@@ -25,8 +25,12 @@ const POWER_BUTTON: [(&str, &str); 3] = [
 
 const DISPLAY_APPS: &str = "energy.display-apps";
 
-/// Holds Isle takes itself, which no app's list can change.
-const OWN: [&str; 3] = ["Keep Awake", "logind", "Screen Sharing"];
+/// Holds Isle takes itself, which no app's list can change, and their glyphs.
+const OWN: [(&str, &str); 3] = [
+    ("Keep Awake", "isle-coffee"),
+    ("logind", "gear-six"),
+    ("Screen Sharing", "screencast"),
+];
 
 /// One line of the holds group: an app, whether it holds the display, and its reason.
 #[derive(Clone, Debug, PartialEq)]
@@ -42,7 +46,7 @@ fn lines(holds: &[isle_ipc::Hold]) -> Vec<Line> {
     let mut out: Vec<Line> = Vec::new();
     for hold in holds {
         let display = hold.what.split(':').any(|w| w == "idle");
-        match out.iter_mut().find(|l| l.app == hold.app) {
+        match out.iter_mut().find(|l| l.app.eq_ignore_ascii_case(&hold.app)) {
             Some(line) => {
                 line.display |= display;
                 if line.why.is_empty() {
@@ -66,6 +70,8 @@ pub struct Energy {
 
 impl Component for Energy {
     fn render(&self) -> impl IntoElement {
+        let theme = use_theme();
+        let t = &theme.tokens;
         let services = use_follow(&[
             Follow::Profiles,
             Follow::Network,
@@ -166,9 +172,14 @@ impl Component for Energy {
                     }
                     let mut row = r
                         .row(&format!("holds/{}", line.app), name.clone(), None)
-                        .leading(ui::app_icon(icon, 20.))
+                        .leading(match OWN.iter().find(|(own, _)| *own == line.app) {
+                            Some((_, glyph)) => {
+                                Glyph::new(*glyph, 18., colour(t.colour_text_2)).into_element()
+                            }
+                            None => ui::app_icon(icon, 20.),
+                        })
                         .description(status);
-                    if !OWN.contains(&line.app.as_str()) && (on_list || !line.display) {
+                    if !OWN.iter().any(|(own, _)| *own == line.app) && (on_list || !line.display) {
                         let toggle = if on_list {
                             format!("Let the Display Turn Off for {name}")
                         } else {

@@ -62,6 +62,14 @@ pub async fn hold(
     cookie
 }
 
+/// Firefox's wake lock for sound alone comes through ScreenSaver; music must not keep the
+/// screen lit, so it holds only sleep (`p20h-power.md` choice 4).
+fn audio_only(reason: &str) -> bool {
+    ["Playing audio", "audio-playing"]
+        .iter()
+        .any(|r| reason.eq_ignore_ascii_case(r))
+}
+
 /// Ends a cookie of `kind`.
 pub fn release(to_loop: &ToLoop, cookie: u32, kind: Kind) {
     to_loop.post(move |state| {
@@ -89,11 +97,17 @@ impl ScreenSaver {
         #[zbus(connection)] conn: &Connection,
     ) -> u32 {
         let (app, why) = (application_name, reason_for_inhibit);
-        hold(&self.to_loop, &self.next, conn, &header, app, why, Kind::Display).await
+        let kind = if audio_only(&why) {
+            Kind::Sleep
+        } else {
+            Kind::Display
+        };
+        hold(&self.to_loop, &self.next, conn, &header, app, why, kind).await
     }
 
     async fn un_inhibit(&self, cookie: u32) {
         release(&self.to_loop, cookie, Kind::Display);
+        release(&self.to_loop, cookie, Kind::Sleep);
     }
 
     async fn lock(&self) -> fdo::Result<()> {

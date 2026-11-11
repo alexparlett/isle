@@ -307,7 +307,16 @@ async fn isle_awakes_hold_is_sleep_or_display_and_ends_with_its_caller() {
     cli.close().await.unwrap();
     wait_until(|| async { names(&isle, "sleep_holders").await.is_empty() }).await;
 
-    // ScreenSaver's are display holds still.
+    // Firefox's sound through ScreenSaver holds sleep alone.
+    let firefox = connect(&isle).await;
+    let saver = ScreenSaverProxy::new(&firefox).await.unwrap();
+    saver.inhibit("firefox", "Playing audio").await.unwrap();
+    assert_eq!(names(&isle, "sleep_holders").await, ["firefox"]);
+    assert!(names(&isle, "holders").await.is_empty());
+    firefox.close().await.unwrap();
+    wait_until(|| async { names(&isle, "sleep_holders").await.is_empty() }).await;
+
+    // ScreenSaver's are display holds otherwise.
     let player = connect(&isle).await;
     ScreenSaverProxy::new(&player)
         .await

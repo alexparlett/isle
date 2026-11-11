@@ -16,12 +16,13 @@ pub enum GlyphKind {
     Focus,
     Updates,
     Battery,
+    KeepAwake,
     Inhibited,
     ConfigError,
 }
 
 impl GlyphKind {
-    pub const ALL: [GlyphKind; 9] = [
+    pub const ALL: [GlyphKind; 10] = [
         GlyphKind::Wifi,
         GlyphKind::Bluetooth,
         GlyphKind::Sound,
@@ -29,6 +30,7 @@ impl GlyphKind {
         GlyphKind::Focus,
         GlyphKind::Updates,
         GlyphKind::Battery,
+        GlyphKind::KeepAwake,
         GlyphKind::Inhibited,
         GlyphKind::ConfigError,
     ];
@@ -43,6 +45,7 @@ impl GlyphKind {
             GlyphKind::Focus => "focus",
             GlyphKind::Updates => "updates",
             GlyphKind::Battery => "battery",
+            GlyphKind::KeepAwake => "keep-awake",
             GlyphKind::Inhibited => "inhibited",
             GlyphKind::ConfigError => "config-error",
         }

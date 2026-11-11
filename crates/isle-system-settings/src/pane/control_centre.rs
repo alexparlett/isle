@@ -18,13 +18,14 @@ const TIERS: &[(&str, &str)] = &[
 ];
 
 /// The island's glyphs: their key and name.
-const GLYPHS: [(&str, &str); 6] = [
+const GLYPHS: [(&str, &str); 7] = [
     ("island-glyphs.wifi", "Wi-Fi"),
     ("island-glyphs.bluetooth", "Bluetooth"),
     ("island-glyphs.sound", "Sound"),
     ("island-glyphs.vpn", "VPN"),
     ("island-glyphs.focus", "Focus"),
     ("island-glyphs.updates", "Updates"),
+    ("island-glyphs.keep-awake", "Keep Awake"),
 ];
 
 fn size_name(letter: &str) -> &'static str {

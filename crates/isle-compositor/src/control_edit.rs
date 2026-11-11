@@ -118,6 +118,15 @@ pub const CATALOGUE: &[Entry] = &[
         missing: "Power profiles are not available.",
     },
     Entry {
+        id: "keep-awake",
+        name: "Keep Awake",
+        glyph: "isle-coffee",
+        group: "System",
+        sizes: &[S, M],
+        pane: "Energy",
+        missing: "",
+    },
+    Entry {
         id: "updates",
         name: "Updates",
         glyph: "arrows-clockwise",
@@ -386,7 +395,7 @@ fn default_size(entry: &Entry) -> TileSize {
     match entry.id {
         "now-playing" => L,
         "sound" | "display" => W,
-        "night-light" | "energy-mode" | "dark-mode" | "screenshot" => S,
+        "night-light" | "energy-mode" | "dark-mode" | "screenshot" | "keep-awake" => S,
         _ => M,
     }
 }

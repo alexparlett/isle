@@ -219,6 +219,7 @@ impl Isle {
             (GlyphKind::Focus, g.focus),
             (GlyphKind::Updates, g.updates),
             (GlyphKind::Battery, g.battery),
+            (GlyphKind::KeepAwake, g.keep_awake),
         ] {
             self.island.model.set_tier(kind, tier(t));
         }

@@ -1,14 +1,16 @@
 //! Idle: one clock from the last input, one timer for the next step, what holds it off, the
-//! dim, and the screens' power (`p9-lock-and-prompts.md` choices 12, 13 and 15).
+//! dim, the screens' power and sleep (`p9-lock-and-prompts.md` choices 12, 13 and 15,
+//! `p20h-power.md` choices 4–9).
 
 use std::{
     collections::{HashMap, HashSet},
+    sync::{Arc, atomic::AtomicU32},
     time::{Duration, Instant},
 };
 
 use smithay::{
     backend::renderer::element::{
-        Kind,
+        Kind as ElementKind,
         solid::{SolidColorBuffer, SolidColorRenderElement},
     },
     output::Output,
@@ -22,7 +24,7 @@ use smithay::{
     utils::Scale,
     wayland::idle_inhibit::IdleInhibitHandler,
 };
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::{
     render::IsleElement,
@@ -47,6 +49,46 @@ impl Step {
             Step::Off => "off",
         }
     }
+}
+
+/// What a hold holds: a display hold every step, a sleep hold only sleep.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    Display,
+    Sleep,
+}
+
+impl Kind {
+    /// As logind writes it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Kind::Display => "idle",
+            Kind::Sleep => "sleep",
+        }
+    }
+}
+
+/// An `Inhibit` cookie: ScreenSaver's, PowerManagement's or `isle awake`'s.
+pub struct Cookie {
+    /// The caller's unique bus name; the cookie goes when it leaves.
+    pub sender: String,
+    pub pid: i32,
+    /// The name the caller gave.
+    pub app: String,
+    /// The app its pid belongs to, when Isle knows it.
+    pub app_id: Option<String>,
+    pub why: String,
+    pub kind: Kind,
+}
+
+/// One hold, as listed and as counted.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Held {
+    pub pid: i32,
+    /// The app id where known, else the name the holder gave.
+    pub app: String,
+    pub why: String,
+    pub kind: Kind,
 }
 
 /// When each step comes, from the last input; `None` is never.
@@ -116,8 +158,18 @@ pub struct IdleState {
     pub off: bool,
     /// Surfaces holding an idle inhibitor.
     pub inhibitors: Vec<WlSurface>,
-    /// `org.freedesktop.ScreenSaver` inhibitors: cookie to (sender, app).
-    pub cookies: HashMap<u32, (String, String)>,
+    /// ScreenSaver's, PowerManagement's and `isle awake`'s cookies.
+    pub cookies: HashMap<u32, Cookie>,
+    /// The next cookie, shared by every interface that hands them out.
+    pub next_cookie: Arc<AtomicU32>,
+    /// Keep Awake, while it is on.
+    pub keep_awake: Option<crate::keep_awake::KeepAwake>,
+    /// The sleep step's timer, running while the screens are off and nothing holds sleep.
+    sleep_timer: Option<RegistrationToken>,
+    /// logind refused the last idle sleep; none is tried again before the next input.
+    sleep_refused: bool,
+    /// The holds last counted, so a service's change that leaves them alone is not news.
+    last_holds: Vec<Held>,
     /// Each output's dim, by name.
     dims: std::cell::RefCell<HashMap<String, SolidColorBuffer>>,
     /// Outputs that went while the screens were off, by identity, and when.
@@ -140,6 +192,11 @@ impl Default for IdleState {
             off: false,
             inhibitors: Vec::new(),
             cookies: HashMap::new(),
+            next_cookie: Arc::new(AtomicU32::new(1)),
+            keep_awake: None,
+            sleep_timer: None,
+            sleep_refused: false,
+            last_holds: Vec::new(),
             dims: Default::default(),
             gone: HashMap::new(),
             output_events: Vec::new(),
@@ -173,41 +230,68 @@ impl Isle {
         }
     }
 
-    /// What holds idle off, by name: an inhibiting surface's app, a ScreenSaver inhibitor's,
-    /// logind's, a game in front. Nothing holds the lock's own steps.
-    pub fn idle_holders(&self) -> Vec<String> {
-        if self.lock.locked {
-            return Vec::new();
-        }
-        let mut holders = Vec::new();
+    /// Every hold on idle and sleep, a listed app's sleep holds counted as display holds
+    /// (`p20h-power.md` choice 16).
+    pub fn idle_holds(&self) -> Vec<Held> {
+        let mut out = Vec::new();
+        let listed = |app: &str, also: Option<&str>| {
+            self.settings.energy.display_apps.iter().any(|id| {
+                id.eq_ignore_ascii_case(app) || also.is_some_and(|a| id.eq_ignore_ascii_case(a))
+            })
+        };
+        let mut push = |pid: i32, app: String, why: String, kind: Kind, given: Option<&str>| {
+            let kind = if kind == Kind::Sleep && listed(&app, given) {
+                Kind::Display
+            } else {
+                kind
+            };
+            out.push(Held {
+                pid,
+                app,
+                why,
+                kind,
+            });
+        };
         for surface in &self.idle.inhibitors {
             if self.surface_shown(surface) {
-                let app = self
-                    .wm
-                    .for_surface(surface)
+                let record = self.wm.for_surface(surface);
+                let pid = record
+                    .and_then(|r| r.pid)
+                    .or_else(|| {
+                        let client = surface.client()?;
+                        client.get_credentials(&self.display_handle).ok().map(|c| c.pid)
+                    })
+                    .unwrap_or(0);
+                let app = record
                     .map(|r| r.app.clone())
                     .unwrap_or_else(|| "a window".into());
-                holders.push(app);
+                push(pid, app, String::new(), Kind::Display, None);
             }
         }
-        holders.extend(self.idle.cookies.values().map(|(_, app)| app.clone()));
-        holders.extend(
-            self.portal_holds
-                .values()
-                .filter(|(_, flags, _)| {
-                    flags & (isle_portal::inhibit::IDLE | isle_portal::inhibit::SUSPEND) != 0
-                })
-                .map(|(app, _, _)| app.clone()),
-        );
-        if self
-            .services
-            .login
-            .state
-            .block_inhibited
-            .split(':')
-            .any(|w| w == "idle")
-        {
-            holders.push("logind".into());
+        let mut cookies: Vec<_> = self.idle.cookies.iter().collect();
+        cookies.sort_by_key(|(n, _)| **n);
+        for (_, c) in cookies {
+            let app = c.app_id.clone().unwrap_or_else(|| c.app.clone());
+            push(c.pid, app, c.why.clone(), c.kind, Some(&c.app));
+        }
+        let mut portal: Vec<_> = self.portal_holds.iter().collect();
+        portal.sort_by_key(|(h, _)| *h);
+        for (_, (app, flags, why)) in portal {
+            use isle_portal::inhibit::{IDLE, SUSPEND};
+            let kind = if flags & IDLE != 0 {
+                Kind::Display
+            } else if flags & SUSPEND != 0 {
+                Kind::Sleep
+            } else {
+                continue;
+            };
+            push(0, app.clone(), why.clone(), kind, None);
+        }
+        let blocks = &self.services.login.state.block_inhibited;
+        if blocks.split(':').any(|w| w == "idle") {
+            push(0, "logind".into(), String::new(), Kind::Display, None);
+        } else if blocks.split(':').any(|w| w == "sleep") {
+            push(0, "logind".into(), String::new(), Kind::Sleep, None);
         }
         let front = self
             .seat
@@ -217,46 +301,66 @@ impl Isle {
         if let Some(record) = front
             && record.game
         {
-            holders.push(record.app.clone());
+            let pid = record.pid.unwrap_or(0);
+            push(pid, record.app.clone(), "Playing a game".into(), Kind::Display, None);
         }
+        if self.services.audio.available {
+            for stream in &self.services.audio.state.playing {
+                let app = stream.app_id.clone().unwrap_or_else(|| stream.app.clone());
+                let pid = stream.pid.unwrap_or(0);
+                push(pid, app, "Playing audio".into(), Kind::Sleep, Some(&stream.app));
+            }
+        }
+        if !self.casting.streams.is_empty() || self.image_copy.streaming().next().is_some() {
+            push(0, "Screen Sharing".into(), "Sharing the screen".into(), Kind::Sleep, None);
+        }
+        if self.idle.keep_awake.is_some() {
+            let kind = if self.settings.energy.keep_awake_display {
+                Kind::Display
+            } else {
+                Kind::Sleep
+            };
+            push(0, crate::keep_awake::APP.into(), String::new(), kind, None);
+        }
+        out
+    }
+
+    /// What holds idle's steps off, by name. Nothing holds the lock's own steps.
+    pub fn idle_holders(&self) -> Vec<String> {
+        if self.lock.locked {
+            return Vec::new();
+        }
+        let mut holders: Vec<String> = self
+            .idle_holds()
+            .into_iter()
+            .filter(|h| h.kind == Kind::Display)
+            .map(|h| h.app)
+            .collect();
         holders.sort();
         holders.dedup();
         holders
     }
 
-    /// The holds taken for clients, each with the bus name to read its pid from where the
-    /// compositor has no client of its own to ask.
-    pub fn client_holds(&self) -> Vec<(isle_ipc::Hold, Option<String>)> {
-        let mut out = Vec::new();
-        for surface in &self.idle.inhibitors {
-            let record = self.wm.for_surface(surface);
-            let pid = record
-                .and_then(|r| r.pid)
-                .or_else(|| {
-                    let client = surface.client()?;
-                    client.get_credentials(&self.display_handle).ok().map(|c| c.pid)
-                })
-                .unwrap_or(0);
-            let app = record.map(|r| r.app.clone()).unwrap_or_default();
-            let hold = isle_ipc::Hold { pid, app, what: "idle".into(), why: String::new() };
-            out.push((hold, None));
-        }
-        for (sender, app) in self.idle.cookies.values() {
-            let hold = isle_ipc::Hold { pid: 0, app: app.clone(), what: "idle".into(), why: String::new() };
-            out.push((hold, Some(sender.clone())));
-        }
-        for (app, flags, why) in self.portal_holds.values() {
-            use isle_portal::inhibit::{IDLE, SUSPEND};
-            let what = match (flags & IDLE != 0, flags & SUSPEND != 0) {
-                (true, true) => "idle:sleep",
-                (true, false) => "idle",
-                (false, true) => "sleep",
-                (false, false) => continue,
-            };
-            let hold = isle_ipc::Hold { pid: 0, app: app.clone(), what: what.into(), why: why.clone() };
-            out.push((hold, None));
-        }
-        out
+    /// What holds the computer from sleeping by idle, by name: every hold of either kind,
+    /// locked or not.
+    pub fn sleep_holders(&self) -> Vec<String> {
+        let mut holders: Vec<String> = self.idle_holds().into_iter().map(|h| h.app).collect();
+        holders.sort();
+        holders.dedup();
+        holders
+    }
+
+    /// Every hold as the bus lists it, its kind written as logind does.
+    pub fn listed_holds(&self) -> Vec<isle_ipc::Hold> {
+        self.idle_holds()
+            .into_iter()
+            .map(|h| isle_ipc::Hold {
+                pid: h.pid,
+                app: h.app,
+                what: h.kind.name().into(),
+                why: h.why,
+            })
+            .collect()
     }
 
     /// A surface counts while it is shown on a lit output: its window neither hidden nor
@@ -280,6 +384,18 @@ impl Isle {
                 .layer_for_surface(&root, smithay::desktop::WindowSurfaceType::TOPLEVEL)
                 .is_some()
         })
+    }
+
+    /// Whether idle may sleep now: the screens off, the switch off, display off not Never,
+    /// no refusal since the last input, and nothing holding sleep.
+    fn sleep_wanted(&self) -> bool {
+        self.idle.off
+            && !self.settings.energy.prevent_sleep
+            && self.settings.lock_screen.display_off_after > 0
+            && !self.idle.sleep_refused
+            && !self.asleep
+            && !self.sleep_waiting
+            && self.sleep_holders().is_empty()
     }
 
     pub fn dimmed(&self) -> bool {
@@ -308,7 +424,7 @@ impl Isle {
             (0, 0),
             scale,
             alpha,
-            Kind::Unspecified,
+            ElementKind::Unspecified,
         )));
     }
 
@@ -325,6 +441,9 @@ impl Isle {
             "off": self.idle.off,
             "done": self.idle.done.iter().map(|s| s.name()).collect::<Vec<_>>(),
             "holders": self.idle_holders(),
+            "sleep_holders": self.sleep_holders(),
+            "sleep_armed": self.idle.sleep_timer.is_some(),
+            "keep_awake": self.keep_awake_status(),
         })
         .to_string()
     }
@@ -337,6 +456,7 @@ impl State {
         let woke = self.isle.idle.off;
         self.isle.idle.last_activity = Instant::now();
         self.isle.idle.done.clear();
+        self.isle.idle.sleep_refused = false;
         self.isle
             .idle_notifier_state
             .notify_activity(&self.isle.seat);
@@ -417,6 +537,7 @@ impl State {
     /// What holds idle changed: a hold that ends counts as input, so a video that stops
     /// leaves the whole timeout before the screen dims.
     pub fn idle_holds_changed(&mut self) {
+        self.isle.idle.last_holds = self.isle.idle_holds();
         self.isle.notify(crate::worker::Event::HoldsChanged);
         let held = !self.isle.idle_holders().is_empty();
         if !held && self.isle.idle_notifier_state.is_inhibited() {
@@ -424,6 +545,52 @@ impl State {
             self.isle.idle.done.clear();
         }
         self.arm_idle();
+        self.arm_sleep();
+    }
+
+    /// A service changed that may hold sleep (sound, a cast): news only if the holds did.
+    pub fn holds_maybe_changed(&mut self) {
+        if self.isle.idle_holds() != self.isle.idle.last_holds {
+            self.idle_holds_changed();
+        }
+    }
+
+    /// The sleep step's timer: running while the screens are off, sleep is allowed and
+    /// nothing holds it; a timer already running keeps its start (choice 8).
+    pub fn arm_sleep(&mut self) {
+        if !self.isle.sleep_wanted() {
+            if let Some(token) = self.isle.idle.sleep_timer.take() {
+                self.isle.loop_handle.remove(token);
+            }
+            return;
+        }
+        if self.isle.idle.sleep_timer.is_some() {
+            return;
+        }
+        let after = self.isle.shell.theme().tokens.timing_sleep_after_off_ms as u64;
+        self.isle.idle.sleep_timer = self
+            .isle
+            .loop_handle
+            .insert_source(Timer::from_duration(Duration::from_millis(after)), |_, _, state| {
+                state.isle.idle.sleep_timer = None;
+                state.idle_sleep();
+                TimeoutAction::Drop
+            })
+            .ok();
+    }
+
+    /// Idle's last step: sleep through logind, which announces it so the lock comes first.
+    fn idle_sleep(&mut self) {
+        if !self.isle.sleep_wanted() {
+            return;
+        }
+        info!(step = "sleep", "idle");
+        self.isle.run_service(crate::services::login::suspend(), |state, result| {
+            if let Err(err) = result {
+                warn!("logind refused idle sleep: {err}");
+                state.isle.idle.sleep_refused = true;
+            }
+        });
     }
 
     fn idle_hint(&mut self, idle: bool) {
@@ -450,11 +617,13 @@ impl State {
         }
         self.silence_check();
         self.sleep_ready();
+        self.arm_sleep();
     }
 
     fn screens_on(&mut self) {
         info!("screens on");
         self.isle.idle.off = false;
+        self.arm_sleep();
         let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
         for output in &outputs {
             self.backend.set_power(output, true);
@@ -509,6 +678,17 @@ impl State {
     pub fn displays_sleep(&mut self) {
         self.isle.idle.done.extend(Step::ALL);
         self.screens_off();
+    }
+
+    /// Test hook: the sleep step's timer fires now, if it runs.
+    #[cfg(feature = "test-hooks")]
+    pub fn sleep_now(&mut self) -> bool {
+        let Some(token) = self.isle.idle.sleep_timer.take() else {
+            return false;
+        };
+        self.isle.loop_handle.remove(token);
+        self.idle_sleep();
+        true
     }
 
     /// Test hook: the idle clock moved on by `by`.

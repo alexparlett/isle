@@ -735,13 +735,19 @@ impl State {
         );
     }
 
-    /// The power key: the lock's face wakes; otherwise the session chooser opens.
+    /// The power key: the lock's face wakes; otherwise it does what Energy's setting says
+    /// (`p20h-power.md` choice 19).
     pub fn power_key(&mut self) {
         if self.isle.lock.locked {
             self.lock_activity();
             return;
         }
-        self.open_session_chooser();
+        use isle_settings::schema::PowerButton;
+        match self.isle.settings.energy.power_button {
+            PowerButton::SessionDialog => self.open_session_chooser(),
+            PowerButton::Sleep => self.isle.suspend(),
+            PowerButton::Lock => self.lock("the power button"),
+        }
     }
 
     /// logind announced sleep: lock if the setting asks, and let sleep go on once every lit
@@ -781,7 +787,8 @@ impl State {
         }
     }
 
-    /// Back from sleep: drawing resumes, and the face wakes.
+    /// Back from sleep: drawing resumes, the face wakes, and screens idle turned off come
+    /// back on.
     pub fn after_sleep(&mut self) {
         self.isle.sleep_waiting = false;
         self.isle.asleep = false;
@@ -789,6 +796,9 @@ impl State {
             gate.send_replace(false);
         }
         self.isle.queue_redraw_all();
+        if self.isle.idle.off {
+            self.idle_activity();
+        }
         self.lock_activity();
     }
 }

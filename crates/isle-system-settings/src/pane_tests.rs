@@ -271,6 +271,7 @@ fn wifi_state() -> isle_network::State {
                 auto_join: true,
             },
         ],
+        wake: Default::default(),
     }
 }
 

@@ -79,18 +79,36 @@ impl Session {
         Ok(self.to_loop.call(|state| state.isle.idle_status()).await?)
     }
 
-    /// The holds taken for clients, a ScreenSaver Inhibit's pid read from its bus name.
-    async fn holds(&self, #[zbus(connection)] conn: &zbus::Connection) -> fdo::Result<Vec<isle_ipc::Hold>> {
-        let holds = self.to_loop.call(|state| state.isle.client_holds()).await?;
-        let dbus = fdo::DBusProxy::new(conn).await?;
-        let mut out = Vec::new();
-        for (mut hold, sender) in holds {
-            if let Some(name) = sender.and_then(|s| zbus::names::BusName::try_from(s).ok()) {
-                hold.pid = dbus.get_connection_unix_process_id(name).await.map_or(0, |p| p as i32);
+    /// Every hold on idle and sleep, each with its kind.
+    async fn holds(&self) -> fdo::Result<Vec<isle_ipc::Hold>> {
+        Ok(self.to_loop.call(|state| state.isle.listed_holds()).await?)
+    }
+
+    /// `isle awake`: a sleep hold, or with `display` a display hold, for the caller until
+    /// `Release` or it leaves the bus.
+    async fn hold(
+        &self,
+        app: String,
+        why: String,
+        display: bool,
+        #[zbus(header)] header: zbus::message::Header<'_>,
+        #[zbus(connection)] conn: &zbus::Connection,
+    ) -> fdo::Result<u32> {
+        let next = self.to_loop.call(|state| state.isle.idle.next_cookie.clone()).await?;
+        let kind = if display {
+            crate::idle::Kind::Display
+        } else {
+            crate::idle::Kind::Sleep
+        };
+        Ok(crate::screensaver::hold(&self.to_loop, &next, conn, &header, app, why, kind).await)
+    }
+
+    async fn release(&self, cookie: u32) {
+        self.to_loop.post(move |state| {
+            if state.isle.idle.cookies.remove(&cookie).is_some() {
+                state.idle_holds_changed();
             }
-            out.push(hold);
-        }
-        Ok(out)
+        });
     }
 
     #[zbus(property)]
@@ -1243,6 +1261,11 @@ impl Test {
     /// the minutes left of a lockout.
     async fn lock_status(&self) -> fdo::Result<String> {
         Ok(self.to_loop.call(|state| state.isle.lock_status()).await?)
+    }
+
+    /// Fires idle's sleep step now, if its timer runs; whether it did.
+    async fn sleep_now(&self) -> fdo::Result<bool> {
+        Ok(self.to_loop.call(|state| state.sleep_now()).await?)
     }
 
     /// Moves idle's clock on by `millis`, as that long with no input would.

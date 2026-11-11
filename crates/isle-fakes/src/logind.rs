@@ -33,6 +33,7 @@ struct Manager {
     preparing_for_sleep: bool,
     inhibitors: Inhibitors,
     ended: Arc<Mutex<Vec<String>>>,
+    refuse_sleep: Arc<Mutex<bool>>,
 }
 
 #[zbus::interface(name = "org.freedesktop.login1.Manager")]
@@ -86,6 +87,16 @@ impl Manager {
 
     fn power_off(&self, _interactive: bool) {
         self.ended.lock().unwrap().push("PowerOff".into());
+    }
+
+    /// Recorded as `Suspend` or `Suspend(interactive)`; refused while the test says so.
+    fn suspend(&self, interactive: bool) -> zbus::fdo::Result<()> {
+        let call = if interactive { "Suspend(interactive)" } else { "Suspend" };
+        self.ended.lock().unwrap().push(call.into());
+        if *self.refuse_sleep.lock().unwrap() {
+            return Err(zbus::fdo::Error::AccessDenied("Operation inhibited".into()));
+        }
+        Ok(())
     }
 
     #[zbus(name = "GetSessionByPID")]
@@ -156,6 +167,7 @@ pub struct Logind {
     conn: Option<Connection>,
     inhibitors: Inhibitors,
     ended: Arc<Mutex<Vec<String>>>,
+    refuse_sleep: Arc<Mutex<bool>>,
     /// Block inhibitors taken for a test, as another program holds them.
     held: Vec<zvariant::OwnedFd>,
 }
@@ -168,6 +180,7 @@ impl Logind {
             conn: None,
             inhibitors: Default::default(),
             ended: Default::default(),
+            refuse_sleep: Default::default(),
             held: Vec::new(),
         };
         fake.restore().await?;
@@ -191,6 +204,7 @@ impl Logind {
                     preparing_for_sleep: v.preparing_for_sleep,
                     inhibitors: self.inhibitors.clone(),
                     ended: self.ended.clone(),
+                    refuse_sleep: self.refuse_sleep.clone(),
                 },
             )?
             .serve_at(
@@ -227,7 +241,12 @@ impl Logind {
             .await
     }
 
-    /// `Reboot` and `PowerOff`, as they were called.
+    /// Whether `Suspend` is refused, as with a block inhibitor or polkit's no.
+    pub fn refuse_sleep(&self, refuse: bool) {
+        *self.refuse_sleep.lock().unwrap() = refuse;
+    }
+
+    /// `Reboot`, `PowerOff` and `Suspend`, as they were called.
     pub fn ended(&self) -> Vec<String> {
         self.ended.lock().unwrap().clone()
     }

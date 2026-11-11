@@ -54,6 +54,8 @@ pub struct Services {
     pub scan: Option<tokio::task::JoinHandle<()>>,
     /// The VPN last connected, which VPN's switch connects again.
     pub last_vpn: Option<String>,
+    /// Wired and Wi-Fi profiles seen, so wake for network access reaches one added later.
+    pub wake_seen: std::collections::HashSet<String>,
     /// Folded groups of rows opened, by `module/row`.
     pub expanded: std::collections::HashSet<String>,
     /// When Control Centre last changed a level itself.
@@ -220,6 +222,7 @@ impl Default for Services {
             joining: None,
             scan: None,
             last_vpn: None,
+            wake_seen: Default::default(),
             expanded: Default::default(),
             tray: Default::default(),
             tray_menu: None,

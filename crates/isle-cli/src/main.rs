@@ -37,6 +37,15 @@ enum Command {
     Lock,
     /// How long the session has been idle, and what keeps it awake.
     Idle,
+    /// Keep the computer awake until interrupted, or while a command runs.
+    Awake {
+        /// Keep the display on too, so the session stays unlocked.
+        #[arg(long)]
+        display: bool,
+        /// The command to run; the hold ends when it exits.
+        #[arg(last = true)]
+        command: Vec<String>,
+    },
     /// What the compositor spends: frames, redraw passes, glass, commits by app, the file
     /// index, CPU by thread and memory, as rates over a few seconds.
     Perf {
@@ -519,6 +528,7 @@ async fn main() -> ExitCode {
         Command::Widgets(Widgets::Run { folder, size, no_grants }) => {
             return widget_run(folder, size.as_deref(), *no_grants, cli.json).await;
         }
+        Command::Awake { display, command } => return awake(*display, command).await,
         _ => {}
     }
     match run(&cli).await {
@@ -536,6 +546,44 @@ async fn main() -> ExitCode {
                 eprintln!("isle: {err}");
                 ExitCode::FAILURE
             }
+        }
+    }
+}
+
+/// `isle awake`: a hold through the compositor until the command exits or this process ends,
+/// when the bus drops it.
+async fn awake(display: bool, command: &[String]) -> ExitCode {
+    let held = async {
+        let bus = zbus::Connection::session().await?;
+        let app = command
+            .first()
+            .map(|c| c.rsplit('/').next().unwrap_or(c).to_owned())
+            .unwrap_or_else(|| "isle awake".into());
+        let why = if command.is_empty() { "isle awake".to_owned() } else { command.join(" ") };
+        let cookie = SessionProxy::new(&bus).await?.hold(&app, &why, display).await?;
+        Ok::<_, zbus::Error>((bus, cookie))
+    }
+    .await;
+    let (bus, cookie) = match held {
+        Ok(held) => held,
+        Err(err) => {
+            eprintln!("isle: {err}");
+            return ExitCode::from(NOT_RUNNING);
+        }
+    };
+    let Some((program, args)) = command.split_first() else {
+        std::future::pending::<()>().await;
+        unreachable!();
+    };
+    let status = tokio::process::Command::new(program).args(args).status().await;
+    if let Ok(session) = SessionProxy::new(&bus).await {
+        let _ = session.release(cookie).await;
+    }
+    match status {
+        Ok(status) => ExitCode::from(status.code().unwrap_or(1) as u8),
+        Err(err) => {
+            eprintln!("isle: {program}: {err}");
+            ExitCode::from(127)
         }
     }
 }
@@ -569,6 +617,7 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             }
         }
         Command::Setup { .. } => unreachable!("isle setup runs before the bus"),
+        Command::Awake { .. } => unreachable!("isle awake runs before the bus"),
         Command::Quit => SessionProxy::new(&bus).await?.quit().await?,
         Command::Lock => SessionProxy::new(&bus).await?.lock().await?,
         Command::Windows(command) => {
@@ -914,15 +963,15 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
             if cli.json {
                 println!("{status}");
             } else {
-                let holders: Vec<String> = status["holders"]
-                    .as_array()
-                    .map(|a| a.iter().filter_map(|h| h.as_str().map(str::to_owned)).collect())
-                    .unwrap_or_default();
+                let holds = SessionProxy::new(&bus).await?.holds().await?;
                 println!("idle for {} s", status["idle_ms"].as_u64().unwrap_or(0) / 1000);
-                if holders.is_empty() {
+                if holds.is_empty() {
                     println!("nothing holds it");
-                } else {
-                    println!("held by {}", holders.join(", "));
+                }
+                for h in holds {
+                    let kind = if h.what == "idle" { "display" } else { "sleep" };
+                    let why = if h.why.is_empty() { String::new() } else { format!(": {}", h.why) };
+                    println!("{kind:<8} {}{why}", if h.app.is_empty() { "?" } else { &h.app });
                 }
             }
         }

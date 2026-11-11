@@ -42,6 +42,7 @@ mod colour;
 mod colour_management;
 mod control_centre;
 mod control_edit;
+mod keep_awake;
 mod keyring;
 mod launch;
 mod lock;
@@ -335,21 +336,29 @@ pub fn run(kind: backend::Kind, greeter: bool) -> Result<(), Box<dyn std::error:
         }
         Err(err) => warn!("no notification server: {err}"),
     }
-    // Players and games ask it to hold the screen awake from their start.
+    // Players, games and browsers ask it to hold the screen or the computer awake from their
+    // start.
+    let next = state.isle.idle.next_cookie.clone();
     let saver = runtime.block_on(async {
         let conn = zbus::Connection::session().await?;
-        let owned = screensaver::own(&conn, to_loop.clone()).await?;
+        let owned = screensaver::own(&conn, to_loop.clone(), next).await?;
         Ok::<_, zbus::Error>((conn, owned))
     });
     match saver {
-        Ok((conn, true)) => {
+        Ok((conn, owned)) => {
+            if !owned.screensaver {
+                warn!("another program serves org.freedesktop.ScreenSaver");
+            }
+            if !owned.power_management {
+                warn!("another program serves org.freedesktop.PowerManagement");
+            }
             let (loop_s, events) = (to_loop.clone(), state.isle.events.clone());
+            let pm = owned.power_management;
             runtime.spawn(worker::supervise("screensaver", move || {
-                screensaver::follow(conn.clone(), loop_s.clone(), events.clone())
+                screensaver::follow(conn.clone(), loop_s.clone(), events.clone(), pm)
             }));
         }
-        Ok((_, false)) => warn!("another program serves org.freedesktop.ScreenSaver"),
-        Err(err) => warn!("no ScreenSaver interface: {err}"),
+        Err(err) => warn!("no ScreenSaver or PowerManagement interface: {err}"),
     }
     // gnome-keyring, gcr's SSH agent and pinentry ask Isle's prompter, never gcr's own.
     let keyring = runtime.block_on(async {

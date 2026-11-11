@@ -24,12 +24,14 @@ pub struct Ap {
     pub secured: bool,
 }
 
-/// A saved connection: Wi-Fi by its SSID, a Wi-Fi profile in full, or a VPN.
+/// A saved connection: Wi-Fi by its SSID, a Wi-Fi profile in full, a VPN, or a wired
+/// profile by its name.
 #[derive(Clone, Debug)]
 pub enum Saved {
     Wifi(String),
     Profile(Profile),
     Vpn(String),
+    Wired(String),
 }
 
 /// A saved Wi-Fi profile with where it keeps its password.
@@ -70,6 +72,18 @@ struct Model {
     /// `GetSecrets` refuses, as NetworkManager's polkit check does when the user says no.
     refuse_secrets: bool,
     secrets_asked: u32,
+    /// Wired and Wi-Fi profiles' `wake-on-lan` or `wake-on-wlan`, by index; absent is the
+    /// default, `0x1`.
+    wake: HashMap<usize, u32>,
+}
+
+/// The setting and key a saved connection keeps its wake flags in.
+fn wake_key(saved: &Saved) -> Option<(&'static str, &'static str)> {
+    match saved {
+        Saved::Wired(_) => Some(("802-3-ethernet", "wake-on-lan")),
+        Saved::Wifi(_) | Saved::Profile(_) => Some(("802-11-wireless", "wake-on-wlan")),
+        Saved::Vpn(_) => None,
+    }
 }
 
 /// The settings a secured network's request carries, as NetworkManager sends them.
@@ -211,7 +225,9 @@ impl Manager {
                 m.active.push(i);
                 drop(m);
             }
-            Some(Saved::Vpn(_) | Saved::Profile(_)) => self.0.lock().unwrap().active.push(i),
+            Some(Saved::Vpn(_) | Saved::Profile(_) | Saved::Wired(_)) => {
+                self.0.lock().unwrap().active.push(i)
+            }
             None => return Err(zbus::fdo::Error::InvalidArgs("no such".into())),
         }
         server
@@ -332,6 +348,12 @@ impl Settings {
             .map(saved_path)
             .collect()
     }
+
+    #[zbus(signal)]
+    async fn new_connection(
+        emitter: &SignalEmitter<'_>,
+        connection: ObjectPath<'_>,
+    ) -> zbus::Result<()>;
 }
 
 fn profile_settings(p: &Profile) -> HashMap<String, HashMap<String, OwnedValue>> {
@@ -375,22 +397,15 @@ fn profile_settings(p: &Profile) -> HashMap<String, HashMap<String, OwnedValue>>
 
 struct SavedIface(Shared, usize);
 
-#[zbus::interface(name = "org.freedesktop.NetworkManager.Settings.Connection")]
 impl SavedIface {
-    fn get_settings(&self) -> HashMap<String, HashMap<String, OwnedValue>> {
-        let saved = self.0.lock().unwrap().saved[self.1].clone();
+    /// Its settings without its wake flags.
+    fn settings(&self, saved: &Saved) -> HashMap<String, HashMap<String, OwnedValue>> {
         let value = |v: Value<'_>| OwnedValue::try_from(v).unwrap();
-        let (kind, id, wireless) = match saved {
-            Saved::Wifi(ssid) => (
-                "802-11-wireless",
-                ssid.clone(),
-                Some(HashMap::from([(
-                    "ssid".to_owned(),
-                    value(Value::from(ssid.into_bytes())),
-                )])),
-            ),
-            Saved::Vpn(name) => ("vpn", name, None),
-            Saved::Profile(p) => return profile_settings(&p),
+        let (kind, id) = match saved {
+            Saved::Wifi(ssid) => ("802-11-wireless", ssid.clone()),
+            Saved::Vpn(name) => ("vpn", name.clone()),
+            Saved::Wired(name) => ("802-3-ethernet", name.clone()),
+            Saved::Profile(p) => return profile_settings(p),
         };
         let manual = self.0.lock().unwrap().manual.contains(&self.1);
         let mut out = HashMap::from([(
@@ -401,12 +416,42 @@ impl SavedIface {
                 ("autoconnect".to_owned(), value(Value::from(!manual))),
             ]),
         )]);
-        if let Some(wireless) = wireless {
-            out.insert("802-11-wireless".to_owned(), wireless);
-            out.insert(
-                "802-11-wireless-security".to_owned(),
-                HashMap::from([("key-mgmt".to_owned(), value(Value::from("wpa-psk")))]),
-            );
+        match saved {
+            Saved::Wifi(ssid) => {
+                out.insert(
+                    "802-11-wireless".to_owned(),
+                    HashMap::from([(
+                        "ssid".to_owned(),
+                        value(Value::from(ssid.clone().into_bytes())),
+                    )]),
+                );
+                out.insert(
+                    "802-11-wireless-security".to_owned(),
+                    HashMap::from([("key-mgmt".to_owned(), value(Value::from("wpa-psk")))]),
+                );
+            }
+            Saved::Wired(_) => {
+                out.insert("802-3-ethernet".to_owned(), HashMap::new());
+            }
+            _ => {}
+        }
+        out
+    }
+}
+
+#[zbus::interface(name = "org.freedesktop.NetworkManager.Settings.Connection")]
+impl SavedIface {
+    fn get_settings(&self) -> HashMap<String, HashMap<String, OwnedValue>> {
+        let (saved, wake) = {
+            let m = self.0.lock().unwrap();
+            (m.saved[self.1].clone(), m.wake.get(&self.1).copied())
+        };
+        let mut out = self.settings(&saved);
+        // NetworkManager leaves out a value at its default.
+        if let (Some((setting, key)), Some(wake)) = (wake_key(&saved), wake) {
+            out.entry(setting.to_owned())
+                .or_default()
+                .insert(key.to_owned(), OwnedValue::from(wake));
         }
         out
     }
@@ -439,19 +484,36 @@ impl SavedIface {
         })
     }
 
-    fn update(&mut self, settings: HashMap<String, HashMap<String, OwnedValue>>) {
-        let mut m = self.0.lock().unwrap();
-        let auto = settings
-            .get("connection")
-            .and_then(|c| c.get("autoconnect"))
-            .and_then(|v| bool::try_from(v).ok())
-            .unwrap_or(true);
-        m.manual.retain(|i| *i != self.1);
-        if !auto {
-            m.manual.push(self.1);
+    async fn update(
+        &mut self,
+        settings: HashMap<String, HashMap<String, OwnedValue>>,
+        #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
+    ) {
+        {
+            let mut m = self.0.lock().unwrap();
+            let auto = settings
+                .get("connection")
+                .and_then(|c| c.get("autoconnect"))
+                .and_then(|v| bool::try_from(v).ok())
+                .unwrap_or(true);
+            m.manual.retain(|i| *i != self.1);
+            if !auto {
+                m.manual.push(self.1);
+            }
+            let wake = wake_key(&m.saved[self.1])
+                .and_then(|(setting, key)| settings.get(setting)?.get(key))
+                .and_then(|v| u32::try_from(v).ok());
+            match wake {
+                Some(wake) => m.wake.insert(self.1, wake),
+                None => m.wake.remove(&self.1),
+            };
+            m.updates.push((self.1, settings));
         }
-        m.updates.push((self.1, settings));
+        let _ = Self::updated(&emitter).await;
     }
+
+    #[zbus(signal)]
+    async fn updated(emitter: &SignalEmitter<'_>) -> zbus::Result<()>;
 
     async fn delete(&mut self, #[zbus(signal_emitter)] emitter: SignalEmitter<'_>) {
         self.0.lock().unwrap().deleted.push(self.1);
@@ -501,6 +563,11 @@ impl Device {
     #[zbus(property)]
     fn ip4_config(&self) -> OwnedObjectPath {
         op(format!("{NM}/IP4Config/1"))
+    }
+
+    #[zbus(property)]
+    fn interface(&self) -> String {
+        if self.1 { "wlan0" } else { "eth0" }.into()
     }
 
     #[zbus(property)]
@@ -630,6 +697,7 @@ impl NetworkManager {
             updates: Vec::new(),
             refuse_secrets: false,
             secrets_asked: 0,
+            wake: HashMap::new(),
         }));
         let m = model.lock().unwrap();
         let mut builder = zbus::connection::Builder::address(address)?
@@ -705,6 +773,38 @@ impl NetworkManager {
     pub fn updated(&self, i: usize) -> Option<HashMap<String, HashMap<String, OwnedValue>>> {
         let m = self.model.lock().unwrap();
         m.updates.iter().rev().find(|(at, _)| *at == i).map(|(_, s)| s.clone())
+    }
+
+    /// Saved connection `i`'s `wake-on-lan` or `wake-on-wlan`; `0x1`, the default, until set.
+    pub fn wake(&self, i: usize) -> u32 {
+        self.model.lock().unwrap().wake.get(&i).copied().unwrap_or(0x1)
+    }
+
+    /// Sets saved connection `i`'s wake flags as if saved so, without an update.
+    pub fn set_wake(&self, i: usize, flags: u32) {
+        self.model.lock().unwrap().wake.insert(i, flags);
+    }
+
+    /// Updates saved so far, of any connection.
+    pub fn updates(&self) -> usize {
+        self.model.lock().unwrap().updates.len()
+    }
+
+    /// Saves a new connection and announces it, as NetworkManager's `NewConnection` does;
+    /// its index.
+    pub async fn add(&self, saved: Saved) -> zbus::Result<usize> {
+        let i = {
+            let mut m = self.model.lock().unwrap();
+            m.saved.push(saved);
+            m.saved.len() - 1
+        };
+        let server = self.conn.object_server();
+        server.at(saved_path(i), SavedIface(self.model.clone(), i)).await?;
+        let settings = server
+            .interface::<_, Settings>(format!("{NM}/Settings"))
+            .await?;
+        Settings::new_connection(settings.signal_emitter(), saved_path(i).as_ref()).await?;
+        Ok(i)
     }
 
     /// Whether `GetSecrets` refuses from now on.

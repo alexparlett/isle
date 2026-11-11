@@ -141,6 +141,18 @@ impl State {
         }
         if touched("lock-screen") {
             self.arm_idle();
+            self.arm_sleep();
+        }
+        if touched("energy.keep-awake-display") {
+            self.keep_awake_changed();
+        } else if touched("energy.display-apps") {
+            self.idle_holds_changed();
+        }
+        if touched("energy.prevent-sleep") {
+            self.arm_sleep();
+        }
+        if touched("energy.wake-for-network") && changed.is_some() {
+            self.apply_wake();
         }
         if touched("spotlight")
             && let Some(tx) = &self.isle.files_reach

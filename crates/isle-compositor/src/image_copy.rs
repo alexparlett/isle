@@ -467,6 +467,7 @@ impl State {
         if streaming != self.isle.image_copy.listed {
             self.isle.image_copy.listed = streaming;
             self.sharing_activity();
+            self.holds_maybe_changed();
         }
         self.isle.refresh_island();
     }

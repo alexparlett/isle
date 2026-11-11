@@ -32,6 +32,7 @@ impl State {
             self.isle.audio_osds(&before);
         }
         self.isle.services_changed();
+        self.holds_maybe_changed();
     }
 
     pub fn cameras_changed(&mut self, snapshot: Snapshot<Cameras>) {

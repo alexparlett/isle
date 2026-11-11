@@ -39,6 +39,41 @@ impl State {
             }
         }
         self.isle.services_changed();
+        self.wake_follow();
+    }
+
+    /// Wake for network access reaches profiles seen at start or added later while it is on;
+    /// off, profiles are changed only when the setting is (`p20h-power.md` choice 18).
+    fn wake_follow(&mut self) {
+        let net = &self.isle.services.network;
+        if !net.available {
+            return;
+        }
+        let on = self.isle.settings.energy.wake_for_network;
+        let seen = &self.isle.services.wake_seen;
+        let apply = on
+            && net
+                .state
+                .wake
+                .profiles
+                .iter()
+                .any(|p| !seen.contains(&p.path) && !p.wakes);
+        let paths: Vec<String> = net.state.wake.profiles.iter().map(|p| p.path.clone()).collect();
+        self.isle.services.wake_seen.extend(paths);
+        if apply {
+            self.apply_wake();
+        }
+    }
+
+    /// Every wired and Wi-Fi profile set to the setting.
+    pub fn apply_wake(&mut self) {
+        let on = self.isle.settings.energy.wake_for_network;
+        self.isle
+            .run_service(isle_network::set_wake(on), |_, result| {
+                if let Err(err) = result {
+                    tracing::warn!("wake for network access: {err}");
+                }
+            });
     }
 
     pub fn wifi_action(&mut self, action: PanelAction) {

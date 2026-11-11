@@ -916,6 +916,7 @@ impl State {
         self.isle.island.model.set_privacy(Privacy::Screen, any);
         self.isle.refresh_island();
         self.isle.refresh_banners();
+        self.holds_maybe_changed();
     }
 
     fn cast_event(&mut self, event: Event) {

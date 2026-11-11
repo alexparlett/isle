@@ -43,6 +43,8 @@ trait Manager {
     fn reboot(&self, interactive: bool) -> zbus::Result<()>;
 
     fn power_off(&self, interactive: bool) -> zbus::Result<()>;
+
+    fn suspend(&self, interactive: bool) -> zbus::Result<()>;
 }
 
 #[zbus::proxy(
@@ -90,6 +92,13 @@ pub async fn set_hint(locked: Option<bool>, idle: Option<bool>) -> Result<(), is
     if let Some(on) = idle {
         session.set_idle_hint(on).await?;
     }
+    Ok(())
+}
+
+/// Sleeps, with no polkit question: idle's sleep step (`p20h-power.md` choice 9).
+pub async fn suspend() -> Result<(), isle_bus::Error> {
+    let bus = isle_bus::system().await?;
+    ManagerProxy::new(&bus).await?.suspend(false).await?;
     Ok(())
 }
 

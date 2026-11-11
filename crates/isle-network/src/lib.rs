@@ -3,7 +3,7 @@
 
 pub mod agent;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use isle_bus::{Error, Props, Publisher};
 use serde::Serialize;
@@ -19,6 +19,9 @@ const DEVICE: &str = "org.freedesktop.NetworkManager.Device";
 const WIRELESS: &str = "org.freedesktop.NetworkManager.Device.Wireless";
 const AP: &str = "org.freedesktop.NetworkManager.AccessPoint";
 const ACTIVE: &str = "org.freedesktop.NetworkManager.Connection.Active";
+const SYS_NET: &str = "/sys/class/net";
+/// NetworkManager's `wake-on-lan` and `wake-on-wlan` value that defers to its global default.
+const WAKE_DEFAULT: u32 = 0x1;
 
 /// A device's state, as NetworkManager's numbers group it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
@@ -96,6 +99,24 @@ pub struct Known {
     pub auto_join: bool,
 }
 
+/// A wired or Wi-Fi profile as Wake for network access sets it.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct WakeProfile {
+    /// Its settings path.
+    pub path: String,
+    /// It wakes the computer on a magic packet.
+    pub wakes: bool,
+}
+
+/// What Wake for network access works on.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct Wake {
+    /// A wired or Wi-Fi device reports it can wake the computer.
+    pub capable: bool,
+    /// Every saved wired and Wi-Fi profile; a path not seen before is a profile added.
+    pub profiles: Vec<WakeProfile>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 pub struct State {
     pub wifi_enabled: bool,
@@ -104,6 +125,7 @@ pub struct State {
     pub vpns: Vec<Vpn>,
     /// Every Wi-Fi network saved, by name.
     pub known: Vec<Known>,
+    pub wake: Wake,
 }
 
 /// How a device is connected, as a network's details show it.
@@ -133,9 +155,36 @@ async fn props(conn: &Connection, path: &str, interface: &str) -> Result<Props, 
     Ok(Props::read(conn, NM, path, interface).await?)
 }
 
-/// Each saved connection: its settings path, type, id, for Wi-Fi its SSID, and whether it
-/// joins by itself.
-async fn saved(conn: &Connection) -> Result<Vec<(String, String, String, Option<String>, bool)>, Error> {
+/// A saved connection as the state reads it.
+struct SavedConn {
+    path: String,
+    kind: String,
+    id: String,
+    /// Wi-Fi's SSID.
+    ssid: Option<String>,
+    /// It joins by itself.
+    auto: bool,
+    /// A wired or Wi-Fi profile's wake flags.
+    wake: Option<u32>,
+}
+
+/// The setting and key that hold a profile type's wake flags, and the flag for a magic packet.
+fn wake_key(kind: &str) -> Option<(&'static str, &'static str, u32)> {
+    match kind {
+        "802-3-ethernet" => Some(("802-3-ethernet", "wake-on-lan", 0x40)),
+        "802-11-wireless" => Some(("802-11-wireless", "wake-on-wlan", 0x8)),
+        _ => None,
+    }
+}
+
+/// Whether an interface's device can wake the computer, under sysfs's `net` class at `net`.
+fn can_wake(net: &Path, interface: &str) -> bool {
+    !interface.is_empty()
+        && !interface.contains('/')
+        && net.join(interface).join("device/power/wakeup").exists()
+}
+
+async fn saved(conn: &Connection) -> Result<Vec<SavedConn>, Error> {
     let paths: Vec<OwnedObjectPath> = conn
         .call_method(
             Some(NM),
@@ -170,12 +219,20 @@ async fn saved(conn: &Connection) -> Result<Vec<(String, String, String, Option<
         let section = |name: &str| settings.get(name).cloned().map(Props).unwrap_or_default();
         let connection = section("connection");
         let kind = connection.str("type").unwrap_or_default();
-        let id = connection.str("id").unwrap_or_default();
-        let ssid = section("802-11-wireless")
-            .bytes("ssid")
-            .map(|b| String::from_utf8_lossy(&b).into_owned());
-        let auto = connection.bool("autoconnect").unwrap_or(true);
-        out.push((path.to_string(), kind, id, ssid, auto));
+        // GetSettings leaves out a value at its default.
+        let wake = wake_key(&kind).map(|(setting, key, _)| {
+            section(setting).i64(key).map_or(WAKE_DEFAULT, |v| v as u32)
+        });
+        out.push(SavedConn {
+            path: path.to_string(),
+            id: connection.str("id").unwrap_or_default(),
+            ssid: section("802-11-wireless")
+                .bytes("ssid")
+                .map(|b| String::from_utf8_lossy(&b).into_owned()),
+            auto: connection.bool("autoconnect").unwrap_or(true),
+            kind,
+            wake,
+        });
     }
     Ok(out)
 }
@@ -204,7 +261,13 @@ async fn read(conn: &Connection) -> Result<State, Error> {
             continue;
         };
         let link = Link::of(device.i64("State").unwrap_or(0));
-        match device.i64("DeviceType") {
+        let kind = device.i64("DeviceType");
+        if matches!(kind, Some(1 | 2))
+            && can_wake(Path::new(SYS_NET), &device.str("Interface").unwrap_or_default())
+        {
+            state.wake.capable = true;
+        }
+        match kind {
             Some(1) if state.wired.is_none() => {
                 state.wired = Some(Wired { path, link });
             }
@@ -228,10 +291,8 @@ async fn read(conn: &Connection) -> Result<State, Error> {
                         || p.i64("Flags").unwrap_or(0) & 1 != 0;
                     let known = saved
                         .iter()
-                        .find(|(_, kind, _, s, _)| {
-                            kind == "802-11-wireless" && s.as_deref() == Some(&ssid)
-                        })
-                        .map(|(path, ..)| path.clone());
+                        .find(|s| s.kind == "802-11-wireless" && s.ssid.as_deref() == Some(&ssid))
+                        .map(|s| s.path.clone());
                     networks.push(Network {
                         path: ap,
                         ssid,
@@ -263,7 +324,7 @@ async fn read(conn: &Connection) -> Result<State, Error> {
             _ => {}
         }
     }
-    for (path, kind, _, ssid, auto) in &saved {
+    for SavedConn { path, kind, ssid, auto, .. } in &saved {
         let (Some(ssid), true) = (ssid, kind == "802-11-wireless") else {
             continue;
         };
@@ -286,8 +347,8 @@ async fn read(conn: &Connection) -> Result<State, Error> {
     state.known.sort_by_key(|k| k.ssid.to_lowercase());
     state.vpns = saved
         .iter()
-        .filter(|(_, kind, ..)| kind == "vpn" || kind == "wireguard")
-        .map(|(path, _, id, _, _)| {
+        .filter(|s| s.kind == "vpn" || s.kind == "wireguard")
+        .map(|SavedConn { path, id, .. }| {
             let (active, link) = active
                 .get(path)
                 .map_or((None, Link::Disconnected), |(a, l)| (Some(a.clone()), *l));
@@ -297,6 +358,16 @@ async fn read(conn: &Connection) -> Result<State, Error> {
                 link,
                 active,
             }
+        })
+        .collect();
+    state.wake.profiles = saved
+        .iter()
+        .filter_map(|s| {
+            let (_, _, magic) = wake_key(&s.kind)?;
+            Some(WakeProfile {
+                path: s.path.clone(),
+                wakes: s.wake? & magic != 0,
+            })
         })
         .collect();
     Ok(state)
@@ -414,19 +485,26 @@ pub async fn forget(saved: &str) -> Result<(), Error> {
     Ok(())
 }
 
-/// Whether a saved Wi-Fi network is joined by itself, its password kept.
-pub async fn set_auto_join(saved: &str, on: bool) -> Result<(), Error> {
-    type Sections = HashMap<String, HashMap<String, OwnedValue>>;
-    let conn = isle_bus::system().await?;
+type Sections = HashMap<String, HashMap<String, OwnedValue>>;
+
+/// Changes a saved connection through `edit`, its secrets kept.
+async fn update(
+    conn: &Connection,
+    saved: &str,
+    edit: impl FnOnce(&mut Sections),
+) -> Result<(), Error> {
     let mut settings: Sections = conn
         .call_method(Some(NM), saved, Some(SAVED), "GetSettings", &())
         .await?
         .body()
         .deserialize()?;
     // An update replaces the whole connection; its secrets come back with it or are lost.
-    if settings.contains_key("802-11-wireless-security") {
+    for setting in ["802-11-wireless-security", "802-1x"] {
+        if !settings.contains_key(setting) {
+            continue;
+        }
         let secrets: Sections = conn
-            .call_method(Some(NM), saved, Some(SAVED), "GetSecrets", &("802-11-wireless-security",))
+            .call_method(Some(NM), saved, Some(SAVED), "GetSecrets", &(setting,))
             .await?
             .body()
             .deserialize()?;
@@ -434,13 +512,53 @@ pub async fn set_auto_join(saved: &str, on: bool) -> Result<(), Error> {
             settings.entry(section).or_default().extend(values);
         }
     }
-    settings
-        .entry("connection".into())
-        .or_default()
-        .insert("autoconnect".into(), OwnedValue::from(on));
+    edit(&mut settings);
     conn.call_method(Some(NM), saved, Some(SAVED), "Update", &(settings,))
         .await?;
     Ok(())
+}
+
+/// Whether a saved Wi-Fi network is joined by itself, its password kept.
+pub async fn set_auto_join(saved: &str, on: bool) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    update(&conn, saved, |settings| {
+        settings
+            .entry("connection".into())
+            .or_default()
+            .insert("autoconnect".into(), OwnedValue::from(on));
+    })
+    .await
+}
+
+/// Wake for network access: every saved wired and Wi-Fi profile wakes the computer on a
+/// magic packet, or goes back to NetworkManager's default. A profile already so is not
+/// updated. Each profile is tried; the last refusal is returned.
+pub async fn set_wake(on: bool) -> Result<(), Error> {
+    let conn = isle_bus::system().await?;
+    let mut refused = None;
+    for profile in saved(&conn).await? {
+        let (Some((setting, key, magic)), Some(flags)) = (wake_key(&profile.kind), profile.wake)
+        else {
+            continue;
+        };
+        let set = if on { flags & magic != 0 } else { flags == WAKE_DEFAULT };
+        if set {
+            continue;
+        }
+        let want = if on { magic } else { WAKE_DEFAULT };
+        let result = update(&conn, &profile.path, |settings| {
+            settings
+                .entry(setting.into())
+                .or_default()
+                .insert(key.into(), OwnedValue::from(want));
+        })
+        .await;
+        if let Err(e) = result {
+            tracing::warn!(profile = %profile.path, "wake for network access: {e}");
+            refused = Some(e);
+        }
+    }
+    refused.map_or(Ok(()), Err)
 }
 
 /// Where a saved network keeps its password, by its secret's flags.
@@ -683,6 +801,19 @@ mod tests {
         assert_eq!(mask(24), "255.255.255.0");
         assert_eq!(mask(20), "255.255.240.0");
         assert_eq!(mask(0), "0.0.0.0");
+    }
+
+    #[test]
+    fn a_device_wakes_with_a_wakeup_file() {
+        let net = std::env::temp_dir().join(format!("isle-network-wake-{}", std::process::id()));
+        std::fs::create_dir_all(net.join("eth0/device/power")).unwrap();
+        std::fs::write(net.join("eth0/device/power/wakeup"), "disabled\n").unwrap();
+        std::fs::create_dir_all(net.join("wlan0/device")).unwrap();
+        assert!(can_wake(&net, "eth0"));
+        assert!(!can_wake(&net, "wlan0"));
+        assert!(!can_wake(&net, "missing0"));
+        assert!(!can_wake(&net, ""));
+        std::fs::remove_dir_all(&net).unwrap();
     }
 
     #[test]

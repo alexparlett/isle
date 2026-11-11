@@ -106,14 +106,16 @@ pub struct WindowInfo {
     pub pid: i32,
 }
 
-/// Something holding idle or sleep off that the compositor took for a client: an
-/// idle-inhibit surface, a ScreenSaver Inhibit or a portal Inhibit.
+/// Something holding idle or sleep off: a client's inhibitor, logind's, a game in front, a
+/// sound playing, the screen shared, or Keep Awake.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
 pub struct Hold {
     /// The client's process, or 0 where it is not known: a portal Inhibit names only its app.
     pub pid: i32,
+    /// The app id where known, else the name the holder gave.
     pub app: String,
-    /// What it holds off, as logind writes it: `idle`, `sleep` or `idle:sleep`.
+    /// What it holds off, as logind writes it: `idle` holds the display and every step after,
+    /// `sleep` only sleep.
     pub what: String,
     pub why: String,
 }
@@ -407,8 +409,12 @@ pub mod session {
         fn lock(&self) -> zbus::Result<()>;
         /// Idle as JSON.
         fn idle(&self) -> zbus::Result<String>;
-        /// The holds the compositor took for its clients.
+        /// Every hold on idle and sleep.
         fn holds(&self) -> zbus::Result<Vec<Hold>>;
+        /// A hold for the caller until `release` or it leaves the bus; `display` holds the
+        /// display as well as the computer.
+        fn hold(&self, app: &str, why: &str, display: bool) -> zbus::Result<u32>;
+        fn release(&self, cookie: u32) -> zbus::Result<()>;
         #[zbus(property)]
         fn locked(&self) -> zbus::Result<bool>;
         #[zbus(signal)]
@@ -671,6 +677,8 @@ pub mod test {
         fn prompt_activity(&self, action: &str) -> zbus::Result<()>;
         /// Moves idle's clock on.
         fn idle_advance(&self, millis: u64) -> zbus::Result<()>;
+        /// Fires idle's sleep step now, if its timer runs.
+        fn sleep_now(&self) -> zbus::Result<bool>;
         /// The lock as JSON.
         fn lock_status(&self) -> zbus::Result<String>;
         /// Starts the Login Items at once; their ids.

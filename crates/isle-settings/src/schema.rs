@@ -67,6 +67,8 @@ pub struct Settings {
     pub notifications: Notifications,
     #[setting(section)]
     pub lock_screen: ScreenLock,
+    #[setting(section)]
+    pub energy: Energy,
     /// An app's notification rules, by its desktop id.
     #[setting(keyed)]
     pub notification_app: BTreeMap<String, NotificationApp>,
@@ -723,6 +725,8 @@ pub struct IslandGlyphs {
     pub updates: GlyphTier,
     #[setting(default = GlyphTier::WhenActive)]
     pub battery: GlyphTier,
+    #[setting(default = GlyphTier::WhenActive)]
+    pub keep_awake: GlyphTier,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
@@ -981,6 +985,33 @@ pub struct ScreenLock {
     /// Lock before every sleep.
     #[setting(default = true)]
     pub lock_on_sleep: bool,
+}
+
+/// Sleep, wake and what keeps the computer awake (Settings › Energy).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Energy {
+    /// The computer never sleeps by idle; off, it sleeps a minute after the screens go off.
+    #[setting(default = true)]
+    pub prevent_sleep: bool,
+    /// Keep Awake holds the display as well as the computer, so the session stays unlocked.
+    #[setting(default = true)]
+    pub keep_awake_display: bool,
+    /// Apps whose keep-awake keeps the display on, by app id.
+    pub display_apps: Vec<String>,
+    /// Wired and Wi-Fi connections wake the computer on a magic packet.
+    #[setting(default = false)]
+    pub wake_for_network: bool,
+    /// What a press of the power button does.
+    #[setting(default = PowerButton::SessionDialog)]
+    pub power_button: PowerButton,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]
+pub enum PowerButton {
+    /// Restart, Sleep, Shut Down and Log Out.
+    SessionDialog,
+    Sleep,
+    Lock,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

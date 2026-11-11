@@ -752,3 +752,17 @@
   output (the VM has one). Next: 20b.9, the host run with the user, then
   the decisions, ARCHITECTURE's How a session comes back and the sheet's
   outcome.
+- P20h, power, added 2026-11-11 and planned in `p20h-power.md` and
+  approved; built at once at the user's word, ahead of 20b.9. Found first: a Claude
+  session's keep-awake never reaches Isle, since Chromium sends
+  app-suspension holds only to `org.gnome.SessionManager` or
+  `org.freedesktop.PowerManagement` and Isle owns neither
+  (`docs/research/rust-desktop/power-2026.md`). The plan: PowerManagement
+  served; display holds and sleep holds (P11 choice 28 revised); sleep as
+  idle's fourth step, a minute after display off, behind "Prevent
+  automatic sleeping when the display is off" (on by default); Keep Awake
+  in Control Centre with the island's glyph and "Keep the display on",
+  and `isle awake`; "Apps that keep the display on", so a listed app's
+  keep-awake keeps the session unlocked (the user asked for options); Energy's
+  wake for network access, power button and holds list. A board at 20h.1.
+  Phases 20h.0–20h.9.

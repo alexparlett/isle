@@ -315,7 +315,7 @@ Keychain.
 
 **P20 · The rest of v1.** Split 2026-11-04 at the user's choice into
 seven packets, each planned, walked and closed before the next; P20b first
-at the user's word. General's Software Update moved to P14c, with the
+at the user's word. P20h, power, added 2026-11-11 and built at once, ahead of 20b.9. General's Software Update moved to P14c, with the
 update path. Intent: all.
 
 **P20a · Windows.** Planned 2026-11-04, for review: `p20a-windows.md`.
@@ -365,6 +365,16 @@ Not shown by itself on a text field. Intent: shell.md On-screen keyboard.
 **P20g · The audit.** P15b's remaining Files cuts; then a walk of
 `isle-v1-inventory.md` that nothing of v1 is left, each line built, cut or
 declined. P18 stays set aside and is listed, not taken in. Intent: all.
+
+**P20h · Power.** Planned and approved 2026-11-11: `p20h-power.md`. Built
+at once at the user's word, ahead of 20b.9. `org.freedesktop.PowerManagement` served,
+so Chromium's and Electron's keep-awake reach Isle; display holds and
+sleep holds; sleep as idle's fourth step behind "Prevent automatic
+sleeping when the display is off"; Keep Awake in Control Centre and the
+island, with the display kept on or not, and `isle awake`; apps the user
+lists keeping the display on; Energy's rows for wake for network access and
+the power button, and what keeps the computer awake, behind a board.
+Intent: compositor.md Idle, DPMS and sleep, apps.md Settings.
 
 ## Milestone M2: Isle replaces v1 on the host
 

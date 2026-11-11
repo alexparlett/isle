@@ -41,5 +41,7 @@ one at a time.
 - `p20b-session.md`: P20b, session restore, the crash notice for apps and
   Login Items.
 - `p20f-keyboard.md`: P20f, the on-screen keyboard.
+- `p20h-power.md`: P20h, power: keep-awake holds, sleep on idle, Keep
+  Awake and Energy's rows.
 - `p22-hdr.md`: P22, HDR.
 - Evidence: `docs/research/rust-desktop/`.

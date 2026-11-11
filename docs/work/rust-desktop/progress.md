@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-11-11 (P20h)
+
+- A Claude session's keep-awake left the screen to lock and turn off.
+  Traced on the host: Claude desktop calls Electron's
+  `prevent-app-suspension`, which Chromium sends only to
+  `org.gnome.SessionManager` or `org.freedesktop.PowerManagement` after
+  asking whether either is owned; under Isle neither is, so nothing is
+  sent. Proved with a bare Electron 43 app and a stub owning the name
+  (`docs/research/rust-desktop/power-2026.md`). P20h, power, planned in
+  `p20h-power.md` at the user's word and approved; Energy's board
+  accepted; building at once, ahead of 20b.9.
+
 ## 2026-11-05 (P20)
 
 - P20b building at the user's word. 20b.0: `compositor.md` Session 7

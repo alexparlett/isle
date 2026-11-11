@@ -1,0 +1,169 @@
+<title>Energy rows</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../p1/harness/harness.css">
+<link rel="stylesheet" href="../p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="../p1/system/phosphor.js"></script>
+<script src="../p1/harness/harness.js"></script>
+<script src="../p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // P20h choices 15–17: Energy's rows, the apps that keep the display on and what keeps the computer awake, on P13's kit.
+  const S = Scene, { h } = Isle, { el, sp, row, col, grow, ic, appIcon } = S;
+  const add = (n, ...k) => (n.append(...k.flat(9).filter((x) => x != null && x !== false)), n);
+  const px = (n) => n + "px";
+
+  const PANES = {
+    wifi: ["Wi-Fi", "wifi-high", "blue"], bluetooth: ["Bluetooth", "bluetooth", "blue"], network: ["Network", "globe", "blue"], vpn: ["VPN", "globe", "blue"], energy: ["Energy", "lightning", "orange"],
+    general: ["General", "gear", "grey"], accessibility: ["Accessibility", "person-arms-spread", "blue"], appearance: ["Appearance", "circle-half", "graphite"], apps: ["Apps", "browsers", "indigo"], "control-centre": ["Control Centre", "squares-four", "purple"], desktop: ["Desktop", "app-window", "graphite"], displays: ["Displays", "monitor", "blue"], spotlight: ["Spotlight", "magnifying-glass", "graphite"], wallpaper: ["Wallpaper", "image", "teal"],
+    notifications: ["Notifications", "bell", "red"], sound: ["Sound", "speaker-high", "pink"], focus: ["Focus", "moon", "indigo"],
+    "lock-screen": ["Lock Screen", "lock", "graphite"], privacy: ["Privacy & Security", "hand-palm", "blue"],
+    keyboard: ["Keyboard", "keyboard", "grey"], mouse: ["Mouse", "mouse", "grey"],
+  };
+  const GROUPS = [["wifi", "bluetooth", "network", "vpn", "energy"], ["general", "accessibility", "appearance", "apps", "control-centre", "desktop", "displays", "spotlight", "wallpaper"], ["notifications", "sound", "focus"], ["lock-screen", "privacy"], ["keyboard", "mouse"]];
+
+  function tile(id, size) {
+    const glyph = ic(PANES[id][1], size >= 32 ? 24 : 16, true);
+    glyph.style.color = "#fff";
+    return el("", { width: px(size), height: px(size), borderRadius: px(size / 4), background: "var(--pane-" + PANES[id][2] + ")", display: "grid", placeItems: "center", flex: "none" }, glyph);
+  }
+
+  const APP = {
+    claude: (n) => appIcon(n, "#e4936a", "#c4603a", "sun"),
+    vivaldi: (n) => appIcon(n, "#ef5a5a", "#c62f2f", "globe"),
+    music: (n) => appIcon(n, "#46c46e", "#1f8f45", "play"),
+  };
+  const NAME = { claude: "Claude", vivaldi: "Vivaldi", music: "Spotify" };
+
+  const sw = (on) => h("span", { class: "s-switch" + (on ? " on" : "") });
+  const pop = (t, w) => h("span", { class: "s-popup", style: { minWidth: px(w || 120), justifyContent: "space-between", boxSizing: "border-box" } }, t, h("span", { class: "chev" }, ic("caret-up-down", 10, true)));
+  const seg = (list, i) => el("s-seg", {}, ...list.map((t, j) => sp(j === i ? "on" : "", t)));
+  const more = (anchor) => { const m = ic("dots-three-circle", 18, false, { color: "var(--colour-text-2)" }); if (anchor) m.dataset.anchor = anchor; return m; };
+
+  function r(label, ctrl, o) {
+    o = o || {};
+    const lab = col({ gap: "var(--space-xxs)", flex: 1, minWidth: 0 }, sp("", label), o.desc ? sp("s-callout s-2", o.desc) : null);
+    const style = { alignItems: o.desc ? "flex-start" : "center", gap: "var(--space-l)" };
+    if (o.desc) { style.paddingTop = "var(--space-m)"; style.paddingBottom = "var(--space-m)"; }
+    if (o.hi) style.background = "color-mix(in srgb, var(--colour-accent) 10%, transparent)";
+    return el("r", style, o.icon ? row({ flex: "none", alignSelf: o.desc ? "flex-start" : "center" }, o.icon) : null, lab, ctrl ? row({ flex: "none", gap: "var(--space-s)", marginTop: o.desc ? "-4px" : "0" }, ctrl) : null);
+  }
+  function group(title, rows, o) {
+    o = o || {};
+    return el("", { marginTop: o.first ? "var(--space-l)" : "var(--space-xl)" },
+      title ? row({ padding: "0 var(--space-m)", marginBottom: "var(--space-xs)" }, sp("s-headline", title)) : null,
+      o.sub ? el("", { padding: "0 var(--space-m)", marginBottom: "var(--space-s)" }, sp("s-callout s-2", o.sub)) : null,
+      el("s-group", {}, ...rows));
+  }
+  // A List row: icon and name per app, + and − beneath.
+  function list(apps, o) {
+    o = o || {};
+    const body = apps.length ? apps.map((a) => row({ height: "var(--size-row)", padding: "0 var(--space-m)", gap: "var(--space-s)", background: o.hi ? "color-mix(in srgb, var(--colour-accent) 10%, transparent)" : "transparent" }, APP[a](20), sp("", NAME[a], { flex: 1 })))
+      : [el("", { height: "64px", display: "grid", placeItems: "center" }, sp("s-2", "No apps"))];
+    const pm = (g, dim) => el("", { width: "20px", height: "20px", display: "grid", placeItems: "center", color: dim ? "var(--colour-text-disabled)" : "var(--colour-text)" }, ic(g, 12));
+    const foot = row({ height: "var(--size-control)", background: "var(--colour-window-sunken)", borderTop: "1px solid var(--colour-hairline)", padding: "0 var(--space-xs)", gap: "0", borderRadius: "0 0 var(--radius-card) var(--radius-card)" },
+      pm("plus"), el("", { width: "1px", height: "12px", background: "var(--colour-hairline)", margin: "0 2px" }), pm("minus", true));
+    return el("", { paddingTop: "var(--space-xs)" }, ...body, foot);
+  }
+  const header = () => row({ gap: "var(--space-m)" }, tile("energy", 32), col({ gap: "var(--space-xxs)", minWidth: 0 }, sp("s-title-2", "Energy"), sp("s-2", "Choose how the computer trades speed for power.")));
+
+  // o.listed: apps in "Apps that keep the display on"; o.holds: [app, display?, reason].
+  function energy(o) {
+    const listed = o.listed || [];
+    const holds = (o.holds || []).map(([a, display, why]) => r(NAME[a], more(a === "claude" ? "claude" : null), {
+      icon: APP[a](24),
+      desc: (display ? "Keeps the display on" : "Keeps the computer running") + (why ? " · " + why : ""),
+      hi: o.hi && a === "claude",
+    }));
+    return [header(),
+      group(null, [
+        r("Energy Mode", seg(["Low Power", "Automatic", "High Power"], 1)),
+        r("Prevent automatic sleeping when the display is off", sw(o.prevent !== false)),
+        r("Wake for network access", sw(false)),
+        r("When the power button is pressed", pop("Show the session dialog", 200)),
+      ], { first: true }),
+      group("Apps that keep the display on", [list(listed, { hi: o.hi })], { sub: "When one of these apps keeps the computer awake, the display stays on and the computer stays unlocked. Other apps keep the computer running and let the display turn off and lock." }),
+      group("Keeping this computer awake", holds.length ? holds : [r("Nothing", null)]),
+    ];
+  }
+
+  // ---- The window, as P16's rows board places it ---------------------------------------
+  const H = S.H, WX = 1270, WY = 300, WW = 900, WH = 760, BAND = 94;
+  function sidebar(sel) {
+    const inner = el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column" },
+      row({ height: "48px", gap: "var(--space-s)", padding: "0 var(--space-s)", flex: "none" },
+        el("", { width: "32px", height: "32px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, sp("s-headline", "AP")),
+        col({ gap: "0" }, sp("s-headline", "Alex Parlett"), sp("s-sub s-2", "alexparlett"))));
+    GROUPS.forEach((g) => { add(inner, el("", { height: "12px", flex: "none" })); g.forEach((id) => add(inner, el("s-side-item" + (id === sel ? " sel focused" : ""), { flex: "none" }, tile(id, 20), sp("", PANES[id][0])))); });
+    const band = el("", { position: "absolute", left: 0, right: 0, top: 0, height: px(BAND), background: "var(--colour-sidebar)", zIndex: 1 },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)" }, S.lights()),
+      el("s-field search", { margin: "0 var(--space-s)", height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("ph", "Search")));
+    return el("", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)", background: "var(--colour-sidebar)", borderRight: "1px solid var(--colour-hairline)", boxSizing: "border-box" },
+      el("", { position: "absolute", left: 0, right: 0, top: px(BAND), bottom: 0, overflow: "hidden" }, inner), band);
+  }
+  function place(s, body, st, after) {
+    const tb = el("s-toolbar", { padding: "0 var(--space-l)", gap: "var(--space-s)" },
+      ic("caret-left", 20, false, { color: "var(--colour-text-disabled)" }), ic("caret-right", 20, false, { color: "var(--colour-text-disabled)" }),
+      sp("s-headline", "Energy", { marginLeft: "var(--space-s)" }));
+    const column = add(el("", { width: "var(--size-form)", margin: "0 auto", padding: "var(--space-xl) 0 var(--space-xxxl)", display: "flex", flexDirection: "column" }), body);
+    const win = el("s s-window", { left: px(WX), top: px(WY), width: px(WW), minHeight: px(WH) }, sidebar("energy"), el("", { marginLeft: "var(--size-sidebar)" }, tb, column));
+    s.append(win);
+    if (after) after(win);
+    const hh = win.offsetHeight, y = hh > H - WY - 40 ? Math.max(24, H - 24 - hh) : WY;
+    win.style.top = px(y);
+    const cy = Math.max(0, y - 50);
+    st.crop = [WX - 110, cy, WW + 220, Math.min(H - cy, hh + 100)];
+  }
+  function menuAt(win, anchor, items) {
+    const a = win.querySelector('[data-anchor="' + anchor + '"]');
+    const ar = a.getBoundingClientRect(), wr = win.getBoundingClientRect(), k = wr.width / win.offsetWidth;
+    const m = S.menu(0, (ar.bottom - wr.top) / k + 4, items, { material: "window" });
+    m.style.zIndex = 4;
+    win.append(m);
+    m.style.left = px((ar.right - wr.left) / k - m.offsetWidth);
+  }
+  const scene = (id, name, note, body, after) => ({ id, name, note, render(s) { place(s, body(), this, after); } });
+
+  const HOLDS = [["claude", false, "Working on a task"], ["vivaldi", true, "Playing video"], ["music", false, "Playing audio"]];
+  const HOLDS_LISTED = [["claude", true, "Working on a task"], ["vivaldi", true, "Playing video"], ["music", false, "Playing audio"]];
+
+  Isle.board({
+    title: "Energy rows",
+    subtitle: "P20h choices 15–17: Energy's rows, the apps that keep the display on, and what keeps the computer awake, on P13's kit at actual size.",
+    tokens: "../../../../data/tokens/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "energy", name: "Energy", sheet: "p20h-power.md", states: [
+        scene("before", "1 · As it ships", "Claude's session holds keep-awake. Claude isn't listed, so its line says it keeps the computer running: the display still dims, locks and turns off. Vivaldi's video keeps the display on, as today. Spotify's audio keeps the computer running only.",
+          () => energy({ holds: HOLDS })),
+        scene("menu", "2 · Claude's ⋯ menu", "The ⋯ on Claude's line offers to add it to the list above, so you don't need to find it with +.",
+          () => energy({ holds: HOLDS }), (win) => menuAt(win, "claude", ["Keep the Display On for Claude", "—", "Show in Monitor"])),
+        scene("after", "3 · Claude listed", "Claude is in Apps that keep the display on. While its session holds keep-awake, its line says it keeps the display on, and the computer stays lit and unlocked. When the session lets go, idle carries on as normal. Remove it with − or from its ⋯ menu.",
+          () => energy({ listed: ["claude"], holds: HOLDS_LISTED, hi: true })),
+        scene("nothing", "4 · Nothing holding", "Claude listed, nothing holding now: idle runs as usual.",
+          () => energy({ listed: ["claude"], holds: [] })),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 20h">
+  <h2>How it works</h2>
+  <p>An app that asks to keep the computer awake (Claude's session, a music player, a download) keeps it <b>running</b>: the computer won't sleep, but the screen dims, locks and turns off on its usual timers. Apps you list under <b>Apps that keep the display on</b> get more: while they hold, the screen stays on and the computer stays unlocked. A video player already keeps the display on by itself.</p>
+  <h2>For you to answer</h2>
+  <p>Reply lgtm or name changes. Recommended:</p>
+  <ol>
+    <li><b>The list is per app</b>, empty by default, with + and − as Focus's allowed apps.</li>
+    <li><b>Each line of Keeping this computer awake has a ⋯ menu</b> that adds or removes that app from the list.</li>
+    <li><b>Keep Awake in Control Centre</b> (not drawn here) has its own "Keep the display on" switch for keeping everything awake by hand.</li>
+  </ol>
+</section>

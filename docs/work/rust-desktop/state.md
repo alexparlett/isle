@@ -766,3 +766,11 @@
   keep-awake keeps the session unlocked (the user asked for options); Energy's
   wake for network access, power button and holds list. A board at 20h.1.
   Phases 20h.0–20h.9.
+- P20h built and walked in the VM 2026-11-11 (20h.0–20h.8; progress.md).
+  Keep Awake's module, page and `isle-coffee` glyph were built from the
+  code and shot, awaiting the user's word in place of a board. Next:
+  20h.9, the host run with the user (a Claude session's keep-awake with
+  and without Claude listed, Keep Awake, an idle sleep and its wake to the
+  lock on NVIDIA, a magic packet, the power button), then the decisions
+  from B144, ARCHITECTURE's How idle decides, and the sheet's outcome;
+  then 20b.9.

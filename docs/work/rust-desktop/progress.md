@@ -2,6 +2,37 @@
 
 ## 2026-11-11 (P20h)
 
+- P20h built 20h.0–20h.8 the same day at the user's word. Commits
+  37f3ae42 (the compositor, `isle awake`, the power button, wake for
+  network), c9e81da6 (Settings › Energy), 993e7d28 (the record, Keep
+  Awake's shots), 2da42db7 (from the walk). Wake for network was built by
+  a delegated agent in `isle-network` and the fake NetworkManager.
+  `tests/sleep.rs` (nine tests), `isle-network/tests/wake*.rs`, Energy's
+  pane tests; idle, holds, screensaver, lock_sleep, session_end, portal,
+  Control Centre, edit, island, games and cast still pass. The Keep Awake
+  glyph is a new `isle-coffee`, drawn on Phosphor's grid, since Night
+  Light already uses `sun-horizon`; its module, page and glyphs were
+  shot headless and drawn from the code, not from a board first (choice
+  14), for the user to confirm.
+- 20h.8, the VM walk on r721–r722 by QMP input: a PowerManagement hold
+  from a GLib client (the guest has no Electron) listed as a sleep hold,
+  `HasInhibit` true, the screen locked and went off under it; with the
+  switch off, sleep armed when the hold went and the guest suspended a
+  minute later through logind and woke with the screens on (its
+  virtio-gpu then shows nothing, as after any suspend there:
+  `power-2026.md` §5). mpv's video held the display and its end counted
+  as input. Keep Awake by click: on as a display hold with the glyph, its
+  page's For 1 Hour ("Until 15:43") and the display switch to a sleep hold
+  and the outline glyph. `isle awake -- sleep 20` and `--display` held
+  and ended with their process; the exit status passes through. Energy
+  live: Claude's hold listed, its ⋯ menu's Keep the Display On made it a
+  display hold. The power button through `system_powerdown`: the session
+  dialog, then Lock locked; Sleep is headless only (the guest has no
+  password to unlock with). Found and fixed: Firefox's music came through
+  ScreenSaver as "Playing audio" and held the screen; Energy split
+  "firefox" and "Firefox"; Keep Awake's status line was cut off. No
+  panics. The guest's greetd `initial_session` was undone.
+
 - A Claude session's keep-awake left the screen to lock and turn off.
   Traced on the host: Claude desktop calls Electron's
   `prevent-app-suspension`, which Chromium sends only to

@@ -35,7 +35,11 @@ was not settled.
 - *Unknown*: which of Chromium's own wake locks use app suspension. Audio
   playback without video is believed to, which would make a
   PowerManagement hold that also held the screen keep it lit under music.
-  To be checked in the VM before 20h.2 closes.
+  Not checked: the guest has no Chromium or Electron.
+- VM (2026-11-11): Firefox 157 playing an `<audio>` element sends
+  `org.freedesktop.ScreenSaver.Inhibit("firefox", "Playing audio")`, not
+  PowerManagement, so under P9's rules music in Firefox kept the screen
+  lit. P20h counts that reason as a sleep hold.
 
 ## 2 The interface
 
@@ -76,4 +80,14 @@ ScreenSaver, cookies are dropped when the caller leaves the bus.
   wake per connection: `802-3-ethernet.wake-on-lan` `magic` (0x40) and
   `802-11-wireless.wake-on-wlan` `magic` (0x8).
 - *Unknown*: whether this board's firmware wakes from `deep` on WoWLAN or
-  on the r8169's magic packet. To be tried at 20h.10.
+  on the r8169's magic packet. To be tried at 20h.9.
+
+## 5 Sleep in the VM
+
+- VM (2026-11-11): the guest's idle sleep went through logind (`Suspend`,
+  QMP status `suspended`) a minute after a PowerManagement hold was let go
+  with the screens off, and `system_wakeup` brought the session back with
+  "screens on" and "resumed from sleep" logged. The guest's virtio-gpu
+  shows "Display output is not active" after any resume, `systemctl
+  suspend` with the screens on included, and the guest then hangs at
+  reboot; waking to the lock is the host run's to show.

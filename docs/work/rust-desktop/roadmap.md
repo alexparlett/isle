@@ -367,7 +367,8 @@ Not shown by itself on a text field. Intent: shell.md On-screen keyboard.
 declined. P18 stays set aside and is listed, not taken in. Intent: all.
 
 **P20h · Power.** Planned and approved 2026-11-11: `p20h-power.md`. Built
-at once at the user's word, ahead of 20b.9. `org.freedesktop.PowerManagement` served,
+and walked in the VM the same day, ahead of 20b.9; the host run (20h.9) is
+next. `org.freedesktop.PowerManagement` served,
 so Chromium's and Electron's keep-awake reach Isle; display holds and
 sleep holds; sleep as idle's fourth step behind "Prevent automatic
 sleeping when the display is off"; Keep Awake in Control Centre and the

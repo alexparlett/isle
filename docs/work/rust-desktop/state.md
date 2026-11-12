@@ -781,3 +781,12 @@
   one polkit prompt; progress in `update.json`; Stop until pacman starts;
   restart owed from three reasons; every surface P1 draws, and Settings'
   page behind a board at 14d.1. Phases 14d.0–14d.8.
+- P14d approved and built 2026-11-12 through 14d.7: `isle-updates`,
+  `isle update`, `Updates1`, the module, glyph, menu line and badge,
+  the notes, Settings' page (board passed), walked in the VM. No setup
+  step after all: paru runs on a config of Isle's own with its PKGBUILD
+  compiled in. Next: 14d.8, the host run with the user (its 470 updates,
+  the kernel and NVIDIA among them, and Isle rebuilt from its branch,
+  once pushed), then the decisions, ARCHITECTURE's How an update runs and
+  the sheet's outcome.
+

@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::{
     nav::Location,
-    services::{Act, Follow, Services, use_follow},
+    services::{Act, Follow, use_follow},
     ui::{self, Rows},
 };
 
@@ -166,16 +166,7 @@ impl Card {
                 buttons: vec![button("Try Again", Some(Act::InstallUpdates), true)],
                 ..base
             },
-            _ if !restart.is_empty() => Card {
-                glyph: "arrows-clockwise",
-                tone: Tone::Accent,
-                title: "Restart to finish updating".into(),
-                sub: "Until you restart, the computer keeps running what it started with.".into(),
-                sources: restart.into_iter().map(|r| (r, String::new())).collect(),
-                buttons: vec![button("Restart…", Some(Act::RestartForUpdates), true)],
-                ..base
-            },
-            "Done" => Card {
+            "Done" if restart.is_empty() => Card {
                 glyph: "check",
                 tone: Tone::Good,
                 title: "Updates installed".into(),
@@ -245,10 +236,24 @@ impl Card {
                         button("Check Now", Some(Act::CheckUpdates), false),
                         button("Update Now", Some(Act::InstallUpdates), true),
                     ],
+                    note: (!restart.is_empty())
+                        .then(|| "Restart to finish the last update.".to_owned()),
                     more: true,
                     ..base
                 }
             }
+            _ if !restart.is_empty() => Card {
+                glyph: "arrows-clockwise",
+                tone: Tone::Accent,
+                title: "Restart to finish updating".into(),
+                sub: "Until you restart, the computer keeps running what it started with.".into(),
+                sources: restart.into_iter().map(|r| (r, String::new())).collect(),
+                buttons: vec![
+                    button("Check Now", Some(Act::CheckUpdates), false),
+                    button("Restart…", Some(Act::RestartForUpdates), true),
+                ],
+                ..base
+            },
             _ => Card {
                 glyph: "check",
                 tone: if s["check_error"].is_string() {
@@ -311,6 +316,7 @@ impl Component for SoftwareUpdatePage {
         let head = rect()
             .width(Size::fill())
             .horizontal()
+            .content(Content::flex())
             .spacing(t.space_m)
             .child(circle)
             .child(
@@ -341,6 +347,7 @@ impl Component for SoftwareUpdatePage {
                         .width(Size::fill())
                         .height(Size::px(t.size_row))
                         .horizontal()
+                        .content(Content::flex())
                         .cross_align(Alignment::Center)
                         .padding((0., t.space_m))
                         .child(rect().width(Size::flex(1.)).child(text::line(
@@ -400,6 +407,7 @@ impl Component for SoftwareUpdatePage {
         let buttons = rect()
             .width(Size::fill())
             .horizontal()
+            .content(Content::flex())
             .spacing(t.space_s)
             .cross_align(Alignment::Center)
             .child(rect().width(Size::flex(1.)).maybe_child(leading))
@@ -414,7 +422,7 @@ impl Component for SoftwareUpdatePage {
                     .enabled(act.is_some())
                     .on_press(move |_| {
                         if let Some(act) = act.clone() {
-                            Services::get().act(act);
+                            services.act(act);
                         }
                     })
                     .into_element()
@@ -494,6 +502,7 @@ impl Component for MoreInfo {
                         .width(Size::fill())
                         .height(Size::px(t.size_row))
                         .horizontal()
+                        .content(Content::flex())
                         .cross_align(Alignment::Center)
                         .spacing(t.space_m)
                         .child(rect().width(Size::flex(2.)).child(text::line(
@@ -587,7 +596,7 @@ mod tests {
             r#"{"progress":{"state":"Done","total":3},"restart":["The kernel was updated"]}"#,
         ));
         assert_eq!(owed.title, "Restart to finish updating");
-        assert_eq!(owed.buttons[0].act, Some(Act::RestartForUpdates));
+        assert_eq!(owed.buttons[1].act, Some(Act::RestartForUpdates));
         let refused =
             Card::from_status(&status(r#"{"progress":{"state":"Refused"},"restart":[]}"#));
         assert_eq!(refused.title, "The update didn't start");

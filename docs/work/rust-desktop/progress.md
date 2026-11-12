@@ -1,5 +1,38 @@
 # Progress
 
+## 2026-11-12 (P14d)
+
+- P14d planned, approved and built 14d.0–14d.7 the same day at the user's
+  word ("plan and build the updater"). Commits bf23a61f (the plan and
+  evidence), 2b11314f (`isle-updates`, `isle update`, the policy and
+  PKGBUILD), e4c6097c (the compositor's service, module, glyph, menu and
+  notes), 5268dd66 (Settings' page), and the walk's fixes after.
+  `isle-updates` (17 tests on recorded runs), `tests/updates.rs` (five
+  against a fake paru), Settings' card states; Control Centre, menubar,
+  edit controls, desktop notes and island tests still pass. The board
+  (`p14d/updates-1.html`) passed with every recommendation.
+- 14d.7, the VM walk on r729 by QMP input: restart owed from the kernel on
+  sign-in (glyph, menu line, page); Check Now found six repository
+  updates from a local test repository and Isle's commit on `origin`;
+  Update Now asked one password (Isle's own message) for the repositories'
+  transaction and the make dependencies, counted "Installing 10 of 11",
+  went on to build Isle on Isle's paru config; Settings quit and reopened
+  mid-run; the module's page and arc; the compositor killed mid-run and
+  the new one showing the run; Stop during Isle's build left no cargo
+  behind and the repository updates installed; a refused password reads
+  "The update didn't start"; the menu's badge and restart line, which
+  opened the restart confirmation (cancelled). Found and fixed: Settings
+  aborted on Check Now (a hook called in a press handler); the card's
+  buttons pushed off its edge (rows without flex content); a restart owed
+  hid waiting updates and had no Check Now; the arc drawn black; the
+  module's foot opened General, not its page; the page repeated its state.
+  Not walked in the VM: "Update installed" (Isle is always waiting there,
+  since `origin` is behind this checkout), which the headless tests cover,
+  and a full Isle rebuild, which is the host's. The guest's own mesa (a
+  local epoch-3 build) lost `libLLVM.so.22.1` to the upgrade and the
+  greeter fell back to tuigreet until the repository's mesa went back in.
+  Next: 14d.8, the host run with the user.
+
 ## 2026-11-11 (P20h)
 
 - P20h built 20h.0–20h.8 the same day at the user's word. Commits

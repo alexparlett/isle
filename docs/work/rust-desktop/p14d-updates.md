@@ -4,7 +4,8 @@ Planned 2026-11-12 and approved the same day ("lgtm", every
 recommendation taken); building. Split from P14c at the user's word, built
 ahead of the rest of the switch. 14d.0's evidence
 (`docs/research/rust-desktop/updates-2026.md`) revised choices 6, 12 and
-13 and added choice 5's target directory.
+13 and added choice 5's target directory; building revised choices 2, 4,
+6, 9, 11, 12, 14 and 24 (marked *revised*), and dropped the setup step.
 
 Isle on the host has no way to update anything. The catalogue lists
 Control Centre's Updates module as "Not in this version of Isle."; the
@@ -60,35 +61,26 @@ and a restart owed is said wherever the user looks until they restart.
 2. **P14d holds:** the check, the run, restart owed, Control Centre's
    Updates module, the island's glyph, the system menu's count and restart
    line, the notifications, Settings › General › Software Update,
-   `isle update`, and the `isle setup` step that makes Isle's own package
-   updatable through paru.
+   and `isle update`. *Revised:* no `isle setup` step (choice 4).
 3. **Left out:** installing or removing single packages (D83); Arch news
    and `.pacnew` files; mirror ranking; flatpak and firmware (fwupd);
    rolling back. Cleaner keeps the package cache and orphans (P19b).
 
 ### Isle's own package
 
-4. **Isle is a paru PKGBUILD repository.** `isle-git` is not in the AUR,
-   so `paru -Qua` never sees it (the host's paru knows only
-   `appimagetool-bin` as a devel package today). `isle setup` gains an
-   `updates` step that adds to `/etc/paru.conf`:
-
-   ```ini
-   [isle]
-   Url = https://github.com/alexparlett/isle
-   Path = pkg/arch
-   GenerateSrcinfo
-   SkipReview
-   ```
-
-   and runs `paru --gendb` as the user so the installed commit is
-   recorded. paru then counts a new commit on the PKGBUILD's branch as an
-   update and rebuilds it inside `paru -Syu`, from Settings or a terminal
-   alike. The step is undone by removing the section. `/etc/paru.conf` is
-   edited rather than a user file because paru reads only one config and
-   a user file would hide CachyOS's `Devel` and `Provides`. Rejected:
-   Isle building or installing itself (a second updater beside paru,
-   against B29).
+4. **Isle is a PKGBUILD repository on a paru config of Isle's own.**
+   `isle-git` is not in the AUR, so paru never sees it by itself.
+   *Revised in building:* not a section in `/etc/paru.conf` added by
+   `isle setup`. A `Url` repository is cloned at its default branch, and
+   `main` has no `pkg/arch` until P21; a `Path` under `/usr/share` cannot
+   be built in. Instead `isle update run` writes
+   `~/.cache/isle/updates/paru.conf`, which `Include`s the user's
+   `paru.conf` or else `/etc/paru.conf` and adds `[isle]` with `Path` at
+   `~/.cache/isle/updates/pkgbuild`, where it writes the PKGBUILD compiled
+   into this build (B100), and runs paru with `PARU_CONF` set to it. No
+   system file changes; a terminal's `paru -Syu` leaves Isle alone.
+   Rejected: Isle building or installing itself (a second updater beside
+   paru, against B29).
 5. **The branch is the PKGBUILD's.** `feature/rust-desktop` until P21,
    which moves the PKGBUILD's source to `main`; nothing in Isle names
    the branch. The PKGBUILD builds into `$startdir/target` unless
@@ -104,11 +96,12 @@ and a restart owed is said wherever the user looks until they restart.
    into a temporary copy, so the system's are never partly synced, D83)
    and `paru -Qua` (the AUR, devel packages included). Each line is
    `name from -> to`; the source is Repositories or AUR. paru never lists
-   a PKGBUILD repository's devel package there, so Isle's own update is
-   found as paru will find it in the run: `isle-git`'s commit in
-   `~/.local/state/paru/devel.toml` against `git ls-remote` of its URL and
-   branch. No check runs during a run, or while `/var/lib/pacman/db.lck`
-   exists.
+   a PKGBUILD repository's devel package there. *Revised:* Isle's own
+   update is the commit in the installed `isle-git`'s version
+   (`r<n>.g<hash>`) against `git ls-remote` of the compiled-in PKGBUILD's
+   source and branch; paru's `devel.toml` has no entry for a package it
+   did not build, and `--gendb` adds none. No check runs during a run, or
+   while `/var/lib/pacman/db.lck` exists.
 7. **One setting:** "Check for updates automatically", on by default
    (`updates.check`). Off, only Check Now and the post-run check look.
    Rejected: downloading in the background (pacman's cache is root's;
@@ -123,7 +116,10 @@ and a restart owed is said wherever the user looks until they restart.
    --sudo pkexec`, run as the user. paru syncs and upgrades the
    repositories through `pkexec pacman`, then builds the AUR's and Isle's
    updates as the user and installs them through `pkexec pacman -U`.
-   Every question takes its default. With paru missing, the command is
+   Every question takes its default. *Revised:* when the check found an
+   Isle update, `isle-git` is named as a target of the same `-Syu`, since
+   paru rebuilds a devel package it has no record of only when named.
+   With paru missing, the command is
    `pkexec pacman -Syu --noconfirm --noprogressbar` and the AUR and Isle
    are not checked.
 10. **One password per run.** paru calls pkexec two to four times in one
@@ -137,16 +133,16 @@ and a restart owed is said wherever the user looks until they restart.
     the single prompt; if it fails, the fallback is `--sudo` pointing at a
     small Isle shim that holds one pkexec'd root process for the run.
 11. **The run is a transient user unit,** `isle-update.service`, started
-    through systemd's `StartTransientUnit` with `isle update run` as its
-    command. It is no child of the compositor or Settings, outlives both,
+    by `systemd-run --user --collect` (*revised*: as `launch.rs` starts
+    scopes) with `isle update run [--isle]` as its command. It is no child of the compositor or Settings, outlives both,
     and its whole output is in the journal under its unit. A second
     Install while the unit is active is refused. 14d.0 proves pkexec from
     a user unit reaches the compositor's polkit agent (polkit 128 falls
     back to the user's display session for a process outside one).
 12. **Progress is a file.** `isle update run` reads paru's and pacman's
     lines and rewrites `$XDG_RUNTIME_DIR/isle/update.json` whole on every
-    change (write and rename): the phase, each package's state (waiting,
-    downloading, building, installing, done, removed), `{n} of {total}`
+    change (write and rename): the phase, `{n} of {total}` (*revised*: no
+    per-package states; the page shows counts and lines)
     counted from pacman's `upgrading X...` lines against the transactions'
     `Packages (N)`, `Pkgbuilds (N)` and `Aur (N)` lines (through a pipe
     pacman prints no counters), the last 200 lines, the start and
@@ -160,11 +156,11 @@ and a restart owed is said wherever the user looks until they restart.
     other code is a failure whose reason is the last
     `error:` line pacman or paru printed, else "Stopped with code {n}".
     A line that reads like a complaint is never a reason on a run that
-    exits 0. After any run the package states are settled against the
-    next check: a package still listed was not updated, whatever the
-    lines said.
+    exits 0. A run whose process is gone while its file says running
+    reads "The update stopped unexpectedly."
 14. **Stop, until pacman starts.** While paru is downloading, syncing or
-    building, Stop ends the unit and the run reads "Stopped". While a
+    building, Stop sends SIGTERM to the run's process group (it leads its
+    own session in its unit) and the run reads "Stopped". While a
     pacman transaction holds `db.lck`, Stop is disabled with "Can't stop
     while packages are being installed." Rejected: no Stop at all (an
     Isle rebuild takes minutes and is safe to interrupt); Stop at any time
@@ -227,9 +223,10 @@ and a restart owed is said wherever the user looks until they restart.
     General (P1).
 24. **`isle update`:** `check` (prints the list), `install` (starts the
     run, `--wait` follows it), `status` (the progress as JSON), `stop`.
-    `Updates1` on the session bus carries the same: `Check`, `Install`,
-    `Stop`, and the list, progress and restart-owed as properties with
-    change signals.
+    `Updates1` on the session bus carries the same: `Status` as JSON,
+    `Check` (returning once done), `Install` and `Stop` (returning why
+    not), `Restart` (the session dialog's), and `Changed` (*revised*: one
+    signal and a JSON status, as `Focus1`).
 
 ### Proof
 
@@ -257,8 +254,8 @@ and a restart owed is said wherever the user looks until they restart.
 
 - `isle-updates` (new): the check's parsers, the run's line reader and
   progress model, `update.json`, restart owed under a root.
-- `isle-cli`: `isle update` and its `run` used by the unit; the `updates`
-  setup step.
+- `isle-cli`: `isle update` and its `run` used by the unit, which writes
+  paru's config.
 - `isle-compositor`: `updates.rs` (the schedule, the file watch, the
   unit, restart owed); `control_centre.rs` and `control_edit.rs` the
   module; `island.rs` the glyph; `menubar.rs` the item and the line;
@@ -313,19 +310,22 @@ notifications. Tests.
 General › Software Update and the sheet as the board draws them, the
 automatic-check row.
 
-### 14d.6 · Setup and the package
+### 14d.6 · The package
 
-The `updates` step (the paru section and `--gendb`, `--check`, `--undo`),
-the policy file, the PKGBUILD. Tests against a fake root.
+The policy file and the PKGBUILD's target beside it (*revised*: no setup
+step, choice 4).
 
 ### 14d.7 · The bars and the walk
+
+Done 2026-11-12 (`progress.md`): every step of choice 27 but "Update
+installed", which the guest cannot reach while Isle waits there, and a
+full Isle rebuild, left to the host.
 
 Choice 26's bars; choice 27's walk in the VM.
 
 ### 14d.8 · The host and close
 
-Package and install. With the user: `isle setup` for the `updates` step;
-the host's waiting updates (470 today, the kernel and NVIDIA among them)
+Package and install. With the user: the host's waiting updates (470 today, the kernel and NVIDIA among them)
 installed from Settings with one password, Settings closed mid-run; restart
 owed shown and the restart taken; Isle's own commit found and rebuilt.
 Then the decisions from the next free number, ARCHITECTURE's How an update
@@ -364,5 +364,7 @@ providers). Background downloads.
 - paru's output is not an interface. The parser takes only pacman's
   `(n/total)` and `::` lines and paru's `==>` lines, and falls back to the
   phase "Updating" with the last line when a line is unknown.
+- An upgrade can strand a package built or held locally against a
+  library the upgrade replaced (`updates-2026.md` §7); pacman only warns.
 - An Isle build is long and heavy; a game started mid-run competes with
   cargo. ananicy's rules already cover cargo and rustc on CachyOS.

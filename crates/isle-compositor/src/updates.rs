@@ -451,11 +451,10 @@ impl Isle {
         };
         let (state, glyph, page) =
             if let Some(p) = u.progress.as_ref().filter(|p| p.state == RunState::Running) {
-                let state = installing(p);
                 (
-                    state.clone(),
+                    installing(p),
                     "arrow-circle-up",
-                    vec![PageRow::Status(state), PageRow::Status(p.phase.clone())],
+                    vec![PageRow::Status(p.phase.clone())],
                 )
             } else if !u.restart.is_empty() {
                 let mut page = vec![PageRow::Heading("Restart to finish updating".into())];

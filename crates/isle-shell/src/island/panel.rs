@@ -1066,7 +1066,7 @@ fn module_circle(theme: &Theme, module: &Module) -> Rect {
             .child(
                 rect()
                     .position(Position::new_absolute())
-                    .child(progress_arc(size, t.stroke_progress, done).stroke(colour(t.colour_accent))),
+                    .child(progress_arc(size, t.stroke_progress, done, t.colour_accent)),
             )
         })
         .map(module.badge.clone(), |el, badge| {
@@ -1098,7 +1098,7 @@ fn module_circle(theme: &Theme, module: &Module) -> Rect {
 }
 
 /// An arc inside a `size` circle from twelve o'clock, clockwise, `done` of the way round.
-fn progress_arc(size: f32, stroke: f32, done: f32) -> SvgViewer {
+fn progress_arc(size: f32, stroke: f32, done: f32, ink: isle_tokens::Colour) -> SvgViewer {
     let done = done.clamp(0.0, 1.0);
     let r = (size - stroke) / 2.0;
     let c = size / 2.0;
@@ -1106,10 +1106,15 @@ fn progress_arc(size: f32, stroke: f32, done: f32) -> SvgViewer {
     let (x, y) = (c + r * angle.sin(), c - r * angle.cos());
     let large = u8::from(done > 0.5);
     let svg = format!(
-        r#"<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg"><path d="M{c} {top} A{r} {r} 0 {large} 1 {x:.2} {y:.2}" fill="none" stroke="currentColor" stroke-width="{stroke}" stroke-linecap="round"/></svg>"#,
+        r#"<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg"><path d="M{c} {top} A{r} {r} 0 {large} 1 {x:.2} {y:.2}" fill="none" stroke="rgb({},{},{})" stroke-width="{stroke}" stroke-linecap="round"/></svg>"#,
+        ink.r,
+        ink.g,
+        ink.b,
         top = c - r,
     );
-    let key = (done * 1000.0).round() as u64 ^ ((size as u64) << 20);
+    let key = (done * 1000.0).round() as u64
+        ^ ((size as u64) << 20)
+        ^ ((u64::from(ink.r) << 40) | (u64::from(ink.g) << 48) | (u64::from(ink.b) << 56));
     SvgViewer::new((key, bytes::Bytes::from(svg.into_bytes())))
         .show_loader(false)
         .width(Size::px(size))

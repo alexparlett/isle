@@ -80,6 +80,16 @@ repositories' transaction, the make dependencies, and two AUR installs).
   database names `nvidia-utils-615.78.08-2`, so the version without its
   release is compared.
 
+## 7. The walk
+
+A full upgrade of the guest replaced `llvm-libs` (22 to 23) while its
+locally installed `mesa` (epoch 3, "local is newer than extra") still
+linked `libLLVM.so.22.1`; the greeter could no longer load a GPU driver
+and greetd fell back to tuigreet. pacman only warned that the local
+package was newer. No restart-owed reason covers it: the next start
+fails instead. The host's mesa comes from CachyOS's repositories, so it
+moves with LLVM; a package held back or built locally does not.
+
 ## For the plan
 
 - Choice 6: Isle's own update is found from `devel.toml` and `git

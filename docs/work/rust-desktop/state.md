@@ -774,3 +774,10 @@
   lock on NVIDIA, a magic packet, the power button), then the decisions
   from B144, ARCHITECTURE's How idle decides, and the sheet's outcome;
   then 20b.9.
+- P14d, updates, split from P14c 2026-11-12 at the user's word and planned
+  in `p14d-updates.md`, for review. Isle as a paru PKGBUILD repository
+  (`isle-git` is not in the AUR, so paru never sees it today); the check
+  on the compositor's worker; `paru -Syu` in a transient user unit with
+  one polkit prompt; progress in `update.json`; Stop until pacman starts;
+  restart owed from three reasons; every surface P1 draws, and Settings'
+  page behind a board at 14d.1. Phases 14d.0–14d.8.

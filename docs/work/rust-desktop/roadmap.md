@@ -384,12 +384,21 @@ The one-time import of v1's preferences, window places and launch counts
 (B27). Theming installed apps from tokens as P1's `system/theming.md` maps
 them (`session-2026.md` §7 and §8), with Qt apps reaching Isle's file
 panels (§6). The rest of `isle setup`: keyring and fingerprint PAM lines,
-autologin, groups, the bootstrap command. The update path through paru and
-pacman, restart owed, and Settings › General › Software Update (from
-P20 at its split). Scan-out of a second GPU's connectors (moved from
+autologin, groups, the bootstrap command. Scan-out of a second GPU's connectors (moved from
 P2; §2), if a screen is on the iGPU by then. v1's user units disabled. Ends
 with the host booting into the new Isle. Intent: platform.md,
 compositor.md.
+
+**P14d · Updates.** Split from P14c at the user's word (2026-11-12),
+planned and approved the same day, building: `p14d-updates.md`. The check on the compositor's
+worker (`checkupdates` and `paru -Qua`), Isle as a paru PKGBUILD
+repository so a new commit is an update; the run as `paru -Syu` in a
+transient user unit with one password, its progress in a file; Stop until
+pacman starts; restart owed from the kernel, the NVIDIA module and Isle's
+binaries; Control Centre's Updates module, the island's glyph, the system
+menu's count and restart line, the notifications, Settings › General ›
+Software Update behind a board, and `isle update`. Intent: platform.md
+Updates, apps.md Settings 12.
 
 **P21 · Cut-over.** Remove v1's tree (`shell/`, `hypr/`, `plugins/`,
 `native/`, `theme/`) and its tooling; this branch becomes `main`.

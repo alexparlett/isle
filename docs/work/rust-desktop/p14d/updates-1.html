@@ -1,0 +1,230 @@
+<title>Software Update</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../p1/harness/harness.css">
+<link rel="stylesheet" href="../p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="../p1/system/phosphor.js"></script>
+<script src="../p1/harness/harness.js"></script>
+<script src="../p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // P14d choice 23: General › Software Update in each state, its More Info… sheet, the system menu's count and restart line, and the two notifications.
+  const S = Scene, { h } = Isle, { el, sp, row, col, ic } = S;
+  const add = (n, ...k) => (n.append(...k.flat(9).filter((x) => x != null && x !== false)), n);
+  const px = (n) => n + "px";
+
+  const PANES = {
+    wifi: ["Wi-Fi", "wifi-high", "blue"], bluetooth: ["Bluetooth", "bluetooth", "blue"], network: ["Network", "globe", "blue"], vpn: ["VPN", "globe", "blue"], energy: ["Energy", "lightning", "orange"],
+    general: ["General", "gear", "grey"], accessibility: ["Accessibility", "person-arms-spread", "blue"], appearance: ["Appearance", "circle-half", "graphite"], apps: ["Apps", "browsers", "indigo"], "control-centre": ["Control Centre", "squares-four", "purple"], desktop: ["Desktop", "app-window", "graphite"], displays: ["Displays", "monitor", "blue"], spotlight: ["Spotlight", "magnifying-glass", "graphite"], wallpaper: ["Wallpaper", "image", "teal"],
+    notifications: ["Notifications", "bell", "red"], sound: ["Sound", "speaker-high", "pink"], focus: ["Focus", "moon", "indigo"],
+    "lock-screen": ["Lock Screen", "lock", "graphite"], privacy: ["Privacy & Security", "hand-palm", "blue"],
+    keyboard: ["Keyboard", "keyboard", "grey"], mouse: ["Mouse", "mouse", "grey"],
+  };
+  const GROUPS = [["wifi", "bluetooth", "network", "vpn", "energy"], ["general", "accessibility", "appearance", "apps", "control-centre", "desktop", "displays", "spotlight", "wallpaper"], ["notifications", "sound", "focus"], ["lock-screen", "privacy"], ["keyboard", "mouse"]];
+
+  function tile(id, size) {
+    const glyph = ic(PANES[id][1], size >= 32 ? 24 : 16, true);
+    glyph.style.color = "#fff";
+    return el("", { width: px(size), height: px(size), borderRadius: px(size / 4), background: "var(--pane-" + PANES[id][2] + ")", display: "grid", placeItems: "center", flex: "none" }, glyph);
+  }
+  // The update's own glyph in a circle: accent while there is something to do, neutral otherwise.
+  function badgeGlyph(glyph, tone, size) {
+    size = size || 40;
+    const bg = tone === "accent" ? "var(--colour-accent)" : tone === "warn" ? "var(--colour-warning, #e5a000)" : tone === "ok" ? "var(--colour-success, #34c759)" : "var(--colour-fill-strong)";
+    const fg = tone ? "#fff" : "var(--colour-text)";
+    return el("", { width: px(size), height: px(size), borderRadius: "50%", background: bg, color: fg, display: "grid", placeItems: "center", flex: "none" }, ic(glyph, Math.round(size * 0.55), tone !== null && tone !== undefined));
+  }
+
+  const sw = (on) => h("span", { class: "s-switch" + (on ? " on" : "") });
+  const btn = (t, o) => { o = o || {}; const b = sp("s-btn" + (o.primary ? " primary" : "") + (o.dim ? " is-disabled" : "") + (o.small ? " small" : ""), t); if (o.anchor) b.dataset.anchor = o.anchor; return b; };
+  const spinner = () => sp("s-spinner", "");
+
+  function r(label, ctrl, o) {
+    o = o || {};
+    const lab = col({ gap: "var(--space-xxs)", flex: 1, minWidth: 0 }, typeof label === "string" ? sp(o.strong ? "s-headline" : "", label) : label, o.desc ? sp("s-callout s-2", o.desc) : null);
+    const style = { alignItems: o.desc ? "flex-start" : "center", gap: "var(--space-l)" };
+    if (o.desc) { style.paddingTop = "var(--space-m)"; style.paddingBottom = "var(--space-m)"; }
+    return el("r", style, o.icon ? row({ flex: "none", alignSelf: o.desc ? "flex-start" : "center" }, o.icon) : null, lab, ctrl ? row({ flex: "none", gap: "var(--space-s)" }, ctrl) : null);
+  }
+  function group(title, rows, o) {
+    o = o || {};
+    return el("", { marginTop: o.first ? "var(--space-l)" : "var(--space-xl)" },
+      title ? row({ padding: "0 var(--space-m)", marginBottom: "var(--space-xs)" }, sp("s-headline", title)) : null,
+      el("s-group", {}, ...rows));
+  }
+  const header = () => row({ gap: "var(--space-m)" }, tile("general", 32), col({ gap: "var(--space-xxs)", minWidth: 0 }, sp("s-title-2", "Software Update"), sp("s-2", "Keep the system, its apps and Isle up to date.")));
+
+  // The status card: a glyph, a title and a line under it, an optional middle, and buttons at its foot.
+  function card(o) {
+    const head = row({ gap: "var(--space-m)", alignItems: "flex-start" }, o.glyph,
+      col({ gap: "var(--space-xxs)", flex: 1, minWidth: 0 }, sp("s-title-3", o.title), o.sub ? sp("s-2 s-num", o.sub) : null));
+    const foot = o.buttons ? row({ gap: "var(--space-s)", justifyContent: "flex-end", marginTop: "var(--space-m)" }, o.left ? row({ flex: 1 }, o.left) : el("", { flex: 1 }), ...o.buttons) : null;
+    return el("s-group", { padding: "var(--space-l)", marginTop: "var(--space-l)" }, head, o.middle ? el("", { marginTop: "var(--space-m)" }, o.middle) : null, foot);
+  }
+  const sources = (list) => col({ gap: "0", borderRadius: "var(--radius-control)", background: "var(--colour-fill)", padding: "var(--space-xxs) 0" },
+    ...list.map(([name, n, note]) => row({ height: "var(--size-row)", padding: "0 var(--space-m)" }, sp("", name, { flex: 1 }), note ? sp("s-2 s-mono", note) : null, n != null ? sp("s-2 s-num", String(n), { minWidth: "36px", textAlign: "right" }) : null)));
+  const progress = (frac) => el("s-progress", { marginTop: "var(--space-s)" }, h("b", { style: { width: (frac * 100).toFixed(1) + "%" } }));
+  const LOG = [
+    "upgrading libsoup3...", "upgrading libssh...", "upgrading libssh2...", "upgrading libstemmer...", "upgrading libsysprof-capture...", "upgrading libtiff...", "upgrading libtirpc...", "upgrading libuv...",
+  ];
+  const BUILD_LOG = ["   Compiling isle-shell v0.1.0 (/home/alex/.cache/paru/clone/repo/isle/pkg/arch/isle)", "   Compiling isle-system-settings v0.1.0", "   Compiling isle-compositor v0.1.0", "   Compiling isle-files v0.1.0"];
+  const details = (lines) => el("", { marginTop: "var(--space-m)", background: "var(--colour-window-sunken)", borderRadius: "var(--radius-control)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", padding: "var(--space-s) var(--space-m)", height: "136px", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "flex-end" },
+    ...lines.map((l) => sp("s-mono s-2", l, { whiteSpace: "pre", lineHeight: "17px" })));
+  const auto = (on) => group(null, [r("Check for updates automatically", sw(on !== false), { desc: "Looks once an hour. Nothing is downloaded or installed until you choose Update Now." })]);
+
+  // ---- The page in each state ---------------------------------------------------------------
+  const WAITING = [["Repositories", 466], ["AUR", 2, "xremap-hypr-bin, appimagetool-bin"], ["Isle", null, "0f8209c → 7a1b2c3"]];
+  const STATES = {
+    uptodate: () => card({ glyph: badgeGlyph("check", "ok"), title: "Your computer is up to date", sub: "CachyOS · Isle 0f8209c · Checked 19:40", buttons: [btn("Check Now")] }),
+    checking: () => card({ glyph: badgeGlyph("arrow-circle-up", null), title: "Checking for updates…", sub: "Repositories, AUR and Isle", buttons: [row({ gap: "var(--space-s)" }, spinner()), btn("Check Now", { dim: true })] }),
+    waiting: () => card({ glyph: badgeGlyph("arrow-circle-up", "accent"), title: "469 updates are available", sub: "Including the kernel, the graphics driver and Isle · Checked 19:40",
+      middle: sources(WAITING), left: btn("More Info…", { anchor: "more" }), buttons: [btn("Check Now"), btn("Update Now", { primary: true })] }),
+    building: () => card({ glyph: badgeGlyph("arrow-circle-up", "accent"), title: "Installing 468 of 469", sub: "Building Isle · Started 19:42",
+      middle: [progress(468 / 469), o.details ? details(BUILD_LOG) : null], left: btn(o.details ? "Hide Details" : "Show Details"), buttons: [btn("Stop")] }),
+    installing: () => card({ glyph: badgeGlyph("arrow-circle-up", "accent"), title: "Installing 112 of 469", sub: "Upgrading libuv · Started 19:42",
+      middle: [progress(112 / 469), details(LOG), sp("s-callout s-2", "Can't stop while packages are being installed.", { display: "block", marginTop: "var(--space-s)" })], left: btn("Hide Details"), buttons: [btn("Stop", { dim: true })] }),
+    done: () => card({ glyph: badgeGlyph("check", "ok"), title: "Updates installed", sub: "469 packages · Finished 19:58", buttons: [btn("Check Now")] }),
+    failed: () => card({ glyph: badgeGlyph("warning", "warn"), title: "The update stopped", sub: "Another program is installing packages. Try again when it has finished.",
+      middle: o.details ? details(["error: failed to synchronize all databases (unable to lock database)"]) : null, left: btn("Show Details"), buttons: [btn("Try Again", { primary: true })] }),
+    refused: () => card({ glyph: badgeGlyph("lock", null), title: "The update didn't start", sub: "Permission was not given. Nothing was changed.", buttons: [btn("Try Again", { primary: true })] }),
+    restart: () => card({ glyph: badgeGlyph("arrows-clockwise", "accent"), title: "Restart to finish updating", sub: "Installed 19:58. Until you restart, the computer keeps running what it started with.",
+      middle: sources([["The kernel was updated"], ["The graphics driver was updated"], ["Isle was updated"]]), buttons: [btn("Restart…", { primary: true })] }),
+  };
+  let o = {};
+  function page(state, opts) {
+    o = opts || {};
+    return [header(), STATES[state](), auto(o.auto)];
+  }
+
+  // ---- The window, as P20h's board places it -----------------------------------------------
+  const H = S.H, WX = 1270, WY = 260, WW = 900, WH = 700, BAND = 94;
+  function sidebar(sel) {
+    const inner = el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column" },
+      row({ height: "48px", gap: "var(--space-s)", padding: "0 var(--space-s)", flex: "none" },
+        el("", { width: "32px", height: "32px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, sp("s-headline", "AP")),
+        col({ gap: "0" }, sp("s-headline", "Alex Parlett"), sp("s-sub s-2", "alexparlett"))));
+    GROUPS.forEach((g) => { add(inner, el("", { height: "12px", flex: "none" })); g.forEach((id) => add(inner, el("s-side-item" + (id === sel ? " sel focused" : ""), { flex: "none" }, tile(id, 20), sp("", PANES[id][0])))); });
+    const band = el("", { position: "absolute", left: 0, right: 0, top: 0, height: px(BAND), background: "var(--colour-sidebar)", zIndex: 1 },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)" }, S.lights()),
+      el("s-field search", { margin: "0 var(--space-s)", height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("ph", "Search")));
+    return el("", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)", background: "var(--colour-sidebar)", borderRight: "1px solid var(--colour-hairline)", boxSizing: "border-box" },
+      el("", { position: "absolute", left: 0, right: 0, top: px(BAND), bottom: 0, overflow: "hidden" }, inner), band);
+  }
+  function place(s, body, st, after) {
+    const tb = el("s-toolbar", { padding: "0 var(--space-l)", gap: "var(--space-s)" },
+      ic("caret-left", 20, false, { color: "var(--colour-text)" }), ic("caret-right", 20, false, { color: "var(--colour-text-disabled)" }),
+      sp("s-headline", "Software Update", { marginLeft: "var(--space-s)" }));
+    const column = add(el("", { width: "var(--size-form)", margin: "0 auto", padding: "var(--space-xl) 0 var(--space-xxxl)", display: "flex", flexDirection: "column" }), body);
+    const win = el("s s-window", { left: px(WX), top: px(WY), width: px(WW), minHeight: px(WH) }, sidebar("general"), el("", { marginLeft: "var(--size-sidebar)" }, tb, column));
+    s.append(win);
+    if (after) after(win);
+    const hh = win.offsetHeight, y = hh > H - WY - 40 ? Math.max(24, H - 24 - hh) : WY;
+    win.style.top = px(y);
+    const cy = Math.max(0, y - 50);
+    st.crop = [WX - 110, cy, WW + 220, Math.min(H - cy, hh + 100)];
+  }
+  const scene = (id, name, note, state, opts, after) => ({ id, name, note, render(s) { place(s, page(state, opts), this, after); } });
+
+  // The More Info… sheet: every package by source, searchable.
+  const PKGS = [
+    ["Repositories", [["7zip", "26.04-1.1", "26.06-1.1"], ["alsa-card-profiles", "1:1.6.9-1", "1:1.6.11-1"], ["amd-ucode", "1:20260916-1", "1:20261019-1"], ["chromium", "156.0.8079.42-1", "157.0.8103.38-1"], ["firefox", "159.0.1-1", "160.0-1"], ["glibc", "2.44+r24-1", "2.44+r50-1"], ["linux-cachyos", "7.2.10-1", "7.2.15-1"], ["linux-cachyos-nvidia-open", "7.2.10-1", "7.2.15-1"], ["mesa", "1:26.2.2-2", "1:26.2.6-1"], ["nvidia-utils", "615.78.08-2", "615.95.04-1"]], "456 more"],
+    ["AUR", [["appimagetool-bin", "r88.4919cc4-1", "latest commit"], ["xremap-hypr-bin", "0.15.9-1", "0.15.15-1"]]],
+    ["Isle", [["isle-git", "r725.g0f8209c4", "7a1b2c3"]]],
+  ];
+  function sheet(win) {
+    const body = el("", { maxHeight: "460px", overflow: "hidden" },
+      ...PKGS.map(([src, list, more]) => el("", { marginTop: "var(--space-m)" },
+        row({ marginBottom: "var(--space-xs)" }, sp("s-headline", src), sp("s-2 s-num", String(src === "Repositories" ? 466 : list.length))),
+        el("s-table", {},
+          el("h", {}, sp("", "Package", { flex: 2 }), sp("", "Installed", { flex: 1 }), sp("", "New", { flex: 1 })),
+          ...list.map(([n, a, b]) => el("tr", {}, sp("", n, { flex: 2 }), sp("s-2 s-mono", a, { flex: 1 }), sp("s-mono", b, { flex: 1 }))),
+          more ? el("tr", {}, sp("s-2", more, { flex: 1 })) : null))));
+    const sh = el("s-sheet", { position: "absolute", left: "calc(var(--size-sidebar) + 20px)", right: "20px", top: "var(--size-toolbar)", zIndex: 5 },
+      row({ gap: "var(--space-m)" }, sp("s-title-3", "469 updates", { flex: 1 }), el("s-field search", { width: "220px", height: "var(--size-control)" }, ic("magnifying-glass", 14), sp("ph", "Search packages"))),
+      body,
+      row({ justifyContent: "flex-end", marginTop: "var(--space-l)" }, btn("Done", { primary: true })));
+    win.append(sh);
+  }
+
+  // ---- The system menu ---------------------------------------------------------------------
+  function systemMenu(s, st, restart) {
+    S.bar(s, { app: "System Settings", menus: ["File", "Edit", "View", "Window", "Help"] });
+    const items = ["About This Computer", "—", "System Settings…", "Software Update…"];
+    if (restart) items.push("Restart to finish updating…");
+    items.push("—", "Force Quit…", "—", "Sleep", "Restart…", "Shut Down…", "—", "Lock Screen", "Log Out Alex Parlett…");
+    const m = S.menu(8, 30, items.map((t) => (t === "Software Update…" ? { label: t, sel: !restart } : t)));
+    s.append(m);
+    const su = [...m.querySelectorAll(".s-mi")].find((x) => x.textContent === "Software Update…");
+    su.append(sp("s-badge quiet", restart ? "2" : "469", { marginLeft: "auto" }));
+    st.crop = [0, 0, 620, 420];
+  }
+
+  // ---- Notifications ----------------------------------------------------------------------
+  function banner(s, st, summary, bodyText, actions) {
+    const icon = el("", { width: "32px", height: "32px", borderRadius: "50%", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, ic("arrow-circle-up", 20));
+    const card = el("s s-glass s-banner", { left: px(S.W - 16 - 360), top: "48px", width: "360px", boxSizing: "border-box", boxShadow: "var(--shadow-menu)" },
+      icon,
+      col({ gap: "0", flex: 1, minWidth: 0 },
+        row({ height: "16px" }, sp("s-sub s-2", "Software Update", { fontWeight: "var(--type-weight-semibold)", flex: 1 }), sp("s-sub s-2", "Now")),
+        sp("s-headline", summary), sp("", bodyText),
+        row({ gap: "var(--space-s)", marginTop: "var(--space-m)" }, ...actions.map((a) => { const b = btn(a); b.style.flex = "1"; return b; }))));
+    s.append(card);
+    st.crop = [S.W - 520, 0, 520, 260];
+  }
+
+  const plain = (id, name, note, draw) => ({ id, name, note, render(s) { draw(s, this); } });
+
+  Isle.board({
+    title: "Software Update",
+    subtitle: "P14d choice 23: General › Software Update in each state, the More Info… sheet, the system menu's count and restart line, and the notifications, on P13's kit at actual size.",
+    tokens: "../../../../data/tokens/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "page", name: "Settings", sheet: "p14d-updates.md", states: [
+        scene("uptodate", "1 · Up to date", "Nothing waiting. The line under the title names the system, Isle's build and the last check.", "uptodate"),
+        scene("checking", "2 · Checking", "Check Now, or the hourly check while the page is open.", "checking"),
+        scene("waiting", "3 · Updates waiting", "Counts by source. AUR names its packages when there are few; Isle shows the commit it will move to. More Info… lists every package.", "waiting"),
+        scene("more", "4 · More Info…", "A sheet with every package, installed and new versions, by source, with a search field (the host has 469 today).", "waiting", {}, sheet),
+        scene("building", "5 · Building Isle", "paru is building Isle after the repositories' transaction. Stop is allowed: no transaction is open.", "building"),
+        scene("installing", "6 · Installing, details shown", "pacman holds its lock, so Stop is disabled and says why. Show Details opens the last lines of output.", "installing"),
+        scene("done", "7 · Installed", "Shown for 30 seconds after the run, then the page goes back to what the next check finds.", "done"),
+        scene("restart", "8 · Restart owed", "Stays until you restart, each reason on its own line. Restart… opens the restart confirmation.", "restart"),
+        scene("failed", "9 · Stopped", "A failure keeps its reason until the next run or check: a sentence for the failures Isle knows (the lock, no network, a full disk, a conflict), else pacman's own line. Show Details has the output. Try Again starts a new run.", "failed"),
+        scene("refused", "10 · Not allowed", "Cancelled at the password prompt.", "refused"),
+        scene("off", "11 · Automatic checks off", "Only Check Now looks.", "uptodate", { auto: false }),
+      ] },
+      { id: "menu", name: "System menu", sheet: "p14d-updates.md", states: [
+        plain("count", "1 · Updates waiting", "Software Update… with the count as a quiet badge in the trailing column.", (s, st) => systemMenu(s, st, false)),
+        plain("restart", "2 · Restart owed", "The restart line joins the group while a restart is owed; Restart… stays where it always is.", (s, st) => systemMenu(s, st, true)),
+      ] },
+      { id: "notes", name: "Notifications", sheet: "p14d-updates.md", states: [
+        plain("installed", "1 · Update installed", "Posted when a run ends well and Settings isn't in front. Restart… only while a restart is owed.", (s, st) => banner(s, st, "Update installed", "Restart to finish updating.", ["Restart…"])),
+        plain("failed", "2 · Couldn't install updates", "Added in P14d. Posted when a run fails or the password is refused. Show Details… opens the page.", (s, st) => banner(s, st, "Couldn't install updates", "Another program is installing packages.", ["Show Details…"])),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 14d">
+  <h2>How it works</h2>
+  <p>Software Update checks once an hour for the repositories, the AUR and Isle's own branch. <b>Update Now</b> runs one full upgrade with one password. It keeps running if you close Settings, and Control Centre, the island and the system menu show how far it has got. When the kernel, the graphics driver or Isle itself has been replaced, the page, the menu and the island say a restart is owed until you restart.</p>
+  <h2>For you to answer</h2>
+  <p>Reply lgtm or name changes. Recommended:</p>
+  <ol>
+    <li><b>One status card</b> at the top of the page in every state, with its buttons at the card's foot, and one row under it for automatic checks.</li>
+    <li><b>Update Now</b> as the button's name, as on macOS. Control Centre keeps P1's "Install updates…", which opens this page.</li>
+    <li><b>Counts by source</b> on the card. Every package is in <b>More Info…</b>'s sheet, not on the page.</li>
+    <li><b>Show Details</b> is closed by default and shows the last lines of output in monospace.</li>
+    <li><b>Known failures in plain words</b> (another program installing, no network, disk full, a file conflict); anything else shows pacman's own error line.</li>
+    <li><b>A refused password</b> reads "The update didn't start", because nothing changed. It is not shown as a failure.</li>
+  </ol>
+</section>

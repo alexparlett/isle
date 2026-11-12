@@ -319,11 +319,7 @@ impl State {
                 _ if on_shell => {}
                 Some(surface) => self.focus_keyboard(Some(surface.into()), serial),
                 None => {
-                    let window = self
-                        .isle
-                        .space
-                        .element_under(location)
-                        .map(|(w, _)| w.clone());
+                    let window = self.isle.window_under(location);
                     let window = self.isle.click_focus(window, location);
                     if let Some(window) = &window {
                         self.desktop_touched(crate::wm::window_id(window));
@@ -374,8 +370,7 @@ impl State {
         if matches!(pointer.current_focus(), Some(crate::focus::Focus::Shell(_))) {
             return false;
         }
-        let Some((window, _)) = self.isle.space.element_under(location).map(|(w, p)| (w.clone(), p))
-        else {
+        let Some(window) = self.isle.window_under(location) else {
             return false;
         };
         let start_data = smithay::input::pointer::GrabStartData {

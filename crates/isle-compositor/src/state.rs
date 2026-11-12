@@ -756,7 +756,8 @@ impl Isle {
                 .or_else(|| shell_at(isle_shell::Layer::Overlay));
         }
         let surface_under = || self.client_surface_under(output, origin, pos);
-        shell_at(isle_shell::Layer::Overlay)
+        self.over_shell_under(pos)
+            .or_else(|| shell_at(isle_shell::Layer::Overlay))
             .or_else(|| {
                 let on_layer = {
                     let map = layer_map_for_output(output);
@@ -807,37 +808,47 @@ impl Isle {
                 return Some((Focus::Surface(s), (p + at).to_f64()));
             }
         }
-        for window in self.space.elements().rev() {
-            let id = crate::wm::window_id(window);
-            let Some(location) = self.space.element_location(window) else {
-                continue;
-            };
-            let surface_at = location - window.geometry().loc;
-            if let Some((s, p)) =
-                window.surface_under(pos - surface_at.to_f64(), WindowSurfaceType::POPUP)
-            {
-                return Some((Focus::Surface(s), (p + surface_at).to_f64()));
-            }
-            if let Some(hit) = self.alert_at(id, pos) {
-                return Some(hit);
-            }
-            if let Some(hit) = self.sheet_at(id, pos) {
-                return Some(hit);
-            }
-            if let Some(part) = self.bar_or_edge_at(id, pos) {
-                let at = match &part {
-                    Focus::Shell(_) => self.frame(id).map(|f| f.loc.to_f64()).unwrap_or_default(),
-                    _ => pos,
-                };
-                return Some((part, at));
-            }
-            if let Some((s, p)) =
-                window.surface_under(pos - surface_at.to_f64(), WindowSurfaceType::TOPLEVEL | WindowSurfaceType::SUBSURFACE)
-            {
-                return Some((Focus::Surface(s), (p + surface_at).to_f64()));
-            }
+        let over_shell = self.floats_over_shell();
+        self.space
+            .elements()
+            .rev()
+            .filter(|w| !over_shell.contains(&crate::wm::window_id(w)))
+            .find_map(|window| self.window_hit(window, pos))
+    }
+
+    /// A window floating over a shell surface under `pos`, front first, as they are drawn.
+    fn over_shell_under(&self, pos: Point<f64, Logical>) -> Option<(Focus, Point<f64, Logical>)> {
+        self.floats_over_shell()
+            .iter()
+            .rev()
+            .filter_map(|&id| self.window_by_id(id))
+            .find_map(|window| self.window_hit(&window, pos))
+    }
+
+    /// The part of `window` under `pos`.
+    fn window_hit(&self, window: &Window, pos: Point<f64, Logical>) -> Option<(Focus, Point<f64, Logical>)> {
+        let id = crate::wm::window_id(window);
+        let location = self.space.element_location(window)?;
+        let surface_at = location - window.geometry().loc;
+        if let Some((s, p)) = window.surface_under(pos - surface_at.to_f64(), WindowSurfaceType::POPUP) {
+            return Some((Focus::Surface(s), (p + surface_at).to_f64()));
         }
-        None
+        if let Some(hit) = self.alert_at(id, pos) {
+            return Some(hit);
+        }
+        if let Some(hit) = self.sheet_at(id, pos) {
+            return Some(hit);
+        }
+        if let Some(part) = self.bar_or_edge_at(id, pos) {
+            let at = match &part {
+                Focus::Shell(_) => self.frame(id).map(|f| f.loc.to_f64()).unwrap_or_default(),
+                _ => pos,
+            };
+            return Some((part, at));
+        }
+        window
+            .surface_under(pos - surface_at.to_f64(), WindowSurfaceType::TOPLEVEL | WindowSurfaceType::SUBSURFACE)
+            .map(|(s, p)| (Focus::Surface(s), (p + surface_at).to_f64()))
     }
 
     /// The output under the pointer, else the first.

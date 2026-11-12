@@ -774,6 +774,54 @@ async fn markup_draws_an_arrow_and_done_keeps_the_original_in_the_trash() {
     assert_ne!(std::fs::read(&shot).unwrap(), before, "the marked-up picture took its place");
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn a_shot_from_the_thumbnail_takes_clicks_after_another_window_is_raised() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-shot-clicks").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let browser = isle.wait_for_window(APP).await;
+    app.wait_for_part("serving FileManager1").await;
+    let uri = format!("file://{}", home.join("Pictures/red.png").display());
+    isle.bus
+        .call_method(
+            Some(APP),
+            "/io/github/alexparlett/Isle/QuickLook1",
+            Some("io.github.alexparlett.Isle.QuickLook1"),
+            "Show",
+            &(vec![uri.as_str()], 0u32, "isle:capture-thumbnail", (0i32, 0i32, 0i32, 0i32), "shot", ""),
+        )
+        .await
+        .unwrap();
+    let look = loop {
+        if let Some(w) = isle.windows().await.into_iter().find(|w| w.title == "Quick Look") {
+            break w;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+
+    // The browser raised over it in the stack, as a click on another window does; Quick Look
+    // is still drawn over everything, so a click on its top band is its own.
+    isle.windows_proxy().await.focus(browser.id).await.unwrap();
+    wait_until(|| async { isle.window(browser.id).await.focused }).await;
+    let at = (look.x as f64 + look.width as f64 / 2., look.y as f64 + 12.);
+    let browser = isle.window(browser.id).await;
+    assert!(
+        (browser.x as f64..(browser.x + browser.width) as f64).contains(&at.0)
+            && (browser.y as f64..(browser.y + browser.height) as f64).contains(&at.1),
+        "the browser is under the click"
+    );
+    let test = isle.test().await;
+    test.pointer_to(at.0, at.1).await.unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    test.button(272, true).await.unwrap();
+    test.button(272, false).await.unwrap();
+    wait_until(|| async { isle.window(look.id).await.focused }).await;
+}
+
 fn length_of(path: &std::path::Path) -> f64 {
     let out = std::process::Command::new("ffprobe")
         .args(["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0"])

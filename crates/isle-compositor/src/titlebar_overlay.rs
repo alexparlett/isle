@@ -116,6 +116,21 @@ impl Isle {
             .collect()
     }
 
+    /// The window under `pos` as drawn: a float over a shell surface, then the stack.
+    pub fn window_under(&self, pos: smithay::utils::Point<f64, smithay::utils::Logical>) -> Option<smithay::desktop::Window> {
+        use smithay::desktop::space::SpaceElement;
+        self.floats_over_shell()
+            .iter()
+            .rev()
+            .filter_map(|&id| self.window_by_id(id))
+            .find(|w| {
+                self.space
+                    .element_location(w)
+                    .is_some_and(|loc| w.is_in_input_region(&(pos - (loc - w.geometry().loc).to_f64())))
+            })
+            .or_else(|| self.space.element_under(pos).map(|(w, _)| w.clone()))
+    }
+
     /// The lights' inset over `id`, when it asked for a transparent bar.
     pub fn titlebar_overlay(&self, id: u64) -> Option<(i32, i32)> {
         let surface = self.wm.get(id)?.surface()?;

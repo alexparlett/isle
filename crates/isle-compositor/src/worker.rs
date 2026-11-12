@@ -23,6 +23,8 @@ pub enum Event {
     KeyboardsChanged,
     NotificationsChanged,
     FocusChanged,
+    /// What is waiting, the run or the restart owed changed.
+    UpdatesChanged,
     /// The session was locked or unlocked.
     LockChanged,
     /// A hold on idle or sleep was taken or let go.
@@ -122,6 +124,10 @@ pub fn spawn(
             let loop_s = to_loop.clone();
             runtime.spawn(supervise("games-watch", move || {
                 crate::games::watch(loop_s.clone())
+            }));
+            let loop_u = to_loop.clone();
+            runtime.spawn(supervise("updates-watch", move || {
+                crate::updates::watch(loop_u.clone())
             }));
             let loop_a = to_loop.clone();
             runtime.spawn(supervise("apps-watch", move || {

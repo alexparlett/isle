@@ -35,6 +35,8 @@ pub struct MenuItem {
     pub enabled: bool,
     pub mark: Mark,
     pub hint: Option<Hint>,
+    /// A count in a quiet badge at the trailing end: Software Update's.
+    pub badge: Option<String>,
     pub submenu: Option<Rc<Vec<MenuEntry>>>,
     /// A name for an item drawn as something other than its label.
     pub alt: Option<String>,
@@ -62,6 +64,11 @@ impl MenuItem {
 
     pub fn hint(mut self, hint: Option<Hint>) -> Self {
         self.hint = hint;
+        self
+    }
+
+    pub fn badge(mut self, badge: Option<String>) -> Self {
+        self.badge = badge;
         self
     }
 
@@ -253,6 +260,9 @@ fn panel_width(theme: &isle_tokens::Theme, entries: &[MenuEntry], pad: f32) -> f
         label = label.max(estimate(&item.label));
         if let Some(h) = &item.hint {
             hint = hint.max(estimate(&h.modifiers) * 1.3 + estimate(&h.key));
+        }
+        if let Some(b) = &item.badge {
+            hint = hint.max(estimate(b) + 2.0 * t.space_xs);
         }
         chevron |= item.submenu.is_some();
     }
@@ -592,6 +602,25 @@ impl Component for Menu {
                                         ink2,
                                         hint.key,
                                     )))
+                            })
+                            .map(item.badge.clone(), |el, badge| {
+                                el.child(rect().width(Size::px(t.space_xxl))).child(
+                                    rect()
+                                        .height(Size::px(t.size_badge_quiet))
+                                        .padding((0., t.space_xs))
+                                        .corner_radius(t.size_badge_quiet / 2.0)
+                                        .background(colour(t.colour_fill_strong))
+                                        .center()
+                                        .child(
+                                            text::line(
+                                                &theme,
+                                                text::Style::Subheadline,
+                                                colour(t.colour_text),
+                                                badge,
+                                            )
+                                            .font_weight(t.type_weight_semibold as i32),
+                                        ),
+                                )
                             })
                             .maybe(item.submenu.is_some(), |el| {
                                 el.child(rect().width(Size::px(t.space_s)))

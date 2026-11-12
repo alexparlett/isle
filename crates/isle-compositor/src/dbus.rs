@@ -251,6 +251,49 @@ struct CaptureIface {
     to_loop: ToLoop,
 }
 
+struct UpdatesIface {
+    to_loop: ToLoop,
+}
+
+#[interface(name = "io.github.alexparlett.Isle.Updates1")]
+impl UpdatesIface {
+    async fn status(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.isle.updates_status()).await?)
+    }
+
+    /// Returns once the check it started, or the one already going, is done.
+    async fn check(&self) -> fdo::Result<()> {
+        self.to_loop.call(|state| state.check_updates(true)).await?;
+        while self.to_loop.call(|state| state.isle.updates.checking).await? {
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+        Ok(())
+    }
+
+    async fn install(&self) -> fdo::Result<String> {
+        match self.to_loop.call(|state| state.may_install()).await? {
+            Err(why) => Ok(why),
+            Ok(isle) => Ok(crate::updates::start_run(isle).await.err().unwrap_or_default()),
+        }
+    }
+
+    async fn stop(&self) -> fdo::Result<String> {
+        Ok(self.to_loop.call(|state| state.stop_updates()).await?.unwrap_or_default())
+    }
+
+    async fn restart(&self) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(|state| {
+                state.open_session_confirm(isle_shell::prompts::session::Choice::Restart)
+            })
+            .await?)
+    }
+
+    #[zbus(signal)]
+    async fn changed(emitter: &zbus::object_server::SignalEmitter<'_>) -> zbus::Result<()>;
+}
+
 #[interface(name = "io.github.alexparlett.Isle.Capture1")]
 impl CaptureIface {
     async fn shoot(&self, what: String, copy: bool) -> fdo::Result<()> {
@@ -2336,6 +2379,12 @@ pub async fn serve(
             },
         )?
         .serve_at(
+            isle_ipc::UPDATES_PATH,
+            UpdatesIface {
+                to_loop: to_loop.clone(),
+            },
+        )?
+        .serve_at(
             isle_ipc::CAPTURE_PATH,
             CaptureIface {
                 to_loop: to_loop.clone(),
@@ -2397,6 +2446,10 @@ pub async fn serve(
                     .interface::<_, Keyboard>(isle_ipc::KEYBOARD_PATH)
                     .await?;
                 Keyboard::changed(iface.signal_emitter()).await?;
+            }
+            Ok(Event::UpdatesChanged) => {
+                let iface = server.interface::<_, UpdatesIface>(isle_ipc::UPDATES_PATH).await?;
+                UpdatesIface::changed(iface.signal_emitter()).await?;
             }
             Ok(Event::FocusChanged) => {
                 let iface = server.interface::<_, FocusIface>(isle_ipc::FOCUS_PATH).await?;

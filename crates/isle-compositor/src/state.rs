@@ -256,6 +256,7 @@ pub struct Isle {
     pub safe_start: bool,
     pub restore: crate::restore::RestoreState,
     pub crashes: crate::crashes::CrashState,
+    pub updates: crate::updates::Updates,
     pub window_programs: Option<crate::wm::draw::Programs>,
     pub color_management: smithay::wayland::color::management::ColorManagementState,
     /// Counts surfaces' description changes; a screen that has not drawn the latest redraws
@@ -652,6 +653,7 @@ impl Isle {
             safe_start: false,
             restore: Default::default(),
             crashes: Default::default(),
+            updates: Default::default(),
             window_programs: None,
             colour_target: std::cell::Cell::new(crate::colour::Target::SDR),
             color_management,

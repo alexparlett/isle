@@ -75,6 +75,7 @@ mod files_link;
 mod prompts;
 mod screensaver;
 mod services;
+mod updates;
 mod session_end;
 mod perf;
 mod pointer;
@@ -455,6 +456,7 @@ fn start_clients(state: &mut State, ready_fd: &mut Option<i32>) -> bool {
         report_ready(fd, &state.isle.socket_name, display);
         state.start_session_when_exported();
     }
+    state.start_updates();
     true
 }
 

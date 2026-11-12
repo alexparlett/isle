@@ -59,6 +59,10 @@ pub struct Module {
     pub sizes: Vec<TileSize>,
     /// An icon in its glyph's place: a tray item's.
     pub icon: Option<std::path::PathBuf>,
+    /// A count in a quiet badge on the circle's top trailing point: updates waiting.
+    pub badge: Option<String>,
+    /// How far work has got, 0 to 1, as an arc round the circle: an update installing.
+    pub progress: Option<f32>,
 }
 
 /// A module the gallery offers, or lists as unable to show here.
@@ -1020,15 +1024,16 @@ fn gallery(theme: &Theme, edit: &EditFrame, actions: &Actions) -> Element {
 
 fn module_circle(theme: &Theme, module: &Module) -> Rect {
     let t = &theme.tokens;
+    let size = t.size_module_glyph;
     let (fill, ink) = if module.on {
         (colour(t.colour_accent), colour(t.colour_on_accent))
     } else {
         (colour(t.colour_fill_strong), colour(t.colour_text))
     };
-    rect()
-        .width(Size::px(t.size_module_glyph))
-        .height(Size::px(t.size_module_glyph))
-        .corner_radius(t.size_module_glyph / 2.0)
+    let circle = rect()
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .corner_radius(size / 2.0)
         .background(fill)
         .center()
         .map(module.icon.clone(), |el, icon| {
@@ -1036,7 +1041,79 @@ fn module_circle(theme: &Theme, module: &Module) -> Rect {
         })
         .maybe(module.icon.is_none(), |el| {
             el.child(Glyph::new(module.glyph.clone(), t.size_glyph_large, ink).fill(module.on))
+        });
+    if module.badge.is_none() && module.progress.is_none() {
+        return circle;
+    }
+    rect()
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .child(circle)
+        .map(module.progress, |el, done| {
+            el.child(
+                rect()
+                    .position(Position::new_absolute())
+                    .width(Size::px(size))
+                    .height(Size::px(size))
+                    .corner_radius(size / 2.0)
+                    .border(
+                        Border::new()
+                            .fill(colour(t.colour_fill_strong))
+                            .width(t.stroke_progress)
+                            .alignment(BorderAlignment::Inner),
+                    ),
+            )
+            .child(
+                rect()
+                    .position(Position::new_absolute())
+                    .child(progress_arc(size, t.stroke_progress, done).stroke(colour(t.colour_accent))),
+            )
         })
+        .map(module.badge.clone(), |el, badge| {
+            // Centred on the point of the circle at its top trailing corner, as the text's
+            // width is estimated from the type size.
+            let text_size = text::metrics(theme, text::Style::Subheadline).0;
+            let width = (badge.chars().count() as f32 * text_size * 0.62 + 2.0 * t.space_xs)
+                .max(t.size_badge_quiet);
+            let corner = size / 2.0 * (1.0 + std::f32::consts::FRAC_1_SQRT_2);
+            let top = size / 2.0 * (1.0 - std::f32::consts::FRAC_1_SQRT_2);
+            el.child(
+                rect()
+                    .position(
+                        Position::new_absolute()
+                            .left(corner - width / 2.0)
+                            .top(top - t.size_badge_quiet / 2.0),
+                    )
+                    .width(Size::px(width))
+                    .height(Size::px(t.size_badge_quiet))
+                    .corner_radius(t.size_badge_quiet / 2.0)
+                    .background(colour(t.colour_fill_strong))
+                    .center()
+                    .child(
+                        text::line(theme, text::Style::Subheadline, colour(t.colour_text), badge)
+                            .font_weight(t.type_weight_semibold as i32),
+                    ),
+            )
+        })
+}
+
+/// An arc inside a `size` circle from twelve o'clock, clockwise, `done` of the way round.
+fn progress_arc(size: f32, stroke: f32, done: f32) -> SvgViewer {
+    let done = done.clamp(0.0, 1.0);
+    let r = (size - stroke) / 2.0;
+    let c = size / 2.0;
+    let angle = done.min(0.9999) * std::f32::consts::TAU;
+    let (x, y) = (c + r * angle.sin(), c - r * angle.cos());
+    let large = u8::from(done > 0.5);
+    let svg = format!(
+        r#"<svg viewBox="0 0 {size} {size}" xmlns="http://www.w3.org/2000/svg"><path d="M{c} {top} A{r} {r} 0 {large} 1 {x:.2} {y:.2}" fill="none" stroke="currentColor" stroke-width="{stroke}" stroke-linecap="round"/></svg>"#,
+        top = c - r,
+    );
+    let key = (done * 1000.0).round() as u64 ^ ((size as u64) << 20);
+    SvgViewer::new((key, bytes::Bytes::from(svg.into_bytes())))
+        .show_loader(false)
+        .width(Size::px(size))
+        .height(Size::px(size))
 }
 
 /// Control Centre's modules as its tiles, the same component with the same actions, for

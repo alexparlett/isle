@@ -134,6 +134,7 @@ impl Isle {
             }
             "energy-mode" => self.energy_module(size),
             "keep-awake" => self.keep_awake_module(size),
+            "updates" => self.updates_module(size),
             "batteries" => self.batteries_module(size),
             "sound" => self.sound_module(size),
             "display" => self.display_module(size),
@@ -449,6 +450,9 @@ impl State {
                 }
             }
             PanelAction::Choose { module, row } if module == "centre" => self.centre_action(&row),
+            PanelAction::Choose { ref module, .. } if module == "updates" => {
+                self.updates_action(action)
+            }
             PanelAction::Choose { module, row } if module == "energy-mode" => {
                 self.energy_choose(row)
             }

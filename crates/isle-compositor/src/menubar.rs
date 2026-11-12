@@ -35,6 +35,8 @@ pub enum Command {
     /// System Settings, at a pane when one is named.
     Settings(Option<&'static str>),
     About,
+    /// General › Software Update.
+    SoftwareUpdate,
     Hide,
     HideOthers,
     ShowAll,
@@ -231,6 +233,13 @@ struct Builder<'a> {
 }
 
 impl Builder<'_> {
+    fn badged(&mut self, label: &str, command: Command, badge: Option<String>) -> MenuEntry {
+        match self.item(label, Some(command), None) {
+            MenuEntry::Item(item) => MenuEntry::Item(item.badge(badge)),
+            other => other,
+        }
+    }
+
     fn item(
         &mut self,
         label: impl Into<String>,
@@ -404,6 +413,8 @@ impl State {
         let (app, name) = self.isle.bar_app();
         let labels = self.labels();
         let game = self.focus_is_game();
+        let updates_count = self.isle.updates_count();
+        let restart_owed = !self.isle.updates.restart.is_empty();
         let names: Vec<String> = {
             let mut n = self.focus_names();
             if n.is_empty() {
@@ -494,11 +505,24 @@ impl State {
         };
         let mut titles = Vec::new();
 
-        let system = vec![
+        let mut system = vec![
             b.item("About This Computer", Some(Command::Settings(Some("general"))), None),
             MenuEntry::Separator,
             b.item("System Settings…", Some(Command::Settings(None)), None),
-            b.item("Software Update…", None, None),
+            b.badged(
+                "Software Update…",
+                Command::SoftwareUpdate,
+                updates_count.map(|n| n.to_string()),
+            ),
+        ];
+        if restart_owed {
+            system.push(b.item(
+                "Restart to finish updating…",
+                Some(Command::EndSession(Choice::Restart)),
+                None,
+            ));
+        }
+        system.extend([
             MenuEntry::Separator,
             b.item(
                 "Force Quit…",
@@ -524,7 +548,7 @@ impl State {
                 Some(Command::EndSession(Choice::LogOut)),
                 Chord::parse("Shift+Cmd+Q"),
             ),
-        ];
+        ]);
         titles.push(Title {
             label: "System".into(),
             kind: TitleKind::System,
@@ -1326,6 +1350,9 @@ impl State {
                 self.open_settings(pane, None);
             }
             Command::About => self.open_about(&app),
+            Command::SoftwareUpdate => {
+                self.open_settings(Some("general"), Some(crate::updates::ROW));
+            }
             Command::Hide => {
                 self.set_app_hidden(&app, true);
             }
@@ -1722,6 +1749,7 @@ fn entries_json(entries: &[MenuEntry]) -> Vec<serde_json::Value> {
                 "enabled": item.enabled,
                 "mark": format!("{:?}", item.mark).to_lowercase(),
                 "hint": item.hint.as_ref().map(|h| format!("{}{}", h.modifiers, h.key)),
+                "badge": item.badge,
                 "items": item.submenu.as_ref().map(|s| entries_json(s)),
             }),
         })

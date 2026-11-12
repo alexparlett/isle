@@ -23,8 +23,6 @@ pub struct Entry {
     pub missing: &'static str,
 }
 
-const NOT_YET: &str = "Not in this version of Isle.";
-
 /// Every module, in the gallery's order.
 pub const CATALOGUE: &[Entry] = &[
     Entry {
@@ -129,11 +127,11 @@ pub const CATALOGUE: &[Entry] = &[
     Entry {
         id: "updates",
         name: "Updates",
-        glyph: "arrows-clockwise",
+        glyph: "arrow-circle-up",
         group: "System",
         sizes: &[S, M],
         pane: "Software Update",
-        missing: NOT_YET,
+        missing: "",
     },
     Entry {
         id: "batteries",

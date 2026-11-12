@@ -22,6 +22,8 @@ pub enum Note {
     /// An app's crash, with Reopen and Report….
     AppCrash(Box<crate::crashes::Crash>),
     Capture,
+    /// Software Update's: Restart… and Show Details….
+    Update,
 }
 
 impl Isle {
@@ -113,6 +115,12 @@ impl State {
             (Note::AppCrash(crash), "reopen") => self.reopen_crashed(&crash.app),
             (Note::AppCrash(_), _) => {}
             (Note::Capture, _) => {}
+            (Note::Update, "restart") => {
+                self.open_session_confirm(isle_shell::prompts::session::Choice::Restart)
+            }
+            (Note::Update, _) => {
+                self.open_settings(Some("general"), Some(crate::updates::ROW));
+            }
         }
     }
 

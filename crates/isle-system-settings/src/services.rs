@@ -57,6 +57,7 @@ pub enum Follow {
     Desktops,
     LoginItems,
     Holds,
+    Updates,
 }
 
 /// Something a pane asks a daemon or the compositor to do.
@@ -160,6 +161,11 @@ pub enum Act {
         unit: bool,
         on: bool,
     },
+    CheckUpdates,
+    InstallUpdates,
+    StopUpdates,
+    /// The session dialog's restart, to finish an update.
+    RestartForUpdates,
 }
 
 /// The followed state, shared by every pane.
@@ -187,6 +193,8 @@ pub struct Services {
     pub login_items: State<Snapshot<isle_apps::autostart::LoginItems>>,
     /// What keeps the computer awake now.
     pub holds: State<Snapshot<Vec<isle_ipc::Hold>>>,
+    /// Software Update's state as `Updates1.Status` gives it.
+    pub updates: State<Snapshot<serde_json::Value>>,
     /// The display change in force and not yet kept, by its id.
     pub display_change: State<Option<u64>>,
     /// Changes asked for and not yet sent, oldest first.
@@ -228,6 +236,7 @@ impl Services {
             desktops: State::create(Snapshot::default()),
             login_items: State::create(Snapshot::default()),
             holds: State::create(Snapshot::default()),
+            updates: State::create(Snapshot::default()),
             display_change: State::create(None),
             acts: State::create(Vec::new()),
             started: State::create(BTreeSet::new()),
@@ -276,6 +285,7 @@ impl Services {
             Follow::Focus => session(&worker, bus, self.focus, focus),
             Follow::Desktops => session(&worker, bus, self.desktops, desktops),
             Follow::Holds => session(&worker, bus, self.holds, holds),
+            Follow::Updates => session(&worker, bus, self.updates, updates),
             Follow::LoginItems => {
                 let (publisher, rx) = isle_bus::snapshot();
                 worker.spawn(watch_login_items(publisher));
@@ -564,6 +574,20 @@ fn holds(
         let proxy = isle_ipc::session::SessionProxy::new(&bus).await?;
         let changed = proxy.receive_holds_changed().await?;
         each_change(&publisher, changed, || proxy.holds()).await
+    })
+}
+
+fn updates(
+    bus: zbus::Connection,
+    publisher: Publisher<serde_json::Value>,
+) -> futures_util::future::BoxFuture<'static, zbus::Result<()>> {
+    Box::pin(async move {
+        let proxy = isle_ipc::updates::UpdatesProxy::new(&bus).await?;
+        let changed = proxy.receive_changed().await?;
+        each_change(&publisher, changed, || async {
+            Ok(serde_json::from_str(&proxy.status().await?).unwrap_or_default())
+        })
+        .await
     })
 }
 
@@ -999,6 +1023,19 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
         .await
         .map_err(|e| err(&e))?,
         Act::LoginItem { id, unit: true, on } => switch_unit(session()?, id, on).await,
+        Act::CheckUpdates | Act::InstallUpdates | Act::StopUpdates | Act::RestartForUpdates => {
+            let proxy = isle_ipc::updates::UpdatesProxy::new(&session()?)
+                .await
+                .map_err(|e| err(&e))?;
+            let why = match act {
+                Act::CheckUpdates => proxy.check().await.map(|()| String::new()),
+                Act::InstallUpdates => proxy.install().await,
+                Act::StopUpdates => proxy.stop().await,
+                _ => proxy.restart().await.map(|()| String::new()),
+            }
+            .map_err(|e| err(&e))?;
+            if why.is_empty() { Ok(()) } else { Err(why) }
+        }
         Act::Hostname(name) => {
             let system = zbus::Connection::system().await.map_err(|e| err(&e))?;
             system

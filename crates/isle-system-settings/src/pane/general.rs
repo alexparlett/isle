@@ -163,13 +163,19 @@ impl Component for General {
             }
             .into_element();
         }
+        if self.at.sub.as_deref() == Some("Software Update") {
+            return super::software_update::SoftwareUpdatePage {
+                at: self.at.clone(),
+            }
+            .into_element();
+        }
         if self.at.sub.as_deref() == Some("Login Items") {
             return LoginItemsPage {
                 at: self.at.clone(),
             }
             .into_element();
         }
-        let (at, at_items) = (self.at.clone(), self.at.clone());
+        let (at, at_items, at_update) = (self.at.clone(), self.at.clone(), self.at.clone());
         rect()
             .width(Size::fill())
             .spacing(20.)
@@ -178,6 +184,9 @@ impl Component for General {
                 vec![
                     r.row("about", "About", None)
                         .opens(None, move |_| super::open(nav, &at, "About"))
+                        .into_element(),
+                    r.row("software-update", "Software Update", None)
+                        .opens(None, move |_| super::open(nav, &at_update, "Software Update"))
                         .into_element(),
                 ],
             ))

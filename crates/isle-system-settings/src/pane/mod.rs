@@ -10,6 +10,7 @@ mod displays;
 mod energy;
 mod focus;
 pub mod general;
+mod software_update;
 mod keyboard;
 mod lock_screen;
 mod mouse;

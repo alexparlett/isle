@@ -148,6 +148,9 @@ pub static PANES: &[Pane] = &[
         keywords: &["about", "system", "version"],
         rows: &[
             RowDef::new("about", "About").keywords(&["version", "system"]),
+            RowDef::new("software-update", "Software Update").keywords(&["updates", "upgrade", "pacman", "paru", "aur"]),
+            RowDef::new("updates-status", "Software Update").within("Software Update").keywords(&["update now", "restart", "upgrade"]),
+            RowDef::new("updates-auto", "Check for updates automatically").within("Software Update").key("updates.check").keywords(&["automatic updates"]),
             RowDef::new("login-items", "Login Items").keywords(&["autostart", "startup", "background", "user services"]),
             RowDef::new("open-at-login", "Open at Login").within("Login Items").keywords(&["autostart", "startup"]),
             RowDef::new("background", "Allow in the Background").within("Login Items").keywords(&["services", "daemons"]),

@@ -16,6 +16,7 @@ isle-ipc.workspace = true
 isle-providers.workspace = true
 isle-settings.workspace = true
 isle-state.workspace = true
+isle-updates.workspace = true
 libc.workspace = true
 zvariant.workspace = true
 serde.workspace = true

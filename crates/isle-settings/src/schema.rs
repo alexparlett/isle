@@ -69,6 +69,8 @@ pub struct Settings {
     pub lock_screen: ScreenLock,
     #[setting(section)]
     pub energy: Energy,
+    #[setting(section)]
+    pub updates: Updates,
     /// An app's notification rules, by its desktop id.
     #[setting(keyed)]
     pub notification_app: BTreeMap<String, NotificationApp>,
@@ -1004,6 +1006,14 @@ pub struct Energy {
     /// What a press of the power button does.
     #[setting(default = PowerButton::SessionDialog)]
     pub power_button: PowerButton,
+}
+
+/// Software Update (Settings › General › Software Update).
+#[derive(Clone, Debug, PartialEq, Section)]
+pub struct Updates {
+    /// Looks for updates once an hour; off, only Check Now looks.
+    #[setting(default = true)]
+    pub check: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Choice)]

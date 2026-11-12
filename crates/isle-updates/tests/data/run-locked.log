@@ -1,0 +1,3 @@
+:: Synchronizing package databases...
+error: failed to synchronize all databases (unable to lock database)
+EXIT=1

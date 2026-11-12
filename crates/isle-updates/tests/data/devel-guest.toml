@@ -1,0 +1,4 @@
+[[probe-git]]
+url = "file:///home/user/probe-src"
+branch = "main"
+commit = "002fa126596a94dc77a7567123de711545d8aef8"

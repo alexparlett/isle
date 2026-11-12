@@ -1,0 +1,3 @@
+[[appimagetool-bin]]
+url = "https://github.com/AppImage/appimagetool.git"
+commit = "4919cc4757a72de48c9fa4f36c04b288610ec21c"

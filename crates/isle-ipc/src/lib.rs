@@ -21,6 +21,7 @@ pub const SERVICES_PATH: &str = "/io/github/alexparlett/Isle/Services";
 pub const NOTIFICATIONS_PATH: &str = "/io/github/alexparlett/Isle/Notifications";
 pub const FOCUS_PATH: &str = "/io/github/alexparlett/Isle/Focus";
 pub const CAPTURE_PATH: &str = "/io/github/alexparlett/Isle/Capture";
+pub const UPDATES_PATH: &str = "/io/github/alexparlett/Isle/Updates";
 
 /// One key of `settings.kdl`, as the Settings interface introspects it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Type)]
@@ -928,6 +929,30 @@ pub mod capture {
         fn status(&self) -> zbus::Result<String>;
         /// Ends a stream from Isle's side; false when there is none.
         fn stop_stream(&self, id: u64) -> zbus::Result<bool>;
+    }
+}
+
+pub mod updates {
+    use super::*;
+
+    #[proxy(
+        interface = "io.github.alexparlett.Isle.Updates1",
+        default_service = "io.github.alexparlett.Isle",
+        default_path = "/io/github/alexparlett/Isle/Updates"
+    )]
+    pub trait Updates {
+        /// What is waiting, the run's progress and the restart owed, as JSON.
+        fn status(&self) -> zbus::Result<String>;
+        /// Looks for updates now and returns once the check is done.
+        fn check(&self) -> zbus::Result<()>;
+        /// Starts the full upgrade; returns why not, or nothing once it has started.
+        fn install(&self) -> zbus::Result<String>;
+        /// Stops the run; returns why not, or nothing once asked.
+        fn stop(&self) -> zbus::Result<String>;
+        /// The session dialog's restart, to finish an update.
+        fn restart(&self) -> zbus::Result<()>;
+        #[zbus(signal)]
+        fn changed(&self) -> zbus::Result<()>;
     }
 }
 

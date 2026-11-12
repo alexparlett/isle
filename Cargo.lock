@@ -4670,6 +4670,7 @@ dependencies = [
  "isle-providers",
  "isle-settings",
  "isle-state",
+ "isle-updates",
  "libc",
  "serde",
  "serde_json",
@@ -4717,6 +4718,7 @@ dependencies = [
  "isle-tokens",
  "isle-tray",
  "isle-ui",
+ "isle-updates",
  "jiff",
  "libc",
  "libdisplay-info",
@@ -5261,6 +5263,17 @@ dependencies = [
  "isle-tokens",
  "png 0.17.16",
  "zeroize",
+]
+
+[[package]]
+name = "isle-updates"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
 ]
 
 [[package]]

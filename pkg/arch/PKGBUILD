@@ -64,9 +64,11 @@ prepare() {
   cargo fetch --locked --target "$(rustc --print host-tuple)"
 }
 
+# The target sits beside the PKGBUILD, which makepkg leaves alone between builds, so an
+# update from Software Update rebuilds only what changed.
 build() {
   cd isle
-  export CARGO_TARGET_DIR="${ISLE_TARGET_DIR:-$srcdir/target}"
+  export CARGO_TARGET_DIR="${ISLE_TARGET_DIR:-$startdir/target}"
   export SKIA_BINARIES_URL="file://$srcdir/skia-binaries-{key}.tar.gz"
   [[ -x /usr/bin/gn ]] && export SKIA_GN_COMMAND=/usr/bin/gn
   [[ -x /usr/bin/ninja ]] && export SKIA_NINJA_COMMAND=/usr/bin/ninja
@@ -81,7 +83,7 @@ build() {
 
 package() {
   cd isle
-  local target="${ISLE_TARGET_DIR:-$srcdir/target}/release"
+  local target="${ISLE_TARGET_DIR:-$startdir/target}/release"
   for bin in isle-compositor isle-session isle isle-auth isle-record isle-provider-init isle-settings isle-files isle-thumbnail isle-monitor isle-cleaner isle-keychain; do
     install -Dm755 "$target/$bin" "$pkgdir/usr/bin/$bin"
   done
@@ -105,6 +107,8 @@ package() {
     "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Keychain.policy"
   install -Dm644 data/polkit/io.github.alexparlett.Isle.Monitor.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Monitor.policy"
+  install -Dm644 data/polkit/io.github.alexparlett.Isle.Updates.policy \
+    "$pkgdir/usr/share/polkit-1/actions/io.github.alexparlett.Isle.Updates.policy"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Monitor.desktop \
     "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Monitor.desktop"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Monitor.service \

@@ -58,6 +58,9 @@ enum Command {
     },
     #[command(subcommand)]
     Windows(Windows),
+    /// Software Update: what is waiting, and the full upgrade.
+    #[command(subcommand)]
+    Update(UpdateCommand),
     #[command(subcommand)]
     Apps(Apps),
     #[command(subcommand)]
@@ -378,6 +381,29 @@ enum Menus {
 }
 
 #[derive(Subcommand)]
+enum UpdateCommand {
+    /// What is waiting, the run in progress and any restart owed.
+    Status,
+    /// Look for updates now.
+    Check,
+    /// Start the full upgrade.
+    Install {
+        /// Follow the run until it ends, and exit with its result.
+        #[arg(long)]
+        wait: bool,
+    },
+    /// Stop the run, unless pacman is installing.
+    Stop,
+    /// The run itself, as the transient unit starts it.
+    #[command(hide = true)]
+    Run {
+        /// Isle's own package is among the updates.
+        #[arg(long)]
+        isle: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum FocusCommand {
     /// The Focus in force and why.
     Status,
@@ -529,6 +555,8 @@ async fn main() -> ExitCode {
             return widget_run(folder, size.as_deref(), *no_grants, cli.json).await;
         }
         Command::Awake { display, command } => return awake(*display, command).await,
+        Command::Update(UpdateCommand::Run { isle }) => return update_run(*isle),
+        Command::Update(UpdateCommand::Install { wait: true }) => return update_and_wait(cli.json).await,
         _ => {}
     }
     match run(&cli).await {
@@ -584,6 +612,97 @@ async fn awake(display: bool, command: &[String]) -> ExitCode {
         Err(err) => {
             eprintln!("isle: {program}: {err}");
             ExitCode::from(127)
+        }
+    }
+}
+
+/// `isle update run`: the full upgrade, with paru on Isle's own config so it can build Isle.
+fn update_run(isle: bool) -> ExitCode {
+    let home = |var: &str, under: &str| {
+        std::env::var_os(var)
+            .map(std::path::PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .or_else(|| std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join(under)))
+            .unwrap_or_default()
+    };
+    let tools = isle_updates::Tools::from_env();
+    let mut envs = Vec::new();
+    if tools.paru.is_some() {
+        let dir = home("XDG_CACHE_HOME", ".cache").join("isle/updates");
+        match isle_updates::paru_config(&dir, &home("XDG_CONFIG_HOME", ".config")) {
+            Ok(path) => envs.push(("PARU_CONF".into(), path.into_os_string())),
+            Err(err) => eprintln!("isle: paru's config for Isle: {err}"),
+        }
+    }
+    let code = isle_updates::run(&tools.run_argv(isle), &envs, &isle_updates::progress_path());
+    ExitCode::from(code.clamp(0, 255) as u8)
+}
+
+fn print_update_status(status: &str) {
+    let Ok(s) = serde_json::from_str::<serde_json::Value>(status) else { return };
+    for p in s["pending"].as_array().into_iter().flatten() {
+        println!(
+            "{} {} -> {} ({})",
+            p["name"].as_str().unwrap_or_default(),
+            p["from"].as_str().unwrap_or_default(),
+            p["to"].as_str().unwrap_or_default(),
+            p["source"].as_str().unwrap_or_default()
+        );
+    }
+    if let Some(e) = s["check_error"].as_str() {
+        println!("Couldn't check for updates: {e}");
+    }
+    let run = &s["progress"];
+    if !run.is_null() {
+        let state = run["state"].as_str().unwrap_or_default();
+        println!("{state}: {} ({} of {})", run["phase"].as_str().unwrap_or_default(), run["done"], run["total"]);
+        if let Some(reason) = run["reason"].as_str() {
+            println!("{reason}");
+        }
+    }
+    for r in s["restart"].as_array().into_iter().flatten() {
+        println!("Restart to finish updating: {}", r.as_str().unwrap_or_default());
+    }
+}
+
+/// `isle update install --wait`: starts the run and follows it until it ends.
+async fn update_and_wait(json: bool) -> ExitCode {
+    let followed = async {
+        let bus = zbus::Connection::session().await?;
+        let proxy = isle_ipc::updates::UpdatesProxy::new(&bus).await?;
+        let why = proxy.install().await?;
+        if !why.is_empty() {
+            return Err(zbus::Error::Failure(why));
+        }
+        let mut last = String::new();
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let status: serde_json::Value = serde_json::from_str(&proxy.status().await?)
+                .map_err(|e| zbus::Error::Failure(e.to_string()))?;
+            let run = &status["progress"];
+            let state = run["state"].as_str().unwrap_or("Running").to_owned();
+            let line = format!("{} {}/{}", run["phase"].as_str().unwrap_or_default(), run["done"], run["total"]);
+            if !json && line != last {
+                println!("{line}");
+                last = line;
+            }
+            if state != "Running" {
+                if json {
+                    println!("{status}");
+                } else if let Some(reason) = run["reason"].as_str() {
+                    println!("{reason}");
+                }
+                return Ok(state == "Done");
+            }
+        }
+    }
+    .await;
+    match followed {
+        Ok(true) => ExitCode::SUCCESS,
+        Ok(false) => ExitCode::FAILURE,
+        Err(err) => {
+            eprintln!("isle: {err}");
+            ExitCode::FAILURE
         }
     }
 }
@@ -1030,6 +1149,33 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                         service["state"]
                     );
                 }
+            }
+        }
+        Command::Update(command) => {
+            let proxy = isle_ipc::updates::UpdatesProxy::new(&bus).await?;
+            match command {
+                UpdateCommand::Status => {
+                    let status = proxy.status().await?;
+                    if cli.json {
+                        println!("{status}");
+                    } else {
+                        print_update_status(&status);
+                    }
+                }
+                UpdateCommand::Check => {
+                    proxy.check().await?;
+                    print_update_status(&proxy.status().await?);
+                }
+                UpdateCommand::Install { .. } | UpdateCommand::Stop => {
+                    let why = match command {
+                        UpdateCommand::Stop => proxy.stop().await?,
+                        _ => proxy.install().await?,
+                    };
+                    if !why.is_empty() {
+                        return Err(zbus::Error::Failure(why));
+                    }
+                }
+                UpdateCommand::Run { .. } => {}
             }
         }
         Command::Focus(command) => {

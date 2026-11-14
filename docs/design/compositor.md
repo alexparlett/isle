@@ -342,7 +342,7 @@ macos-model.md §2).
 4. A chord bound twice is refused with a message naming both actions; the last good set stays in force.
 5. The switcher opens on Cmd+Tab and commits when Cmd is released, whatever was pressed in between.
 6. The dedicated media, volume and brightness keys act wherever focus is: locked, over a game, over a window holding the keys, and with any modifiers held; they never reach a window, volume and brightness repeat, and Option+Shift moves a level a quarter step (B121).
-7. While a game is in front, only the escape set of desktop chords is live, besides the media keys of 6: Cmd+Tab, Mission Control, lock, and the screenshot chords (Shift+Cmd+3, 4 and 5, with or without Ctrl, and Cmd+Ctrl+Escape to stop a recording; P1 `capture.md`); every other chord goes to the game (B30).
+7. While a game is in front, only the escape set of desktop chords is live, besides the media keys of 6: Cmd+Q, Cmd+Tab, Mission Control, Force Quit, lock, and the screenshot chords (Shift+Cmd+3, 4 and 5, with or without Ctrl, and Cmd+Ctrl+Escape to stop a recording; P1 `capture.md`); every other chord goes to the game (B30).
 8. Escape closes an open shell overlay and is consumed only then.
 9. Bound actions run in the compositor; only app launches start a process.
 

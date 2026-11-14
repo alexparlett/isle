@@ -38,7 +38,7 @@ async fn game_window(isle: &Isle, app: &str) -> u64 {
 }
 
 /// Over a game Ctrl is Ctrl and Cmd is Super, nothing is swapped, and only the escape set
-/// acts: Cmd+Tab does, Cmd+H does not.
+/// acts: Cmd+Tab and Force Quit do, Cmd+H does not.
 async fn plays_raw(isle: &Isle, game: &Client, id: u64) {
     let test = isle.test().await;
     game.clear();
@@ -70,6 +70,16 @@ async fn plays_raw(isle: &Isle, game: &Client, id: u64) {
     chord(isle, &[CMD], H).await;
     game.wait_for(&format!("key {H} released")).await;
     assert!(!isle.window(id).await.hidden, "Cmd+H is the game's");
+
+    // Force Quit acts, so a game that ignores Cmd+Q can still be ended.
+    let force_quit = || async {
+        let s = isle.test().await.force_quit().await.unwrap();
+        serde_json::from_str::<serde_json::Value>(&s).unwrap()["open"] == true
+    };
+    chord(isle, &[CMD, OPTION], ESCAPE).await;
+    wait_until(force_quit).await;
+    chord(isle, &[], ESCAPE).await;
+    wait_until(|| async { !force_quit().await }).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

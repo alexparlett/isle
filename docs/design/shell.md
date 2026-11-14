@@ -243,7 +243,7 @@ front app's windows (B20, D59).
 4. Releasing Cmd commits: the selected app comes forward with its most recent window, unhidden and restored if needed.
 5. Apps with only hidden or minimised windows, and apps kept running with none (B20), are listed and restored on commit. Apps running in the background after quit are listed last, and Q stops them.
 6. Cmd+` without the switcher cycles the front app's windows in a stable order, not recency, so every window is reachable (D59).
-7. Cmd+Tab works out of a game in front; it is in the fixed escape set with Mission Control, lock and screenshot, and every other chord goes to the game (B30).
+7. Cmd+Tab works out of a game in front; it is in the fixed escape set with Cmd+Q, Mission Control, Force Quit, lock and screenshot, and every other chord goes to the game (B30).
 8. Modifiers held through the switch never stick in either app (B21).
 
 v1 lessons kept

@@ -349,8 +349,10 @@ game window has focus, so games get the keys as labelled. A Mac-layout
 keyboard needs no swap: Cmd is Super and Option is Alt everywhere, games
 included, as on macOS. While a game is in
 front a fixed escape set still works (Cmd+Q, Cmd+Tab, Mission Control,
-lock, screenshot) and every other chord goes to the game; Cmd+Q was added
-after the P12 host run, where a game took it and could not be quit. Focus
+Force Quit, lock, screenshot) and every other chord goes to the game; Cmd+Q
+was added after the P12 host run, where a game took it and could not be
+quit, and Force Quit so a game that ignores Cmd+Q's request to close can
+still be ended. Focus
 modes work as on macOS, with a Gaming Focus that turns on for any detected game in front,
 windowed or not. VRR is on while a full-screen app is in front, with a
 setting to change it.

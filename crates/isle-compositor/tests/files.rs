@@ -2291,6 +2291,7 @@ async fn panel_with_development_open(isle: &Isle, files: u64) -> isle_ipc::Windo
 
 const PANEL_TRIANGLE: (f64, f64) = (583., 178.);
 const PANEL_NESTED: (f64, f64) = (760., 206.);
+const PANEL_CHOOSE: (f64, f64) = (1348., 716.);
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_panel_chooses_and_opens_a_folder_inside_an_open_folder() {
@@ -2305,7 +2306,7 @@ async fn a_panel_chooses_and_opens_a_folder_inside_an_open_folder() {
     let frontend = zbus::connection::Builder::address(isle.bus_address().as_str()).unwrap().build().await.unwrap();
     frontend.request_name("org.freedesktop.portal.Desktop").await.unwrap();
 
-    // A folder request: isle, inside Development opened in place, chosen.
+    // A folder request: isle, inside Development opened in place, selected and Choose clicked.
     let mut options = std::collections::HashMap::new();
     options.insert("directory".to_owned(), owned(true));
     options.insert("current_folder".to_owned(), owned(bytes_of(&home)));
@@ -2315,7 +2316,7 @@ async fn a_panel_chooses_and_opens_a_folder_inside_an_open_folder() {
     isle.keep_shot("files-panel-tree-open").await;
     click(&isle, PANEL_NESTED, &[], 1).await;
     isle.keep_shot("files-panel-tree-chosen").await;
-    isle.chord(&[ENTER]).await;
+    test_click_panel(&isle, PANEL_CHOOSE).await;
     let (response, results) = tokio::time::timeout(std::time::Duration::from_secs(10), asked).await.expect("the panel answers").unwrap();
     assert_eq!(response, 0);
     let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();

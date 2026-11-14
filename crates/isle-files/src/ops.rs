@@ -205,8 +205,8 @@ pub(crate) enum RenameCheck {
 
 /// What a typed name does (`files.md` § Acting on files, Rename).
 pub(crate) fn check_rename(tab: &Tab, path: &std::path::Path, typed: &str, warn_extension: bool) -> RenameCheck {
-    let is_dir = tab.folder.get(path).is_some_and(|e| e.is_dir());
-    check_rename_with(path, typed, is_dir, |p| tab.folder.get(p).is_some(), warn_extension)
+    let is_dir = tab.entry(path).is_some_and(|e| e.is_dir());
+    check_rename_with(path, typed, is_dir, |p| tab.entry(p).is_some(), warn_extension)
 }
 
 /// As `check_rename`, `taken` saying whether a name is in use: Get Info asks the disk.
@@ -340,7 +340,7 @@ pub(crate) fn open_items(
     // An item not in the tab's listing yet, as one opened from a column before the last.
     let entries: Vec<_> = {
         let t = handle.tab.peek();
-        paths.iter().filter_map(|p| t.folder.get(p).cloned().or_else(|| isle_fs::Entry::at(p).ok())).collect()
+        paths.iter().filter_map(|p| t.entry(p).cloned().or_else(|| isle_fs::Entry::at(p).ok())).collect()
     };
     let dirs: Vec<_> = entries.iter().filter(|e| e.is_dir()).collect();
     match (dirs.as_slice(), in_tabs) {

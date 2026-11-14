@@ -72,7 +72,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
     let selected_image = {
         let t = tab.read();
         t.selection.len() == 1
-            && t.folder.get(&t.selection[0]).and_then(|e| e.mime.as_deref()).is_some_and(|m| m.starts_with("image/"))
+            && t.entry(&t.selection[0]).and_then(|e| e.mime.as_deref()).is_some_and(|m| m.starts_with("image/"))
     };
     let (selected_count, selection_name) = {
         let t = tab.read();
@@ -87,7 +87,7 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
     let tab_bar_shown = *shared.tab_bar.read() || tabs.read().len() > 1;
     let (selected_alias, sidebar_target) = {
         let t = tab.read();
-        let one = (t.selection.len() == 1).then(|| t.folder.get(&t.selection[0])).flatten();
+        let one = (t.selection.len() == 1).then(|| t.entry(&t.selection[0])).flatten();
         let alias = one.is_some_and(|e| matches!(e.kind, isle_fs::Kind::Link { broken: false, .. }));
         let folder = match one {
             Some(e) if e.is_dir() => Some(e.path.clone()),
@@ -573,7 +573,7 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                 "add-to-sidebar" => {
                     let t = tab.peek();
                     let folder = match t.selection.as_slice() {
-                        [one] if t.folder.get(one).is_some_and(|e| e.is_dir()) => Some(one.clone()),
+                        [one] if t.entry(one).is_some_and(|e| e.is_dir()) => Some(one.clone()),
                         [] => t.place.folder().map(PathBuf::from),
                         _ => None,
                     };
@@ -603,7 +603,7 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                     let folder = t
                         .selection
                         .first()
-                        .filter(|p| t.folder.get(p).is_some_and(|e| e.is_dir()))
+                        .filter(|p| t.entry(p).is_some_and(|e| e.is_dir()))
                         .cloned()
                         .or_else(|| t.place.folder().map(PathBuf::from));
                     drop(t);
@@ -704,7 +704,7 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                     let here = t.place.folder().map(PathBuf::from);
                     let trashed: Vec<_> = selection
                         .iter()
-                        .filter_map(|p| t.folder.get(p)?.trashed.as_deref().cloned())
+                        .filter_map(|p| t.entry(p)?.trashed.as_deref().cloned())
                         .collect();
                     drop(t);
                     let work = match id.as_str() {

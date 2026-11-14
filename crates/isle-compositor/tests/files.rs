@@ -2267,3 +2267,76 @@ async fn close_windows_when_quitting_opens_fresh_unless_restored() {
     quit_files(&isle, &app).await;
     assert!(!kept_tabs(&isle).contains("Documents"), "{}", kept_tabs(&isle));
 }
+
+const KEY_2: u32 = 3;
+
+/// The panel moved to a known box, in List, with Development opened in place under its row.
+async fn panel_with_development_open(isle: &Isle, files: u64) -> isle_ipc::WindowInfo {
+    let panel = loop {
+        let found = isle.windows().await.into_iter().find(|w| w.app_id == APP && w.id != files);
+        if let Some(found) = found {
+            break found;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    };
+    isle.windows_proxy().await.set_box(panel.id, 400, 100, 1000, 640).await.unwrap();
+    wait_until(|| async { isle.window(panel.id).await.width == 1000 }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    isle.chord(&[SUPER, KEY_2]).await;
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    click(isle, PANEL_TRIANGLE, &[], 1).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.window(panel.id).await
+}
+
+const PANEL_TRIANGLE: (f64, f64) = (583., 178.);
+const PANEL_NESTED: (f64, f64) = (760., 206.);
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_panel_chooses_and_opens_a_folder_inside_an_open_folder() {
+    let Some(bin) = files_bin() else {
+        eprintln!("skipped: build isle-files first");
+        return;
+    };
+    let mut isle = Isle::start("files-panel-tree").await;
+    let (app, home) = start_files(&mut isle, &bin, &[]);
+    let files = isle.wait_for_window(APP).await.id;
+    app.wait_for_part("serving FileManager1").await;
+    let frontend = zbus::connection::Builder::address(isle.bus_address().as_str()).unwrap().build().await.unwrap();
+    frontend.request_name("org.freedesktop.portal.Desktop").await.unwrap();
+
+    // A folder request: isle, inside Development opened in place, chosen.
+    let mut options = std::collections::HashMap::new();
+    options.insert("directory".to_owned(), owned(true));
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home)));
+    let asked = tokio::spawn(file_chooser(frontend.clone(), "OpenFile", "/org/freedesktop/portal/desktop/request/1_1/n", options));
+    app.wait_for_part("choose").await;
+    panel_with_development_open(&isle, files).await;
+    isle.keep_shot("files-panel-tree-open").await;
+    click(&isle, PANEL_NESTED, &[], 1).await;
+    isle.keep_shot("files-panel-tree-chosen").await;
+    isle.chord(&[ENTER]).await;
+    let (response, results) = tokio::time::timeout(std::time::Duration::from_secs(10), asked).await.expect("the panel answers").unwrap();
+    assert_eq!(response, 0);
+    let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();
+    assert!(uris[0].ends_with("/Development/isle"), "{uris:?}");
+    wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 1 }).await;
+
+    // A file request: a double-click goes into isle, where Cargo.toml is opened.
+    let mut options = std::collections::HashMap::new();
+    options.insert("current_folder".to_owned(), owned(bytes_of(&home)));
+    let asked = tokio::spawn(file_chooser(frontend.clone(), "OpenFile", "/org/freedesktop/portal/desktop/request/1_1/o", options));
+    wait_until(|| async { isle.windows().await.iter().filter(|w| w.app_id == APP).count() == 2 }).await;
+    panel_with_development_open(&isle, files).await;
+    click(&isle, PANEL_NESTED, &[], 2).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    isle.keep_shot("files-panel-tree-into").await;
+    type_text(&isle, "car").await;
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    isle.chord(&[ENTER]).await;
+    let (response, results) = tokio::time::timeout(std::time::Duration::from_secs(10), asked).await.expect("the panel answers").unwrap();
+    assert_eq!(response, 0);
+    let uris: Vec<String> = results["uris"].try_clone().unwrap().try_into().unwrap();
+    assert!(uris[0].ends_with("/Development/isle/Cargo.toml"), "{uris:?}");
+    assert!(!app.printed_part("panicked"));
+}

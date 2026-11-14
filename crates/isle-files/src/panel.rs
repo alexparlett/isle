@@ -234,7 +234,7 @@ impl App for PanelWindow {
                 let mut replacing = replacing;
                 let t = tab.peek();
                 let Some(here) = t.place.folder().map(PathBuf::from) else { return };
-                let picked: Vec<_> = t.selection.iter().filter_map(|p| t.folder.get(p).cloned()).collect();
+                let picked: Vec<_> = t.selection.iter().filter_map(|p| t.entry(p).cloned()).collect();
                 drop(t);
                 match ask.kind {
                     Kind::Open => {
@@ -298,7 +298,7 @@ impl App for PanelWindow {
                     } else {
                         t.select_only(path.clone());
                     }
-                    let entry = t.folder.get(&path).cloned();
+                    let entry = t.entry(&path).cloned();
                     drop(t);
                     // Choosing a file in Save takes its name.
                     if ask.kind == Kind::Save
@@ -308,7 +308,7 @@ impl App for PanelWindow {
                     }
                 }
                 Pick::Open(path, _) => {
-                    let entry = tab.peek().folder.get(&path).cloned();
+                    let entry = tab.peek().entry(&path).cloned();
                     let Some(entry) = entry else { return };
                     if entry.is_dir() {
                         tab::go(tab, &live, Place::Folder(path), None);
@@ -403,7 +403,7 @@ impl App for PanelWindow {
         let can_accept = match ask.kind {
             Kind::Open => {
                 let t = tab.read();
-                ask.directory || t.selection.iter().filter_map(|p| t.folder.get(p)).any(|e| e.is_dir() || chooses.allows(e))
+                ask.directory || t.selection.iter().filter_map(|p| t.entry(p)).any(|e| e.is_dir() || chooses.allows(e))
             }
             Kind::Save => !name.read().trim().is_empty(),
             Kind::SaveFiles => true,

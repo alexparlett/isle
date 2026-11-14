@@ -163,7 +163,7 @@ pub type Apps = Option<Vec<crate::open::Choice>>;
 /// The menu for `items` in `tab`: one, several, or ones in the Trash.
 pub fn items(tab: &Tab, items: Vec<PathBuf>, apps: &Apps, at: (f32, f32), keyboard: bool) -> Open {
     let mut rows = Rows::default();
-    let entries: Vec<_> = items.iter().filter_map(|p| tab.folder.get(p)).collect();
+    let entries: Vec<_> = items.iter().filter_map(|p| tab.entry(p)).collect();
     let count = items.len();
     let one = (count == 1).then(|| name(&items[0]));
     if entries.iter().any(|e| e.trashed.is_some()) {
@@ -437,7 +437,7 @@ pub fn open_for(tab: freya::prelude::State<Tab>, target: Option<PathBuf>, at: (f
     };
     let chosen = if t.is_selected(&path) { t.selection.clone() } else { vec![path] };
     let file = match chosen.as_slice() {
-        [one] => t.folder.get(one).filter(|e| !e.is_dir() && e.trashed.is_none()).map(|e| e.path.clone()),
+        [one] => t.entry(one).filter(|e| !e.is_dir() && e.trashed.is_none()).map(|e| e.path.clone()),
         _ => None,
     };
     let open = items(&t, chosen.clone(), &None, at, keyboard);

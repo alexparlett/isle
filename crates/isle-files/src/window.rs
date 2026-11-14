@@ -628,7 +628,7 @@ impl App for FilesWindow {
                         }
                         // ⌥ opens and closes the window, a folder in a window of its own.
                         Pick::Open(path, held) if held.option && !held.cmd => {
-                            let dir = tab.peek().folder.get(&path).map(|e| e.is_dir());
+                            let dir = tab.peek().entry(&path).map(|e| e.is_dir());
                             if dir.unwrap_or_else(|| path.is_dir()) {
                                 shared.open_window(vec![(Place::Folder(path), None)], 0, None);
                             } else {
@@ -775,7 +775,7 @@ impl App for FilesWindow {
                 let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
                 let (place, chosen) = {
                     let t = tab.peek();
-                    let chosen = (t.selection.len() == 1).then(|| t.folder.get(&t.selection[0]).cloned()).flatten();
+                    let chosen = (t.selection.len() == 1).then(|| t.entry(&t.selection[0]).cloned()).flatten();
                     (t.place.folder().map(PathBuf::from), chosen)
                 };
                 match (&e.key, place, chosen) {
@@ -826,7 +826,7 @@ impl App for FilesWindow {
         });
         let interact = Interact {
             rename: renaming.read().clone().map(|path| Rename {
-                dir: tab.peek().folder.get(&path).is_some_and(|e| e.is_dir()),
+                dir: tab.peek().entry(&path).is_some_and(|e| e.is_dir()),
                 path,
                 text: rename_text,
                 on_commit: on_commit.clone(),
@@ -867,7 +867,7 @@ impl App for FilesWindow {
         let title = place.title();
         let (selected_items, selected_size) = {
             let t = tab.read();
-            let items: Vec<_> = t.selection.iter().filter_map(|p| t.folder.get(p).cloned()).collect();
+            let items: Vec<_> = t.selection.iter().filter_map(|p| t.entry(p).cloned()).collect();
             let size = items.iter().filter(|e| !e.is_dir()).map(|e| e.size).sum::<u64>();
             (items, size)
         };

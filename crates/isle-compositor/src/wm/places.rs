@@ -37,7 +37,11 @@ impl Isle {
         let float_parent = record.and_then(|r| r.surface()).and_then(|s| self.float_parent(&s));
         let parent = wayland_parent.or(x11_parent).map(|r| r.id).or(float_parent);
         if let Some(record) = self.wm.get_mut(id) {
-            record.app = self.apps.resolve(&record.names().0);
+            let app = self.apps.resolve(&record.names().0);
+            // An app id cleared, as gamescope does when it remaps, keeps the app it had.
+            if !app.is_empty() || record.app.is_empty() {
+                record.app = app;
+            }
             record.parent = parent;
         }
         self.refresh_game(id);

@@ -217,3 +217,15 @@ async fn an_app_with_no_id_is_named_by_its_process() {
     // The kernel keeps fifteen characters of a process's name.
     assert_eq!(app.name, "isle-test-clien");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_cleared_app_id_keeps_the_app_and_a_new_one_replaces_it() {
+    let mut isle = Isle::start("app-id-cleared").await;
+    let client = isle.client("isle.test.Named", "3366ff");
+    let id = isle.wait_for_window("isle.test.Named").await.id;
+    client.send("app-id");
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(isle.window(id).await.app, "isle.test.Named");
+    client.send("app-id isle.test.Renamed");
+    wait_until(|| async { isle.window(id).await.app == "isle.test.Renamed" }).await;
+}

@@ -184,8 +184,8 @@ async fn a_metadata_cursor_moves_over_a_still_frame_without_new_pictures() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert_eq!(last_frame(&consumer).unwrap().0, frames);
 
-    // Off the portion, the cursor goes.
-    test.pointer_to(900.0, 700.0).await.unwrap();
+    // Off the portion, and off where the window below maps, the cursor goes.
+    test.pointer_to(900.0, 1000.0).await.unwrap();
     consumer.wait_for("cursor gone").await;
 
     // Over a window with a cursor surface of its own, its image goes with it.

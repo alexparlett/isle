@@ -10,6 +10,7 @@ const SHIFT: u32 = 42;
 const TAB: u32 = 15;
 const FOUR: u32 = 5;
 const ESC: u32 = 1;
+const LEFT_BUTTON: u32 = 272;
 
 fn count(client: &Client, line: &str) -> usize {
     client.lines.lock().unwrap().iter().filter(|l| *l == line).count()
@@ -67,6 +68,40 @@ async fn cmd_tab_and_the_pick_let_the_pointer_go_and_give_it_back() {
     wait_count(&client, "unlocked", 2).await;
     isle.chord(&[ESC]).await;
     wait_count(&client, "locked", 3).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cmd_tab_to_a_game_on_another_desktop_gives_it_the_pointer() {
+    let mut isle = Isle::start("pointer-desktop").await;
+    let other = isle.client("isle.test.Other", "ff3366");
+    isle.wait_for_window("isle.test.Other").await;
+    let client = game(&mut isle, "isle.test.Away").await;
+    let id = isle.wait_for_window("isle.test.Away").await.id;
+    client.send("lock-pointer");
+    wait_count(&client, "locked", 1).await;
+    let desktops = isle_ipc::desktops::DesktopsProxy::new(&isle.bus).await.unwrap();
+    desktops.add("").await.unwrap();
+    assert!(desktops.move_window(id, 2).await.unwrap());
+    desktops.switch("", 1).await.unwrap();
+    wait_count(&client, "unlocked", 1).await;
+    isle.test().await.pointer_by(1.0, 0.0).await.unwrap();
+    common::wait_until(|| async {
+        other.lines.lock().unwrap().iter().any(|l| l.starts_with("pointer-enter "))
+    })
+    .await;
+
+    // The pointer has not moved since desktop 1's window was under it.
+    isle.chord(&[CMD, TAB]).await;
+    wait_count(&client, "locked", 2).await;
+    client.clear();
+    let test = isle.test().await;
+    test.pointer_by(40.0, -12.0).await.unwrap();
+    client.wait_for("relative 40 -12 40 -12").await;
+    test.button(LEFT_BUTTON, true).await.unwrap();
+    test.button(LEFT_BUTTON, false).await.unwrap();
+    client.wait_for("button 272 released").await;
+    let rows = desktops.list().await.unwrap();
+    assert!(rows[1].current, "{rows:?}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

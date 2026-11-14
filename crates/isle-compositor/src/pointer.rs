@@ -38,7 +38,7 @@ fn root(surface: &WlSurface) -> WlSurface {
 impl State {
     /// Where a constraint may hold: the surface under the pointer while its window has the
     /// keyboard, with nothing of Isle's holding the pointer and the screen unlocked.
-    fn constraint_target(&self) -> Option<(WlSurface, Point<f64, Logical>)> {
+    fn constraint_target(&self) -> Option<(Focus, WlSurface, Point<f64, Logical>)> {
         if self.isle.lock.locked || self.picking() {
             return None;
         }
@@ -50,7 +50,7 @@ impl State {
         let surface = focus.surface()?.clone();
         let keyboard = self.isle.seat.get_keyboard()?.current_focus()?;
         let focused = keyboard.surface()?;
-        (root(&surface) == root(focused)).then_some((surface, origin))
+        (root(&surface) == root(focused)).then_some((focus, surface, origin))
     }
 
     /// Activates the constraint that may hold now and lets go of any that may not: after
@@ -61,7 +61,7 @@ impl State {
         };
         let target = self.constraint_target();
         if let Some(active) = self.isle.constrained.clone()
-            && target.as_ref().is_none_or(|(surface, _)| *surface != active)
+            && target.as_ref().is_none_or(|(_, surface, _)| *surface != active)
         {
             with_pointer_constraint(&active, &pointer, |constraint| {
                 if let Some(constraint) = constraint {
@@ -71,9 +71,24 @@ impl State {
             tracing::info!("pointer constraint released");
             self.isle.constrained = None;
         }
-        let Some((surface, origin)) = target else {
+        let Some((focus, surface, origin)) = target else {
             return;
         };
+        // Pointer focus follows motion only, and a window brought under a still pointer by a
+        // switch or a raise would not get the relative motion or the clicks.
+        if pointer.current_focus().as_ref().and_then(|f| f.surface()) != Some(&surface) {
+            let location = pointer.current_location();
+            pointer.motion(
+                self,
+                Some((focus, origin)),
+                &smithay::input::pointer::MotionEvent {
+                    location,
+                    serial: smithay::utils::SERIAL_COUNTER.next_serial(),
+                    time: InputTime::now(),
+                },
+            );
+            pointer.frame(self);
+        }
         let at = pointer.current_location() - origin;
         let activated = with_pointer_constraint(&surface, &pointer, |constraint| {
             let Some(constraint) = constraint else {

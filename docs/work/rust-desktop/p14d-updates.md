@@ -94,9 +94,9 @@ and a restart owed is said wherever the user looks until they restart.
    point). Five minutes after the session starts, then hourly, on Check
    Now, and after every run: `checkupdates` (pacman's databases synced
    into a temporary copy, so the system's are never partly synced, D83)
-   and `paru -Qua` (the AUR, devel packages included). Each line is
-   `name from -> to`; the source is Repositories or AUR. paru never lists
-   a PKGBUILD repository's devel package there. *Revised:* Isle's own
+   and Isle's branch. *Revised 2026-11-15 at the user's word:* no AUR;
+   `paru -Qua` is gone and nothing from the AUR is checked, shown or
+   built. Each line is `name from -> to`. *Revised:* Isle's own
    update is the commit in the installed `isle-git`'s version
    (`r<n>.g<hash>`) against `git ls-remote` of the compiled-in PKGBUILD's
    source and branch; paru's `devel.toml` has no entry for a package it
@@ -112,16 +112,15 @@ and a restart owed is said wherever the user looks until they restart.
 
 ### The run
 
-9. **One command:** `paru -Syu --noconfirm --skipreview --noprogressbar
-   --sudo pkexec`, run as the user. paru syncs and upgrades the
-   repositories through `pkexec pacman`, then builds the AUR's and Isle's
-   updates as the user and installs them through `pkexec pacman -U`.
-   Every question takes its default. *Revised:* when the check found an
-   Isle update, `isle-git` is named as a target of the same `-Syu`, since
-   paru rebuilds a devel package it has no record of only when named.
-   With paru missing, the command is
-   `pkexec pacman -Syu --noconfirm --noprogressbar` and the AUR and Isle
-   are not checked.
+9. **One command.** *Revised 2026-11-15 at the user's word:* `pkexec
+   pacman -Syu --noconfirm --noprogressbar`, pacman alone. When the check
+   found Isle's commit, paru runs the same upgrade instead: `paru -Syu
+   --mode=rp --noconfirm --skipreview --noprogressbar --sudo pkexec
+   isle-git` on Isle's config. Repository and PKGBUILD mode never looks at
+   the AUR, and one paru process asks once for its pacman calls; Isle is
+   named since paru rebuilds a devel package it has no record of only
+   when named. Without paru, Isle's commit is not looked at. Every
+   question takes its default.
 10. **One password per run.** paru calls pkexec two to four times in one
     run. Isle ships a polkit action for `/usr/bin/pacman`
     (`io.github.alexparlett.Isle.Updates.upgrade`, `auth_admin_keep`,
@@ -232,7 +231,7 @@ and a restart owed is said wherever the user looks until they restart.
 
 25. **Headless tests:** `isle-updates` parses recorded `checkupdates`,
     `paru -Qua` and full-run output (14d.0 records them in the VM),
-    including a devel package, an AUR build, a failed transaction, a
+    including a devel package, a build, a failed transaction, a
     refused pkexec and pacman's lock; the progress file is never seen
     half-written; restart owed against fake trees for each reason. In
     `isle-compositor`: the check's schedule, no check during a run, the

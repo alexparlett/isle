@@ -94,7 +94,7 @@ follows, and the strings that recur.
 | Sharing picker | "Choose what to share with {app}" |
 | Capture files | "Screenshot {date} at {time}.png", "Screen Recording {date} at {time}.{ext}", in macOS's case |
 | Restart owed | "Restart to finish updating" |
-| Updates | "Updates" with the count as a badge; "Install updates…"; "Check now"; the sources "Repositories", "AUR", "Isle" |
+| Updates | "Updates" with the count as a badge; "Install updates…"; "Check now"; the sources "Repositories", "Isle" (no AUR, P14d) |
 | Settings links | "{pane} Settings…", naming the pane it opens: "Wi-Fi Settings…", "Focus Settings…", "Keyboard Settings…", "Software Update Settings…", "Control Centre Settings…", "Notifications Settings…", "Calendars Settings…", "Wallpaper Settings…" (rule 1) |
 | Control Centre | "Known networks", "Other networks", "Join other network…"; "Not playing"; a failed action's first clause, "Couldn't connect"; Dark Mode "On", "Off"; Accessibility "{n} on"; "Edit controls" (Control Centre's and the island's footers) |
 | Rejected hand edit | "settings.kdl has an error on line 12, column 4. Changes won't be saved until it's fixed." with "Open in editor", "Show in Files" |

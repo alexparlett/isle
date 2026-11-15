@@ -473,7 +473,6 @@ impl Isle {
                 let mut page = Vec::new();
                 for (source, name) in [
                     (Source::Repositories, "Repositories"),
-                    (Source::Aur, "AUR"),
                     (Source::Isle, "Isle"),
                 ] {
                     let n = u.count(source);

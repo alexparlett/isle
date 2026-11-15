@@ -1,2 +1,0 @@
-appimagetool-bin r88.4919cc4-1 -> latest-commit
-xremap-hypr-bin 0.15.9-1 -> 0.15.15-1

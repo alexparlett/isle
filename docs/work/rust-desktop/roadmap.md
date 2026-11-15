@@ -391,8 +391,8 @@ compositor.md.
 
 **P14d · Updates.** Split from P14c at the user's word (2026-11-12),
 planned and approved the same day, building: `p14d-updates.md`. The check on the compositor's
-worker (`checkupdates` and `paru -Qua`), Isle as a paru PKGBUILD
-repository so a new commit is an update; the run as `paru -Syu` in a
+worker (`checkupdates`, no AUR), Isle as a paru PKGBUILD
+repository so a new commit is an update; the run as `pacman -Syu` in a
 transient user unit with one password, its progress in a file; Stop until
 pacman starts; restart owed from the kernel, the NVIDIA module and Isle's
 binaries; Control Centre's Updates module, the island's glyph, the system

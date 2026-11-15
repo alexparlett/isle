@@ -662,13 +662,14 @@ D83: what Isle calls arrives with Isle.
 The system and Isle update from Settings without a terminal, and a needed
 restart is said out loud.
 
-1. Updates are checked hourly against a temporary copy of the sync database,
-   plus paru's foreign updates. A new commit on Isle's git source counts as
-   an update to Isle (B29).
-2. An update is `pacman -Syu` through pkexec, with paru building as the
-   user, Isle's package among what it builds, and handing pacman to pkexec.
-   Isle has no updater of its own (B29). Every question takes its default;
-   progress per package comes from pacman's own lines.
+1. Updates are checked hourly against a temporary copy of the sync database.
+   A new commit on Isle's git source counts as an update to Isle (B29).
+   The AUR is not Software Update's: nothing from it is checked or built.
+2. An update is `pacman -Syu` through pkexec. With Isle's commit waiting,
+   paru runs the same upgrade in repository and PKGBUILD mode, building
+   Isle's package as the user and handing pacman to pkexec. Isle has no
+   updater of its own (B29). Every question takes its default; progress
+   comes from pacman's own lines.
 3. The run is no child of the compositor or of any app. It runs in its own
    transient user unit, writes its progress atomically under the runtime
    directory, and survives a compositor restart. Exit codes decide failure;

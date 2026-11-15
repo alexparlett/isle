@@ -13,10 +13,11 @@ use serde_json::Value;
 const CTRL: u32 = 29;
 const F2: u32 = 60;
 
-/// A paru that lists one AUR update and, for a run, does what `mode` in its folder says.
+/// pacman and paru for a run, doing what `mode` in their folder says; they say which ran.
 const PARU: &str = r#"#!/bin/sh
 here=$(dirname "$0")
-if [ "$1" = "-Qua" ]; then echo "xremap-hypr-bin 0.15.9-1 -> 0.15.15-1"; exit 0; fi
+[ "$1" = "-Qua" ] && { echo "xremap-hypr-bin 0.15.9-1 -> 0.15.15-1"; exit 0; }
+echo "$(basename "$0") $*" >> "$here/ran"
 mode=$(cat "$here/mode" 2>/dev/null)
 echo ':: Synchronizing package databases...'
 case "$mode" in
@@ -74,6 +75,7 @@ async fn start(name: &str, owed: bool) -> Isle {
         |dir| {
             std::fs::create_dir_all(dir.join("bin")).unwrap();
             script(&dir.join("bin/paru"), PARU);
+            script(&dir.join("bin/pacman"), PARU);
             script(&dir.join("bin/checkupdates"), CHECKUPDATES);
             isle_source(dir);
             if owed {
@@ -87,6 +89,10 @@ async fn start(name: &str, owed: bool) -> Isle {
                 (
                     "ISLE_PARU".into(),
                     dir.join("bin/paru").display().to_string(),
+                ),
+                (
+                    "ISLE_PACMAN".into(),
+                    dir.join("bin/pacman").display().to_string(),
                 ),
                 (
                     "ISLE_CHECKUPDATES".into(),
@@ -199,10 +205,10 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
         .collect();
     assert_eq!(
         sources,
-        ["Repositories", "Repositories", "Aur", "Isle"],
+        ["Repositories", "Repositories", "Isle"],
         "{s}"
     );
-    let isle_update = &s["pending"][3];
+    let isle_update = &s["pending"][2];
     assert_eq!(isle_update["name"], "isle-git");
     assert_eq!(isle_update["to"].as_str().unwrap().len(), 12);
 
@@ -210,12 +216,30 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
     let update = item(&system, "Software Update…").unwrap();
     assert_eq!(
         (update["enabled"].clone(), update["badge"].clone()),
-        (Value::Bool(true), Value::from("4"))
+        (Value::Bool(true), Value::from("3"))
     );
     assert!(item(&system, "Restart to finish updating…").is_none());
 
     isle.open_panel(None).await;
-    wait_until(|| async { isle.module("updates").await["state"] == "4 updates" }).await;
+    wait_until(|| async { isle.module("updates").await["state"] == "3 updates" }).await;
+
+    // Isle waiting: paru runs the upgrade in repository and PKGBUILD mode, never the AUR.
+    assert_eq!(install(&isle, "ok").await, "");
+    wait_until(|| async { state(&isle).await == "Done" }).await;
+    let ran = std::fs::read_to_string(isle.dir.join("bin/ran")).unwrap();
+    assert_eq!(
+        ran.trim(),
+        "paru -Syu --mode=rp --noconfirm --skipreview --noprogressbar --sudo pkexec isle-git"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn with_isle_up_to_date_the_run_is_pacman_alone() {
+    let isle = start("updates-pacman", false).await;
+    assert_eq!(install(&isle, "ok").await, "");
+    wait_until(|| async { state(&isle).await == "Done" }).await;
+    let ran = std::fs::read_to_string(isle.dir.join("bin/ran")).unwrap();
+    assert_eq!(ran.trim(), "pacman -Syu --noconfirm --noprogressbar");
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -790,3 +790,6 @@
   once pushed), then the decisions, ARCHITECTURE's How an update runs and
   the sheet's outcome.
 
+- P14d revised 2026-11-15 at the user's word: no AUR. The run is `pkexec
+  pacman -Syu`; with Isle's commit waiting, paru runs it in repository and
+  PKGBUILD mode (`--mode=rp … isle-git`), which never looks at the AUR.

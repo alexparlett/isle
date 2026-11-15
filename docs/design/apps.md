@@ -505,7 +505,7 @@ lands. Pane names are P1's (`docs/work/rust-desktop/p1/structure/settings.md`).
 | Settings › Storage (drives, SMART) and Devices (device tree) | Storage in General, with Cleaner's bar by kind and Recommendations (Cleaner 12); About, as a system report |
 | Settings › Users (accounts, fingerprint, PAM switches, autologin) | Users & Groups (Settings 14) |
 | Settings › Calendars (subscriptions) | Calendars pane (D41) |
-| Settings › Updates (system, AUR, Isle, restart owed) | Software Update (Settings 12) |
+| Settings › Updates (system, AUR, Isle, restart owed) | Software Update (Settings 12), without the AUR (P14d) |
 | Settings search, launcher entries, back and forward | Settings 3, 4, 8; the launcher in `shell.md` |
 | Files windows, tabs, sidebar, saved searches | Conventions 3; Files 10–13; the sidebar's layout in P1 (`docs/work/rust-desktop/p1/structure/files.md`) |
 | Files List, Columns, Grid, disclosure, grouping, sorting, widths, preview, Quick Look | Files 14, 15, 21 |

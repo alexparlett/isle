@@ -1,6 +1,5 @@
-//! What is waiting: `checkupdates` for the repositories, `paru -Qua` for the AUR, and Isle's
-//! commit in paru's `devel.toml` against `git ls-remote` (paru never lists a PKGBUILD
-//! repository's devel package, `updates-2026.md` §3).
+//! What is waiting: `checkupdates` for the repositories, and Isle's commit against `git
+//! ls-remote` of its PKGBUILD's branch. The AUR is never looked at.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -13,7 +12,6 @@ use crate::ISLE_PACKAGE;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Source {
     Repositories,
-    Aur,
     Isle,
 }
 
@@ -40,7 +38,7 @@ pub enum CheckError {
     Spawn(String, std::io::Error),
 }
 
-/// `name from -> to` lines, as `checkupdates` and `paru -Qua` print them.
+/// `name from -> to` lines, as `checkupdates` prints them.
 pub fn parse_updates(text: &str, source: Source) -> Vec<Pending> {
     text.lines()
         .filter_map(|line| {
@@ -118,12 +116,13 @@ fn reason(out: &std::process::Output) -> String {
     }
 }
 
-/// The programs a check and a run use: `ISLE_CHECKUPDATES` and `ISLE_PARU` stand in for
-/// them in tests and the VM's rehearsals.
+/// The programs a check and a run use: `ISLE_CHECKUPDATES`, `ISLE_PACMAN` (for `pkexec
+/// pacman`) and `ISLE_PARU` stand in for them in tests and the VM's rehearsals.
 #[derive(Clone, Debug)]
 pub struct Tools {
     pub checkupdates: PathBuf,
-    /// None where paru is not installed: the AUR and Isle are then not looked at.
+    pub pacman: Option<PathBuf>,
+    /// None where paru is not installed: Isle's own package is then not looked at.
     pub paru: Option<PathBuf>,
 }
 
@@ -141,32 +140,43 @@ impl Tools {
         Tools {
             checkupdates: path("ISLE_CHECKUPDATES", "checkupdates")
                 .unwrap_or_else(|| "checkupdates".into()),
+            pacman: std::env::var_os("ISLE_PACMAN").map(PathBuf::from),
             paru: path("ISLE_PARU", "paru"),
         }
     }
 
-    /// The run: a full upgrade through paru, which builds as the user and hands pacman to
-    /// pkexec; pacman alone without it. `isle` names Isle's package, which paru rebuilds only
-    /// when named until it has installed it once.
+    /// The run: `pacman -Syu` through pkexec. With Isle's package waiting, paru runs it
+    /// instead in repository and PKGBUILD mode, so one process asks once for both and the
+    /// AUR is never looked at; it rebuilds Isle only when named, until it has installed it
+    /// once.
     pub fn run_argv(&self, isle: bool) -> Vec<std::ffi::OsString> {
-        let words: &[&str] = match &self.paru {
-            Some(_) => &[
-                "-Syu",
-                "--noconfirm",
-                "--skipreview",
-                "--noprogressbar",
-                "--sudo",
-                "pkexec",
-            ],
-            None => &["pacman", "-Syu", "--noconfirm", "--noprogressbar"],
+        let (first, words): (std::ffi::OsString, &[&str]) = match (&self.paru, isle) {
+            (Some(paru), true) => (
+                paru.clone().into_os_string(),
+                &[
+                    "-Syu",
+                    "--mode=rp",
+                    "--noconfirm",
+                    "--skipreview",
+                    "--noprogressbar",
+                    "--sudo",
+                    "pkexec",
+                    ISLE_PACKAGE,
+                ],
+            ),
+            _ => match &self.pacman {
+                Some(pacman) => (
+                    pacman.clone().into_os_string(),
+                    &["-Syu", "--noconfirm", "--noprogressbar"],
+                ),
+                None => (
+                    "pkexec".into(),
+                    &["pacman", "-Syu", "--noconfirm", "--noprogressbar"],
+                ),
+            },
         };
-        let first = self
-            .paru
-            .clone()
-            .map_or_else(|| "pkexec".into(), PathBuf::into_os_string);
-        let isle = (isle && self.paru.is_some()).then_some(ISLE_PACKAGE);
         std::iter::once(first)
-            .chain(words.iter().copied().chain(isle).map(Into::into))
+            .chain(words.iter().map(Into::into))
             .collect()
     }
 }
@@ -199,7 +209,7 @@ pub fn paru_config(dir: &Path, config_home: &Path) -> std::io::Result<PathBuf> {
     Ok(path)
 }
 
-/// Looks at all three sources.
+/// Looks at the repositories and Isle's branch.
 pub async fn check(tools: &Tools, now: u64) -> Result<Check, CheckError> {
     // checkupdates syncs into its own copy of the databases: 0 with updates, 2 with none.
     let checkupdates = tools.checkupdates.to_string_lossy().into_owned();
@@ -209,28 +219,8 @@ pub async fn check(tools: &Tools, now: u64) -> Result<Check, CheckError> {
     }
     let mut pending = parse_updates(&String::from_utf8_lossy(&out.stdout), Source::Repositories);
 
-    if let Some(paru) = tools.paru.as_deref().and_then(|p| p.to_str()) {
-        let out = Command::new(paru)
-            .args(["-Qua"])
-            .env("LC_ALL", "C.UTF-8")
-            .kill_on_drop(true)
-            .output()
-            .await
-            .map_err(|e| CheckError::Spawn("paru".into(), e))?;
-        // paru exits 1 when nothing is waiting, and says why on stderr only when something failed.
-        let text = String::from_utf8_lossy(&out.stdout);
-        if !out.status.success()
-            && text.trim().is_empty()
-            && String::from_utf8_lossy(&out.stderr).contains("error")
-        {
-            return Err(CheckError::Failed(reason(&out)));
-        }
-        pending.extend(
-            parse_updates(&text, Source::Aur)
-                .into_iter()
-                .filter(|p| p.name != ISLE_PACKAGE),
-        );
-
+    // Only paru can build Isle, so without it Isle's commit is not looked at.
+    if tools.paru.is_some() {
         let root =
             std::env::var_os("ISLE_UPDATES_ROOT").map_or_else(|| PathBuf::from("/"), PathBuf::from);
         if let Some(isle) = isle_update(&root).await? {
@@ -319,17 +309,6 @@ mod tests {
                 to: "26.06-1.1".into(),
                 source: Source::Repositories
             }
-        );
-    }
-
-    #[test]
-    fn paru_names_a_devel_package_latest_commit() {
-        let text = std::fs::read_to_string(format!("{DATA}/paru-qua.txt")).unwrap();
-        let got = parse_updates(&text, Source::Aur);
-        assert_eq!(got.len(), 2);
-        assert!(
-            got.iter()
-                .any(|p| p.name == "appimagetool-bin" && p.to == "latest-commit")
         );
     }
 

@@ -184,7 +184,7 @@ impl Card {
             },
             _ if s["checking"] == true => Card {
                 title: "Checking for updates…".into(),
-                sub: "Repositories, AUR and Isle".into(),
+                sub: "Repositories and Isle".into(),
                 buttons: vec![button("Check Now", None, false)],
                 ..base
             },
@@ -200,16 +200,6 @@ impl Card {
                 let repos = of("Repositories");
                 if !repos.is_empty() {
                     sources.push(("Repositories".into(), repos.len().to_string()));
-                }
-                let aur = of("Aur");
-                if !aur.is_empty() {
-                    let names: Vec<&str> = aur.iter().filter_map(|p| p["name"].as_str()).collect();
-                    let note = if names.len() <= 3 {
-                        names.join(", ")
-                    } else {
-                        aur.len().to_string()
-                    };
-                    sources.push(("AUR".into(), note));
                 }
                 if let Some(isle) = of("Isle").first() {
                     let from = isle["from"].as_str().unwrap_or_default();
@@ -477,11 +467,7 @@ impl Component for MoreInfo {
             .cloned()
             .unwrap_or_default();
         let mut sections: Vec<Element> = Vec::new();
-        for (source, name) in [
-            ("Repositories", "Repositories"),
-            ("Aur", "AUR"),
-            ("Isle", "Isle"),
-        ] {
+        for (source, name) in [("Repositories", "Repositories"), ("Isle", "Isle")] {
             let rows: Vec<Element> = pending
                 .iter()
                 .filter(|p| p["source"] == source)
@@ -570,15 +556,13 @@ mod tests {
         assert_eq!(up.title, "Your computer is up to date");
         let waiting = Card::from_status(&status(
             r#"{"pending":[{"name":"glibc","from":"1","to":"2","source":"Repositories"},
-                {"name":"xremap-hypr-bin","from":"1","to":"2","source":"Aur"},
                 {"name":"isle-git","from":"r725.g0f8209c46951-1","to":"7a1b2c3d4e5f","source":"Isle"}],"restart":[]}"#,
         ));
-        assert_eq!(waiting.title, "3 updates are available");
+        assert_eq!(waiting.title, "2 updates are available");
         assert_eq!(
             waiting.sources,
             vec![
                 ("Repositories".into(), "1".into()),
-                ("AUR".into(), "xremap-hypr-bin".into()),
                 ("Isle".into(), "0f8209c → 7a1b2c3".into())
             ]
         );

@@ -681,7 +681,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   is read back a frame after it is copied, so the loop never waits on it.
 - **Windows out of view are paced** (B89): a hidden game's frame
   callbacks and fifo barriers every 33 ms, any other hidden window's once
-  a second.
+  a second. With the screens off, asleep or away from the console every
+  window counts as hidden, since no frame reaches it; a game left waiting
+  on its present takes the wait for a hang.
 
 ## How night light is applied
 

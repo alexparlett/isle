@@ -106,7 +106,7 @@ v1 lessons kept: D48 (a fullscreen game on a shared Space left alt-tab focusing 
 
 Open for its packet: whether a game whose Space is not visible is throttled, and whether games mind; X11 games that change resolution through Xwayland's emulated RandR modes.
 
-Settled in P12 (B89): a game out of view gets frame callbacks and fifo barriers every 33 ms, so its loop keeps going. Emulated RandR modes are left as Xwayland does them.
+Settled in P12 (B89): a game out of view gets frame callbacks and fifo barriers every 33 ms, so its loop keeps going; with the screens off every game is out of view. Emulated RandR modes are left as Xwayland does them.
 
 ### Game Mode
 

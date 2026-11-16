@@ -4,8 +4,8 @@
 use std::{collections::HashMap, time::Duration};
 
 use smithay::{
-    wayland::dmabuf::get_dmabuf,
-    desktop::utils::surface_primary_scanout_output,
+    wayland::{dmabuf::get_dmabuf, seat::WaylandFocus},
+    desktop::{Window, utils::surface_primary_scanout_output},
     output::Output,
     reexports::{
         calloop::{
@@ -211,18 +211,20 @@ const HIDDEN: Duration = Duration::from_secs(1);
 
 impl State {
     /// Frame callbacks and fifo barriers for windows that are mapped but out of view, which
-    /// no output's frame reaches.
+    /// no output's frame reaches. With the screens dark that is every window: a game left
+    /// waiting on its present takes the wait for a hang.
     pub fn pace_hidden_windows(&mut self) {
         let mut since_slow = Duration::ZERO;
         let timer = Timer::from_duration(HIDDEN);
         let armed = self.isle.loop_handle.insert_source(timer, move |_, _, state| {
             let _beat = state.isle.heartbeat.beat("hidden-pacer");
+            let dark = state.screens_dark();
             let hidden: Vec<(u64, bool)> = state
                 .isle
                 .wm
                 .records
                 .iter()
-                .filter(|r| r.mapped && !state.isle.wm.is_shown(r.id))
+                .filter(|r| r.mapped && (dark || !state.isle.wm.is_shown(r.id)))
                 .map(|r| (r.id, r.game))
                 .collect();
             let any_game = hidden.iter().any(|(_, game)| *game);
@@ -237,7 +239,15 @@ impl State {
                 .filter(|(_, game)| *game || slow_due)
                 .map(|(id, _)| id)
                 .collect();
-            state.let_hidden_draw(&due);
+            let mut windows: Vec<Window> = due
+                .iter()
+                .filter_map(|id| state.isle.wm.get(*id).map(|r| r.window.clone()))
+                .collect();
+            // Override-redirect X11 windows have no record; a game may be one.
+            if dark {
+                windows.extend(state.isle.unmanaged.iter().cloned());
+            }
+            state.let_hidden_draw(&windows);
             TimeoutAction::ToDuration(step)
         });
         if let Err(err) = armed {
@@ -245,20 +255,20 @@ impl State {
         }
     }
 
-    fn let_hidden_draw(&mut self, ids: &[u64]) {
+    /// Whether no output draws: away from the console, asleep or with the screens off.
+    pub fn screens_dark(&self) -> bool {
+        !self.backend.can_draw() || self.isle.asleep || self.isle.idle.off
+    }
+
+    fn let_hidden_draw(&mut self, windows: &[Window]) {
         let Some(output) = self.isle.space.outputs().next().cloned() else {
             return;
         };
         let time = self.isle.clock.now();
         let mut clients = HashMap::new();
-        for id in ids {
-            let Some(record) = self.isle.wm.get(*id) else {
-                continue;
-            };
-            record
-                .window
-                .send_frame(&output, time, None, |_, _| Some(output.clone()));
-            let Some(root) = record.surface() else {
+        for window in windows {
+            window.send_frame(&output, time, None, |_, _| Some(output.clone()));
+            let Some(root) = window.wl_surface().map(|s| s.into_owned()) else {
                 continue;
             };
             with_surface_tree_downward(

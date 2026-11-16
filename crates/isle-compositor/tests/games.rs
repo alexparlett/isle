@@ -474,3 +474,34 @@ async fn a_hidden_game_is_paced_and_another_hidden_window_slowly() {
     assert!((50..=70).contains(&game_frames), "the game drew {game_frames} in 2 s");
     assert!(other_frames <= 4, "the other drew {other_frames} in 2 s");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_game_keeps_drawing_with_the_screens_off() {
+    let mut isle = Isle::start_with(
+        "dark-pace",
+        "windows {\n    games \"isle.test.DarkGame\"\n}\n",
+    )
+    .await;
+    let game = isle.client("isle.test.DarkGame", "3366ff");
+    game_window(&isle, "isle.test.DarkGame").await;
+    // A focused game holds the screens on; another window takes the focus.
+    let _other = isle.client("isle.test.DarkOther", "ff3366");
+    isle.wait_for_window("isle.test.DarkOther").await;
+    game.send("count-frames");
+    game.send("animate");
+    let session = isle_ipc::session::SessionProxy::new(&isle.bus).await.unwrap();
+    let off = || async {
+        let idle: serde_json::Value = serde_json::from_str(&session.idle().await.unwrap()).unwrap();
+        idle["off"] == true
+    };
+    let test = isle.test().await;
+    // The dim, the lock, then the lock's minute to the screens off.
+    for _ in 0..11 {
+        test.idle_advance(60_000).await.unwrap();
+    }
+    wait_until(off).await;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    let frames = hidden_frames(&game, 2000).await;
+    assert!(off().await, "the screens came back on");
+    assert!((50..=70).contains(&frames), "the game drew {frames} in 2 s");
+}

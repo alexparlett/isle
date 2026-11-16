@@ -47,7 +47,6 @@ mod keyring;
 mod launch;
 mod lock;
 mod lock_face;
-mod lock_field;
 mod menubar;
 mod menus;
 mod network_secrets;

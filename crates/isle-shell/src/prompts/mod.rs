@@ -120,6 +120,11 @@ pub enum PromptAction {
         identity: usize,
     },
     Cancel(u64),
+    /// Paste in a field: the compositor reads the clipboard and calls `PromptSurface::paste`.
+    Paste {
+        id: u64,
+        field: usize,
+    },
 }
 
 /// The copy of the queue line under the buttons.

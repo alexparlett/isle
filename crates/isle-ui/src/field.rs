@@ -3,10 +3,14 @@
 
 use std::{cell::RefCell, fmt, rc::Rc};
 
-use freya::prelude::*;
+use freya::{clipboard::Clipboard, prelude::*};
 use zeroize::Zeroizing;
 
-use crate::{Glyph, colour, text, use_theme};
+use crate::{
+    Glyph, colour,
+    edit::{EditText, To},
+    text, use_theme,
+};
 
 /// A secret on its way to the program that asked: wiped when dropped, never printed.
 #[derive(Clone, Default, PartialEq, Eq)]
@@ -29,16 +33,15 @@ impl fmt::Debug for Secret {
 }
 
 /// What a field holds, shared with the surface that reads it on the action.
-pub type FieldText = Rc<RefCell<Zeroizing<String>>>;
-
-/// The longest text a field takes.
-const LIMIT: usize = 512;
+pub type FieldText = Rc<RefCell<EditText>>;
 
 /// A field of the prompt sheet (`surfaces/prompts.md`, Fields): its text in a wiped buffer,
 /// dots for a secret, copy and cut never offered.
 #[derive(Clone)]
 pub struct Field {
     text: FieldText,
+    /// The buffer's revision when this was built, so a change made outside draws again.
+    revision: u64,
     label: String,
     secret: bool,
     /// A secret shown in the clear, by "Show password".
@@ -49,11 +52,13 @@ pub struct Field {
     mono: bool,
     on_submit: Option<EventHandler<()>>,
     on_change: Option<EventHandler<()>>,
+    on_paste: Option<EventHandler<()>>,
 }
 
 impl PartialEq for Field {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.text, &other.text)
+            && self.revision == other.revision
             && self.label == other.label
             && self.secret == other.secret
             && self.shown == other.shown
@@ -66,8 +71,10 @@ impl PartialEq for Field {
 
 impl Field {
     pub fn new(text: FieldText, label: impl Into<String>) -> Self {
+        let revision = text.borrow().revision();
         Self {
             text,
+            revision,
             label: label.into(),
             secret: false,
             shown: false,
@@ -77,6 +84,7 @@ impl Field {
             mono: false,
             on_submit: None,
             on_change: None,
+            on_paste: None,
         }
     }
 
@@ -121,6 +129,18 @@ impl Field {
         self.on_change = Some(f.into());
         self
     }
+
+    /// Paste, where the tree has no clipboard of its own: the owner puts the text in.
+    pub fn on_paste(mut self, f: impl Into<EventHandler<()>>) -> Self {
+        self.on_paste = Some(f.into());
+        self
+    }
+}
+
+/// The clipboard's text into `text` at the caret, line breaks dropped.
+pub fn paste_into(text: &FieldText, pasted: &str) -> bool {
+    text.borrow_mut()
+        .insert(pasted.chars().filter(|c| !c.is_control()))
 }
 
 impl Component for Field {
@@ -134,33 +154,102 @@ impl Component for Field {
         let mut version = use_state(|| 0u32);
         let _ = *version.read();
         let text = self.text.clone();
-        let enabled = self.enabled;
-        let (on_submit, on_change) = (self.on_submit.clone(), self.on_change.clone());
+        let (enabled, secure) = (self.enabled, self.secret);
+        let (on_submit, on_change, on_paste) = (
+            self.on_submit.clone(),
+            self.on_change.clone(),
+            self.on_paste.clone(),
+        );
+        // Isle's apps take Cmd as Meta; the shell's surfaces get it translated to Ctrl (B21).
+        let mac = try_consume_context::<TargetPlatform>().unwrap_or_else(TargetPlatform::get)
+            == TargetPlatform::MacOs;
+        let (primary, word) = if mac {
+            (Modifiers::META, Modifiers::ALT)
+        } else {
+            (Modifiers::CONTROL, Modifiers::CONTROL)
+        };
         let mut on_key = move |e: Event<KeyboardEventData>| {
             if !enabled {
                 return;
             }
             let mods = e.modifiers;
-            let control = mods.contains(Modifiers::CONTROL)
-                || mods.contains(Modifiers::META)
-                || mods.contains(Modifiers::ALT);
-            let changed = match &e.key {
-                Key::Named(NamedKey::Backspace) => text.borrow_mut().pop().is_some(),
+            let cmd = mods.contains(primary);
+            let shift = mods.contains(Modifiers::SHIFT);
+            // The Emacs keys reach Isle's apps as Ctrl; the shell has them translated.
+            let emacs = mac && mods.contains(Modifiers::CONTROL) && !cmd;
+            let along = |plain: To, by_word: To, line: To| {
+                if mac && cmd {
+                    line
+                } else if mods.contains(word) {
+                    by_word
+                } else {
+                    plain
+                }
+            };
+            let mut field = text.borrow_mut();
+            let before = field.revision();
+            match &e.key {
+                Key::Named(NamedKey::ArrowLeft) => {
+                    field.move_caret(along(To::Left, To::WordLeft, To::Start), secure, shift)
+                }
+                Key::Named(NamedKey::ArrowRight) => {
+                    field.move_caret(along(To::Right, To::WordRight, To::End), secure, shift)
+                }
+                Key::Named(NamedKey::ArrowUp | NamedKey::Home) => {
+                    field.move_caret(To::Start, secure, shift)
+                }
+                Key::Named(NamedKey::ArrowDown | NamedKey::End) => {
+                    field.move_caret(To::End, secure, shift)
+                }
+                Key::Named(NamedKey::Backspace) => {
+                    field.delete(along(To::Left, To::WordLeft, To::Start), secure)
+                }
+                Key::Named(NamedKey::Delete) => {
+                    field.delete(along(To::Right, To::WordRight, To::End), secure)
+                }
                 Key::Named(NamedKey::Enter) => {
+                    drop(field);
                     if let Some(f) = &on_submit {
                         f.call(());
                     }
-                    false
+                    return;
                 }
-                Key::Character(c) if !control => {
-                    let mut buffer = text.borrow_mut();
-                    let room = LIMIT.saturating_sub(buffer.chars().count());
-                    let typed: String = c.chars().filter(|c| !c.is_control()).take(room).collect();
-                    buffer.push_str(&typed);
-                    !typed.is_empty()
+                Key::Character(c) if emacs => match c.to_lowercase().as_str() {
+                    "a" => field.move_caret(To::Start, secure, false),
+                    "e" => field.move_caret(To::End, secure, false),
+                    "b" => field.move_caret(To::Left, secure, false),
+                    "f" => field.move_caret(To::Right, secure, false),
+                    "h" => field.delete(To::Left, secure),
+                    "d" => field.delete(To::Right, secure),
+                    "k" => field.delete(To::End, secure),
+                    _ => {}
+                },
+                Key::Character(c) if cmd => match c.to_lowercase().as_str() {
+                    "a" => field.select_all(),
+                    "v" => {
+                        drop(field);
+                        match &on_paste {
+                            Some(f) => f.call(()),
+                            None => {
+                                if let Ok(pasted) = Clipboard::get() {
+                                    paste_into(&text, &Zeroizing::new(pasted));
+                                }
+                            }
+                        }
+                        field = text.borrow_mut();
+                    }
+                    // Copy and cut are never offered.
+                    _ => {}
+                },
+                Key::Character(c)
+                    if !mods.intersects(Modifiers::CONTROL | Modifiers::META | Modifiers::ALT) =>
+                {
+                    field.insert(c.chars().filter(|c| !c.is_control()));
                 }
-                _ => false,
-            };
+                _ => {}
+            }
+            let changed = field.revision() != before;
+            drop(field);
             if changed {
                 *version.write() += 1;
                 if let Some(f) = &on_change {
@@ -174,26 +263,55 @@ impl Component for Field {
         } else {
             colour(t.colour_text_disabled)
         };
-        let shown_text = if self.secret && !self.shown {
-            "•".repeat(content.chars().count())
+        let shown: Vec<char> = if self.secret && !self.shown {
+            vec!['•'; content.chars()]
         } else {
-            content.as_str().to_owned()
+            content.as_str().chars().collect()
         };
         let caret = (focused && enabled).then(|| {
             rect()
                 .width(Size::px(1.5))
                 .height(Size::px(16.))
                 .background(colour(t.colour_text))
+                .into_element()
         });
-        let line = if self.mono {
-            label()
-                .font_family("JetBrains Mono")
-                .font_size(t.type_style_body_size)
-                .color(ink)
-                .max_lines(1)
-                .text(shown_text)
-        } else {
-            text::line(&theme, text::Style::Body, ink, shown_text)
+        let mono = self.mono;
+        let run = |range: std::ops::Range<usize>, selected: bool| {
+            (!range.is_empty()).then(|| {
+                let typed: String = shown[range].iter().collect();
+                let line = if mono {
+                    label()
+                        .font_family("JetBrains Mono")
+                        .font_size(t.type_style_body_size)
+                        .color(ink)
+                        .max_lines(1)
+                        .text(typed)
+                } else {
+                    text::line(&theme, text::Style::Body, ink, typed)
+                };
+                rect()
+                    .maybe(selected, |el| {
+                        el.background(
+                            colour(t.colour_accent).with_a((t.selection_mix * 255.) as u8),
+                        )
+                    })
+                    .child(line)
+                    .into_element()
+            })
+        };
+        let line = rect().horizontal().cross_align(Alignment::Center);
+        // The caret only where nothing is selected, as on a Mac.
+        let line = match content.selection() {
+            Some(range) => line
+                .maybe_child(run(0..range.start, false))
+                .maybe_child(run(range.clone(), true))
+                .maybe_child(run(range.end..shown.len(), false)),
+            None => {
+                let at = content.caret().min(shown.len());
+                line.maybe_child(run(0..at, false))
+                    .maybe_child(caret)
+                    .maybe_child(run(at..shown.len(), false))
+            }
         };
         let edge = if self.error {
             Border::new()
@@ -242,7 +360,6 @@ impl Component for Field {
                 }
             })
             .child(line)
-            .maybe_child(caret)
     }
 }
 

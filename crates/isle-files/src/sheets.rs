@@ -360,7 +360,7 @@ impl Component for Unlock {
         let submit = {
             let (text, done) = (text.clone(), self.on_done.clone());
             move || {
-                let secret = isle_ui::field::Secret::new(text.borrow().to_string());
+                let secret = isle_ui::field::Secret::new(text.borrow().as_str().to_owned());
                 done.call(Some((secret, *remember.peek())));
             }
         };

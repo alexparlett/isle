@@ -56,7 +56,7 @@ pub struct LockState {
     /// From the lock's request to every screen showing it.
     pub shown_after: Option<std::time::Duration>,
     /// The typed password; the face draws only its length, caret and selection.
-    pub field: crate::lock_field::Field,
+    pub field: isle_ui::edit::EditText,
     /// The field has the face's keyboard focus, so typing goes into it.
     pub field_focused: bool,
     pub status: Status,
@@ -474,7 +474,7 @@ impl State {
         sym: smithay::input::keyboard::Keysym,
         mods: isle_keys::chord::Mods,
     ) -> Option<bool> {
-        use crate::lock_field::To;
+        use isle_ui::edit::To;
         use smithay::input::keyboard::keysyms as k;
         let confirm = matches!(
             self.isle.session.lock_power,

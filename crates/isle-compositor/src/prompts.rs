@@ -27,6 +27,7 @@ use smithay::{
 };
 use tokio::sync::mpsc;
 use tracing::info;
+use zeroize::Zeroizing;
 
 use crate::{
     focus::Focus,
@@ -344,6 +345,20 @@ impl State {
                     let _ = request.replies.send(Answer::Cancelled);
                 }
                 self.prompt_done(id);
+            }
+            PromptAction::Paste { id, field } => {
+                if self.isle.prompt_showing() != Some(id) {
+                    return;
+                }
+                self.read_clipboard_text(move |state, text| {
+                    let text = Zeroizing::new(text.unwrap_or_default());
+                    let surface = state.isle.prompts.surface.clone();
+                    state
+                        .isle
+                        .shell
+                        .with_root("prompt", || surface.paste(id, field, &text));
+                    state.dispatch_shell();
+                });
             }
         }
     }

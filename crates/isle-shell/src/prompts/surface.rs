@@ -92,6 +92,19 @@ impl PromptSurface {
         }
     }
 
+    /// The clipboard's text into `field` of prompt `id`, if it is still the one typed into.
+    pub fn paste(&self, id: u64, field: usize, text: &str) {
+        let typed = self.typed.borrow();
+        let Some((_, buffer)) = typed.fields.get(field).filter(|_| typed.prompt == id) else {
+            return;
+        };
+        if isle_ui::field::paste_into(buffer, text)
+            && let Some(mut state) = *self.state.borrow()
+        {
+            state.write();
+        }
+    }
+
     /// Wipes what was typed: the prompt was answered, cancelled or set aside.
     pub fn forget(&self) {
         let mut typed = self.typed.borrow_mut();
@@ -395,7 +408,11 @@ impl Component for PromptView {
                 )
                 .auto_focus(i == 0)
                 .on_submit(move |_| submit())
-                .on_change(move |_| *version.write() += 1);
+                .on_change(move |_| *version.write() += 1)
+                .on_paste({
+                    let (actions, id) = (actions.clone(), prompt.id);
+                    move |_| send(&actions, PromptAction::Paste { id, field: i })
+                });
             let field = if Some(i) == first_secret && offset != 0.0 {
                 rect()
                     .width(Size::fill())

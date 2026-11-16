@@ -1566,7 +1566,7 @@ greeter that dies before reading keys never takes.
 
 **B143 · The lock's field edits as a macOS text field.** Built in P14b, on
 the lock and the greeter alike, widened after the host run at the user's
-asking. The field holds a caret and a selection (`lock_field.rs`, its
+asking. The field holds a caret and a selection (`isle_ui::edit`, its
 capacity set once so an edit never leaves a copy behind). Its keys are read
 from the physical chord before translation, which had turned them into
 keys the field dropped: Left and Right, with Option by word and Cmd to the
@@ -1578,6 +1578,20 @@ doing nothing. A secure field goes by its whole text where a word move
 would go, as `NSSecureTextField` does; the greeter's clear question goes by
 words. Moves and deletions repeat while held at the keyboard's delay and
 rate. Option still types its characters.
+
+**B144 · A prompt's field edits as the lock's does.** `isle_ui::Field`,
+the system prompts' field and the wiped one in Keychain and Files, had
+taken only typing, Backspace and Return, and dropped every chord. It now
+holds the lock's caret and selection (`isle_ui::edit`) and takes B143's
+edits as the chords reach it: an app gets Cmd as Meta and Option as Alt,
+and the Ctrl keys raw, so the field reads them itself; the shell's
+surfaces are translated (B21), so Cmd arrives as Ctrl, Cmd+arrows as Home
+and End, Option+arrows as Ctrl+arrows and the Ctrl keys as their motions.
+Which it is follows Freya's `TargetPlatform`. Paste reads Freya's
+clipboard in an app; the shell's trees have none, so a prompt asks the
+compositor, which reads the selection and puts the text into the field.
+Copy and cut stay refused. Rejected: leaving shell surfaces untranslated,
+which would take Cmd from Freya's own `Input` in the banners' reply.
 
 **B145 · Shift pressed five times toggles Sticky Keys only when asked to.**
 Shift pressed five times had always toggled Sticky Keys, silently. On the

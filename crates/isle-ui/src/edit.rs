@@ -1,36 +1,40 @@
-//! The lock's and the greeter's field as text: a caret, a selection and the edits a macOS
-//! text field makes, by character. A secure field moves and deletes by its whole text where
-//! a plain one goes by words, as `NSSecureTextField` does.
+//! A field's text in a wiped buffer: a caret, a selection and the edits a macOS text field
+//! makes, by character. A secure field moves and deletes by its whole text where a plain one
+//! goes by words, as `NSSecureTextField` does.
 
 use zeroize::{Zeroize, Zeroizing};
 
 /// The longest text the field takes, in bytes.
 pub const LIMIT: usize = 512;
 
-pub struct Field {
+pub struct EditText {
     /// Its capacity is set once, so an edit never reallocates and leaves a copy behind.
     text: Zeroizing<String>,
     /// The caret, in characters.
     caret: usize,
     /// The selection's other end, when there is one.
     anchor: Option<usize>,
+    /// Counts every change, so a view knows to draw it again.
+    revision: u64,
 }
 
-impl Default for Field {
+impl Default for EditText {
     fn default() -> Self {
         Self {
             text: Zeroizing::new(String::with_capacity(LIMIT + 4)),
             caret: 0,
             anchor: None,
+            revision: 0,
         }
     }
 }
 
-impl Zeroize for Field {
+impl Zeroize for EditText {
     fn zeroize(&mut self) {
         self.text.zeroize();
         self.caret = 0;
         self.anchor = None;
+        self.revision += 1;
     }
 }
 
@@ -45,7 +49,7 @@ pub enum To {
     End,
 }
 
-impl Field {
+impl EditText {
     pub fn as_str(&self) -> &str {
         &self.text
     }
@@ -60,6 +64,10 @@ impl Field {
 
     pub fn caret(&self) -> usize {
         self.caret
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// The selected characters, when any are.
@@ -112,6 +120,7 @@ impl Field {
     /// Moves the caret; `extend` grows the selection instead. A plain Left or Right with a
     /// selection lands on its edge.
     pub fn move_caret(&mut self, to: To, secure: bool, extend: bool) {
+        self.revision += 1;
         if !extend && let Some(range) = self.selection() {
             self.anchor = None;
             self.caret = match to {
@@ -131,6 +140,7 @@ impl Field {
     }
 
     pub fn select_all(&mut self) {
+        self.revision += 1;
         self.anchor = Some(0);
         self.caret = self.chars();
     }
@@ -150,6 +160,7 @@ impl Field {
 
     /// Deletes the selection, else from the caret to where `to` lands.
     pub fn delete(&mut self, to: To, secure: bool) {
+        self.revision += 1;
         if self.delete_selection() {
             return;
         }
@@ -162,6 +173,7 @@ impl Field {
 
     /// Types `chars` at the caret over the selection, up to the limit; whether any went in.
     pub fn insert(&mut self, chars: impl Iterator<Item = char>) -> bool {
+        self.revision += 1;
         self.delete_selection();
         let mut took = false;
         for c in chars {
@@ -181,8 +193,8 @@ impl Field {
 mod tests {
     use super::*;
 
-    fn field(text: &str) -> Field {
-        let mut f = Field::default();
+    fn field(text: &str) -> EditText {
+        let mut f = EditText::default();
         f.insert(text.chars());
         f
     }
@@ -251,7 +263,7 @@ mod tests {
 
     #[test]
     fn the_limit_holds_and_nothing_reallocates() {
-        let mut f = Field::default();
+        let mut f = EditText::default();
         let before = f.text.capacity();
         f.insert(std::iter::repeat_n('x', LIMIT + 10));
         assert_eq!(f.as_str().len(), LIMIT);

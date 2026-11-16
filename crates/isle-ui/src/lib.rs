@@ -2,6 +2,7 @@
 
 pub mod button;
 mod controls;
+pub mod edit;
 pub mod field;
 pub mod form;
 pub mod graph;

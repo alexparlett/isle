@@ -14,6 +14,12 @@ const CMD: u32 = 125;
 const TAB: u32 = 15;
 const P: u32 = 25;
 const W: u32 = 17;
+const Q: u32 = 16;
+const A: u32 = 30;
+const V: u32 = 47;
+const LEFT: u32 = 105;
+const BACKSPACE: u32 = 14;
+const OPTION: u32 = 56;
 
 async fn prompts(isle: &Isle) -> serde_json::Value {
     serde_json::from_str(&isle.test().await.prompts().await.unwrap()).unwrap()
@@ -99,6 +105,41 @@ async fn a_prompt_waits_while_locked_and_comes_back_armed_afresh() {
         false,
         "armed afresh after unlock"
     );
+}
+
+async fn chord(isle: &Isle, modifier: u32, key: u32) {
+    let test = isle.test().await;
+    test.key(modifier, true).await.unwrap();
+    press(isle, key).await;
+    test.key(modifier, false).await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_prompts_field_edits_as_a_mac_field_and_pastes() {
+    let mut isle = Isle::start("prompt-editing").await;
+    let window = isle.client("isle.test.Typing", "3366ff");
+    window.wait_for("keyboard-enter").await;
+    window.send("copy before");
+    window.wait_for("copied").await;
+    let id = ask(&isle, password_prompt("Test needs your password")).await;
+    wait_until(|| async { prompts(&isle).await["armed"] == true }).await;
+    press(&isle, P).await;
+    press(&isle, W).await;
+    chord(&isle, CMD, A).await;
+    isle.keep_shot("prompt-selected").await;
+    press(&isle, Q).await;
+    chord(&isle, CMD, LEFT).await;
+    press(&isle, W).await;
+    isle.keep_shot("prompt-caret").await;
+    // A secure field deletes by its whole text where a plain one goes by words.
+    chord(&isle, OPTION, BACKSPACE).await;
+    chord(&isle, CMD, V).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    press(&isle, RETURN).await;
+    wait_until(|| async {
+        prompts(&isle).await["answers"] == serde_json::json!([format!("{id} password=beforeq")])
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -295,7 +295,7 @@ impl Isle {
             if morph.shown != shown || morph.target() != target || panel_changed {
                 let same_form = std::mem::discriminant(&morph.shown)
                     == std::mem::discriminant(&shown)
-                    && matches!(shown, Shown::Pill { .. } | Shown::Privacy(_));
+                    && matches!(shown, Shown::Pill { .. } | Shown::Privacy(_) | Shown::Latched(..));
                 morph.before =
                     (!same_form && morph.shown != Shown::Nothing).then(|| morph.shown.clone());
                 morph.from = (morph.width.value() as f32, morph.height.value() as f32);
@@ -846,6 +846,7 @@ impl Isle {
                 let (form, text, glyphs) = match morph.map(|m| &m.shown) {
                     None | Some(Shown::Nothing) => ("nothing", String::new(), Vec::new()),
                     Some(Shown::Privacy(_)) => ("privacy", String::new(), Vec::new()),
+                    Some(Shown::Latched(..)) => ("latched", String::new(), Vec::new()),
                     Some(Shown::Pill { leader, glyphs, .. }) => (
                         "pill",
                         leader.as_ref().map(|l| l.face.clone()).unwrap_or_default(),
@@ -869,8 +870,18 @@ impl Isle {
                     Some(Shown::Pill { privacy, .. })
                     | Some(Shown::Event(_, privacy))
                     | Some(Shown::Alone(_, privacy))
-                    | Some(Shown::Privacy(privacy)) => privacy.len(),
+                    | Some(Shown::Privacy(privacy))
+                    | Some(Shown::Latched(_, privacy)) => privacy.len(),
                     _ => 0,
+                };
+                let latched: Vec<String> = match morph.map(|m| &m.shown) {
+                    Some(Shown::Pill { latched, .. }) | Some(Shown::Latched(latched, _)) => latched
+                        .iter()
+                        .map(|l| {
+                            format!("{}{}", l.key.symbol(), if l.locked { " locked" } else { "" })
+                        })
+                        .collect(),
+                    _ => Vec::new(),
                 };
                 serde_json::json!({
                     "output": name,
@@ -879,6 +890,7 @@ impl Isle {
                     "text": text,
                     "glyphs": glyphs,
                     "privacy": privacy,
+                    "latched": latched,
                     "width": morph.map_or(0.0, |m| m.width.value()),
                     "height": morph.map_or(0.0, |m| m.height.value()),
                     "target": morph.map(|m| m.target()),

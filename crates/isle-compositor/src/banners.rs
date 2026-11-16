@@ -215,15 +215,28 @@ impl Isle {
                 isle_audio::sounds::lookup(&self.settings.notifications.alert_sound, "freedesktop")
             });
         if let Some(file) = file {
-            self.run_service(
-                async move { isle_audio::sounds::play(&file).await },
-                |_, result| {
-                    if let Err(err) = result {
-                        debug!("an alert sound: {err}");
-                    }
-                },
-            );
+            self.play_sound(file);
         }
+    }
+
+    /// The alert sound chosen in Sound settings.
+    pub fn play_alert(&mut self) {
+        if let Some(file) =
+            isle_audio::sounds::lookup(&self.settings.notifications.alert_sound, "freedesktop")
+        {
+            self.play_sound(file);
+        }
+    }
+
+    fn play_sound(&mut self, file: std::path::PathBuf) {
+        self.run_service(
+            async move { isle_audio::sounds::play(&file).await },
+            |_, result| {
+                if let Err(err) = result {
+                    debug!("an alert sound: {err}");
+                }
+            },
+        );
     }
 }
 

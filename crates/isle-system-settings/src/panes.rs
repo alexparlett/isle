@@ -169,6 +169,8 @@ pub static PANES: &[Pane] = &[
             RowDef::new("reduce-transparency", "Reduce transparency").key("appearance.reduce-transparency").keywords(&["blur"]),
             RowDef::new("text-size", "Text size").key("appearance.text-scale").keywords(&["font size", "larger text"]),
             RowDef::new("sticky-keys", "Sticky Keys").key("keyboard.sticky-keys"),
+            RowDef::new("sticky-keys-shortcut", "Press Shift five times to toggle Sticky Keys").key("keyboard.sticky-keys-shortcut"),
+            RowDef::new("sticky-keys-beep", "Beep when a modifier key is set").key("keyboard.sticky-keys-beep"),
             RowDef::new("slow-keys", "Slow Keys").key("keyboard.slow-keys"),
         ],
         ..pane("accessibility", "Accessibility", "person-arms-spread", Hue::Blue, 2, "Make the screen and keyboard easier to see and use.")

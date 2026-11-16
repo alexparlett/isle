@@ -35,6 +35,8 @@ row pane="accessibility" id="reduce-motion" label="Reduce motion" pane-label="Ac
 row pane="accessibility" id="reduce-transparency" label="Reduce transparency" pane-label="Accessibility" also="blur"
 row pane="accessibility" id="text-size" label="Text size" pane-label="Accessibility" also="font size;larger text"
 row pane="accessibility" id="sticky-keys" label="Sticky Keys" pane-label="Accessibility"
+row pane="accessibility" id="sticky-keys-shortcut" label="Press Shift five times to toggle Sticky Keys" pane-label="Accessibility"
+row pane="accessibility" id="sticky-keys-beep" label="Beep when a modifier key is set" pane-label="Accessibility"
 row pane="accessibility" id="slow-keys" label="Slow Keys" pane-label="Accessibility"
 row pane="appearance" id="" label="Appearance" pane-label="Appearance" also="dark mode;light mode;theme;accent"
 row pane="appearance" id="appearance" label="Appearance" pane-label="Appearance" also="dark;light;auto"

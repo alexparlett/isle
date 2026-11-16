@@ -36,6 +36,18 @@ impl Component for Accessibility {
             r.switch("sticky-keys", "Sticky Keys", "keyboard.sticky-keys")
                 .description("Modifier keys stay down until the next key.")
                 .into_element(),
+            r.switch(
+                "sticky-keys-shortcut",
+                "Press Shift five times to toggle Sticky Keys",
+                "keyboard.sticky-keys-shortcut",
+            )
+            .into_element(),
+            r.switch(
+                "sticky-keys-beep",
+                "Beep when a modifier key is set",
+                "keyboard.sticky-keys-beep",
+            )
+            .into_element(),
             r.switch_with("slow-keys", "Slow Keys", slow > 0, move |on| {
                 desktop.set("keyboard.slow-keys", Value::Int(if on { 500 } else { 0 }))
             })

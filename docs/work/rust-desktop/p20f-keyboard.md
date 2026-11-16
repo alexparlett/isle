@@ -156,7 +156,9 @@ it covers nothing but a full-screen window's foot.
     (the accent fill; the bar for locked), in the tier that always shows.
     macOS draws them in the screen's top trailing corner, where Isle's
     banners stand. 20f.1 draws both on a board for the user's choice,
-    since P1 never drew this.
+    since P1 never drew this. The toggle's own notice, Shift five times
+    made opt-in (B145), and the board's choice, the rest pill (B146), landed
+    ahead of this sheet.
 
 ### Proof
 
@@ -245,7 +247,7 @@ greeter from the published look. Tests.
 
 ### 20f.8 · Sticky Keys shown
 
-As the board chose. Tests.
+Done ahead of the sheet: B146, with 20f.1's board at `p20f/sticky-keys.html`.
 
 ### 20f.9 · The bars and the walk
 

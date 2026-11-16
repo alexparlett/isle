@@ -1,0 +1,179 @@
+<title>Sticky Keys Indicator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Two artboards of one desktop top edge, side by side, stacking on a phone; chips switch the latch state. */
+:root {
+  --page: #f3f3f5; --ink: #1b1c1f; --ink-2: rgba(27,28,31,0.66); --rule: rgba(0,0,0,0.10); --card: #ffffff;
+  --island: rgba(250,250,251,0.76); --island-text: #1b1c1f; --fill-strong: rgba(0,0,0,0.09);
+  --accent: #2563d6; --on-accent: #ffffff; --wall-a: #9bb7d6; --wall-b: #c9b9da;
+  --banner: rgba(246,246,248,0.52); --shadow-menu: 0 10px 30px rgba(0,0,0,0.16), inset 0 0 0 0.5px rgba(255,255,255,0.60);
+  --font: Inter, system-ui, sans-serif;
+  --sym: "Apple Symbols", "Noto Sans Symbols 2", "Noto Sans Symbols", "Segoe UI Symbol", Inter, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --page: #141518; --ink: #f2f3f5; --ink-2: rgba(242,243,245,0.64); --rule: rgba(255,255,255,0.10); --card: #1e1f23;
+  --island: rgba(20,21,24,0.74); --island-text: #f2f3f5; --fill-strong: rgba(255,255,255,0.14);
+  --accent: #2f6fe4; --on-accent: #ffffff; --wall-a: #23344d; --wall-b: #3a2d4a;
+  --banner: rgba(34,35,40,0.48); --shadow-menu: 0 10px 30px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10);
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --page: #141518; --ink: #f2f3f5; --ink-2: rgba(242,243,245,0.64); --rule: rgba(255,255,255,0.10); --card: #1e1f23;
+  --island: rgba(20,21,24,0.74); --island-text: #f2f3f5; --fill-strong: rgba(255,255,255,0.14);
+  --accent: #2f6fe4; --on-accent: #ffffff; --wall-a: #23344d; --wall-b: #3a2d4a;
+  --banner: rgba(34,35,40,0.48); --shadow-menu: 0 10px 30px rgba(0,0,0,0.45), inset 0 0 0 0.5px rgba(255,255,255,0.10);
+  color-scheme: dark }
+body { background: var(--page); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 48px; }
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+h1 { font-size: 22px; font-weight: 700; margin: 0; text-wrap: balance; }
+.lede { color: var(--ink-2); max-width: 68ch; margin: 4px 0 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips span.label { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); margin-right: 4px; }
+.chip { font: 500 13px/1 var(--font); color: var(--ink); background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 11px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+.chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 18px; }
+.board { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; min-width: 0; }
+.board header { padding: 14px 16px 12px; display: grid; gap: 2px; }
+.board h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.board header p { margin: 0; color: var(--ink-2); font-size: 13px; }
+.rec { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+/* The desktop's top edge at 1:1: the 48-point strip, the island 9 from the top. */
+.screen { position: relative; height: 230px; background: linear-gradient(160deg, var(--wall-a), var(--wall-b)); overflow: hidden; }
+.island { position: absolute; top: 9px; left: 50%; transform: translateX(-50%); height: 30px; border-radius: 15px;
+  background: var(--island); backdrop-filter: blur(48px) saturate(1.8); -webkit-backdrop-filter: blur(48px) saturate(1.8);
+  box-shadow: var(--shadow-menu); color: var(--island-text); display: flex; align-items: center; padding: 0 12px; gap: 0; white-space: nowrap; }
+.clock { font: 600 13px/16px var(--font); font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
+.glyph { width: 24px; height: 30px; display: grid; place-items: center; }
+.glyph svg { width: 16px; height: 16px; }
+.mods { display: flex; gap: 4px; margin-left: 6px; }
+.mods:empty { display: none; }
+/* Latched: the accent well; locked: the same with the keyboard's bar under the symbol. */
+.well { position: relative; width: 22px; height: 22px; border-radius: 11px; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; font: 600 13px/1 var(--sym); }
+.well.locked::after { content: ""; position: absolute; bottom: 3px; left: 50%; width: 8px; height: 2px; margin-left: -4px; border-radius: 1px; background: var(--on-accent); }
+.well.locked { padding-bottom: 3px; box-sizing: border-box; }
+/* macOS's corner: one plate per modifier, dim latched, bright locked. */
+.corner { position: absolute; top: 60px; right: 12px; display: flex; gap: 6px; }
+.plate { width: 46px; height: 46px; border-radius: 10px; background: var(--island); backdrop-filter: blur(48px); -webkit-backdrop-filter: blur(48px);
+  box-shadow: var(--shadow-menu); display: grid; place-items: center; font: 500 24px/1 var(--sym); color: var(--island-text); }
+.plate.latched { color: color-mix(in srgb, var(--island-text) 42%, transparent); }
+.banner { position: absolute; top: 60px; right: 12px; width: 300px; max-width: calc(100% - 24px); height: 62px; border-radius: 12px;
+  background: var(--banner); backdrop-filter: blur(48px); -webkit-backdrop-filter: blur(48px); box-shadow: var(--shadow-menu);
+  display: flex; gap: 10px; align-items: center; padding: 0 12px; box-sizing: border-box; color: var(--island-text); }
+.banner .icon { width: 32px; height: 32px; border-radius: 8px; background: var(--fill-strong); flex: none; }
+.banner b { font-size: 13px; display: block; }
+.banner small { font-size: 12px; color: var(--ink-2); }
+.banner[hidden] { display: none; }
+.foot { padding: 12px 16px 14px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 13px; display: grid; gap: 6px; }
+.foot strong { color: var(--ink); font-weight: 600; }
+.qs { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.qs h2 { font-size: 15px; margin: 0; }
+.qs ol { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 80ch; }
+.qs li b { font-weight: 600; }
+.key { font-family: var(--sym); }
+@media (prefers-reduced-motion: no-preference) { .well, .plate { transition: opacity 120ms ease; } }
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>Sticky Keys Indicator</h1>
+    <p class="lede">With Sticky Keys on, a modifier tapped alone applies to the next key (latched), and tapped twice stays down until tapped again (locked). Nothing shows that today, so a locked Ctrl reads as a broken desktop. These are packet 20f.1's two placements, drawn at 1:1 from Isle's tokens. Switch the state to compare.</p>
+  </div>
+
+  <div class="chips" role="group" aria-label="Latch state">
+    <span class="label">State</span>
+    <button class="chip" id="s-none" data-state="none" aria-pressed="false">Nothing latched</button>
+    <button class="chip" id="s-shift" data-state="shift" aria-pressed="true">⇧ latched</button>
+    <button class="chip" id="s-ctrl" data-state="ctrl" aria-pressed="false">⌃ locked</button>
+    <button class="chip" id="s-mix" data-state="mix" aria-pressed="false">⌘ latched, ⇧ locked</button>
+    <button class="chip" id="s-banner" data-state="banner" aria-pressed="false">⌃ locked, a banner arrives</button>
+  </div>
+
+  <div class="boards">
+    <section class="board" aria-labelledby="a-title">
+      <header>
+        <span class="rec">A · Recommended</span>
+        <h2 id="a-title">In the island's rest pill</h2>
+        <p>Wells at the pill's trailing end, in the on-screen keyboard's forms: accent when latched, a bar under the symbol when locked.</p>
+      </header>
+      <div class="screen">
+        <div class="island">
+          <span class="clock">14:05</span>
+          <span class="glyph" aria-hidden="true"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M140 204a12 12 0 1 1-12-12 12 12 0 0 1 12 12Zm97.08-117.45a183.3 183.3 0 0 0-218.16 0 8 8 0 0 0 9.47 12.9 167.3 167.3 0 0 1 199.22 0 8 8 0 0 0 9.47-12.9ZM205.8 120a133.36 133.36 0 0 0-155.6 0 8 8 0 0 0 9.33 13 117.37 117.37 0 0 1 136.94 0 8 8 0 0 0 9.33-13Zm-31.9 33.9a83.39 83.39 0 0 0-91.8 0 8 8 0 1 0 8.8 13.36 67.39 67.39 0 0 1 74.2 0 8 8 0 0 0 8.8-13.36Z"/></svg></span>
+          <span class="mods" id="a-mods"></span>
+        </div>
+        <div class="banner" id="a-banner" hidden><span class="icon"></span><span><b>Proton Mail</b><small>New message from Sam</small></span></div>
+      </div>
+      <div class="foot">
+        <span><strong>For:</strong> always where you look first; never collides with banners; matches the on-screen keyboard's latch.</span>
+        <span><strong>Against:</strong> small (22-point wells); the pill widens by 26 per modifier.</span>
+      </div>
+    </section>
+
+    <section class="board" aria-labelledby="b-title">
+      <header>
+        <span class="rec">B</span>
+        <h2 id="b-title">macOS's corner</h2>
+        <p>One plate per modifier at the screen's top trailing corner: dim when latched, bright when locked, as macOS draws "Display pressed keys on screen".</p>
+      </header>
+      <div class="screen">
+        <div class="island"><span class="clock">14:05</span>
+          <span class="glyph" aria-hidden="true"><svg viewBox="0 0 256 256" fill="currentColor"><path d="M140 204a12 12 0 1 1-12-12 12 12 0 0 1 12 12Zm97.08-117.45a183.3 183.3 0 0 0-218.16 0 8 8 0 0 0 9.47 12.9 167.3 167.3 0 0 1 199.22 0 8 8 0 0 0 9.47-12.9ZM205.8 120a133.36 133.36 0 0 0-155.6 0 8 8 0 0 0 9.33 13 117.37 117.37 0 0 1 136.94 0 8 8 0 0 0 9.33-13Zm-31.9 33.9a83.39 83.39 0 0 0-91.8 0 8 8 0 1 0 8.8 13.36 67.39 67.39 0 0 1 74.2 0 8 8 0 0 0 8.8-13.36Z"/></svg></span>
+        </div>
+        <div class="corner" id="b-mods"></div>
+        <div class="banner" id="b-banner" hidden><span class="icon"></span><span><b>Proton Mail</b><small>New message from Sam</small></span></div>
+      </div>
+      <div class="foot">
+        <span><strong>For:</strong> large and unmissable; exactly what a Mac user expects.</span>
+        <span><strong>Against:</strong> sits where Isle's banners stand (try "a banner arrives"); a second thing in the corner of every screen.</span>
+      </div>
+    </section>
+  </div>
+
+  <section class="qs" aria-labelledby="q-title">
+    <h2 id="q-title">Choices</h2>
+    <ol>
+      <li><b>Placement: A, the island's rest pill</b> (recommended). It keeps the corner for banners and reuses the keyboard's latched and locked forms.</li>
+      <li><b>Over full screen and games: shown.</b> While anything is latched or locked, the pill stays over full screen the way an OSD does. A locked modifier in a game is the case that hurt most (recommended).</li>
+      <li><b>macOS's "Beep when a modifier key is set": added as a setting, off by default</b>, beside the Shift shortcut in Accessibility (recommended).</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+const STATES = {
+  none: [],
+  shift: [["⇧", false]],
+  ctrl: [["⌃", true]],
+  mix: [["⌘", false], ["⇧", true]],
+  banner: [["⌃", true]],
+};
+const names = { "⇧": "Shift", "⌃": "Control", "⌘": "Command", "⌥": "Option" };
+function show(state) {
+  const mods = STATES[state];
+  const a = document.getElementById("a-mods");
+  const b = document.getElementById("b-mods");
+  a.replaceChildren(...mods.map(([k, locked]) => {
+    const el = document.createElement("span");
+    el.className = "well" + (locked ? " locked" : "");
+    el.textContent = k;
+    el.setAttribute("aria-label", names[k] + (locked ? " locked" : " latched"));
+    return el;
+  }));
+  const banner = state === "banner";
+  document.getElementById("a-banner").hidden = !banner;
+  document.getElementById("b-banner").hidden = !banner;
+  b.replaceChildren(...mods.map(([k, locked]) => {
+    const el = document.createElement("span");
+    el.className = "plate" + (locked ? "" : " latched");
+    el.textContent = k;
+    el.setAttribute("aria-label", names[k] + (locked ? " locked" : " latched"));
+    return el;
+  }));
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", String(c.dataset.state === state)));
+}
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => show(c.dataset.state)));
+show("shift");
+</script>

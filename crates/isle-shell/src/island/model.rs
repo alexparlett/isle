@@ -83,6 +83,42 @@ pub struct Glyph {
     pub alt: String,
 }
 
+/// A modifier Sticky Keys holds, in macOS's order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ModKey {
+    Ctrl,
+    Option,
+    Shift,
+    Cmd,
+}
+
+impl ModKey {
+    pub fn symbol(self) -> &'static str {
+        match self {
+            ModKey::Ctrl => "⌃",
+            ModKey::Option => "⌥",
+            ModKey::Shift => "⇧",
+            ModKey::Cmd => "⌘",
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            ModKey::Ctrl => "Control",
+            ModKey::Option => "Option",
+            ModKey::Shift => "Shift",
+            ModKey::Cmd => "Command",
+        }
+    }
+}
+
+/// A latched modifier: for the next key, or locked until tapped again.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Latch {
+    pub key: ModKey,
+    pub locked: bool,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Privacy {
     Microphone,
@@ -262,6 +298,8 @@ pub enum Shown {
     Nothing,
     /// Covered or locked: the privacy marks alone.
     Privacy(Vec<Privacy>),
+    /// Covered with a modifier latched: its wells and the privacy marks.
+    Latched(Vec<Latch>, Vec<Privacy>),
     /// An OSD over a full-screen window or the lock, at the island's anchor.
     Alone(Event, Vec<Privacy>),
     /// The pill: the leader's face, other activities' marks or their count, the glyphs that
@@ -271,6 +309,7 @@ pub enum Shown {
         marks: Vec<ActivityKind>,
         more: usize,
         glyphs: Vec<(GlyphKind, Glyph)>,
+        latched: Vec<Latch>,
         privacy: Vec<Privacy>,
     },
     /// An event over the face, clock and glyphs; the privacy marks stay.
@@ -294,6 +333,7 @@ pub struct Island {
     glyphs: BTreeMap<GlyphKind, Glyph>,
     tiers: BTreeMap<GlyphKind, Tier>,
     privacy: BTreeSet<Privacy>,
+    latched: Vec<Latch>,
     activities: Vec<Activity>,
     hidden: BTreeSet<ActivityKind>,
     showing: Option<(Event, Instant)>,
@@ -315,6 +355,7 @@ impl Island {
             glyphs: BTreeMap::new(),
             tiers: BTreeMap::new(),
             privacy: BTreeSet::new(),
+            latched: Vec::new(),
             activities: Vec::new(),
             hidden: BTreeSet::new(),
             showing: None,
@@ -345,6 +386,16 @@ impl Island {
 
     pub fn set_tier(&mut self, kind: GlyphKind, tier: Tier) {
         self.tiers.insert(kind, tier);
+    }
+
+    /// Returns whether the latched modifiers changed.
+    pub fn set_latched(&mut self, mut latched: Vec<Latch>) -> bool {
+        latched.sort_by_key(|l| l.key);
+        if latched == self.latched {
+            return false;
+        }
+        self.latched = latched;
+        true
     }
 
     pub fn set_privacy(&mut self, mark: Privacy, on: bool) {
@@ -585,6 +636,10 @@ impl Island {
         if self.locked || place.covered {
             return match event.filter(|e| e.kind.osd_class()) {
                 Some(osd) => Shown::Alone(osd.clone(), privacy),
+                // A latch over a game reads as a broken keyboard unless it shows.
+                None if !self.locked && !self.latched.is_empty() => {
+                    Shown::Latched(self.latched.clone(), privacy)
+                }
                 None if privacy.is_empty() => Shown::Nothing,
                 None => Shown::Privacy(privacy),
             };
@@ -612,6 +667,7 @@ impl Island {
             marks,
             more,
             glyphs: self.shown_glyphs(),
+            latched: self.latched.clone(),
             privacy,
         }
     }
@@ -890,5 +946,50 @@ mod tests {
         assert!(island.showing().is_some(), "urgent holds");
         island.set_focused_app(Some("chat".into()));
         assert!(island.showing().is_none());
+    }
+
+    #[test]
+    fn latched_modifiers_show_in_the_pill_and_over_full_screen() {
+        let mut island = island();
+        let covered = Place {
+            covered: true,
+            ..MAIN
+        };
+        assert_eq!(island.view("A", covered), Shown::Nothing);
+        let latches = vec![
+            Latch {
+                key: ModKey::Cmd,
+                locked: false,
+            },
+            Latch {
+                key: ModKey::Shift,
+                locked: true,
+            },
+        ];
+        assert!(island.set_latched(latches.clone()));
+        assert!(!island.set_latched(latches), "the same latches change nothing");
+        let ordered = vec![
+            Latch {
+                key: ModKey::Shift,
+                locked: true,
+            },
+            Latch {
+                key: ModKey::Cmd,
+                locked: false,
+            },
+        ];
+        match island.view("A", MAIN) {
+            Shown::Pill { latched, .. } => assert_eq!(latched, ordered, "in macOS's order"),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            island.view("A", covered),
+            Shown::Latched(ordered, Vec::new())
+        );
+        island.set_locked(true);
+        assert_eq!(island.view("A", MAIN), Shown::Nothing, "the lock has its own field");
+        island.set_locked(false);
+        island.set_latched(Vec::new());
+        assert_eq!(island.view("A", covered), Shown::Nothing);
     }
 }

@@ -1578,3 +1578,29 @@ doing nothing. A secure field goes by its whole text where a word move
 would go, as `NSSecureTextField` does; the greeter's clear question goes by
 words. Moves and deletions repeat while held at the keyboard's delay and
 rate. Option still types its characters.
+
+**B145 · Shift pressed five times toggles Sticky Keys only when asked to.**
+Shift pressed five times had always toggled Sticky Keys, silently. On the
+host it turned on during a game, where Shift is held and tapped to sprint,
+and with nothing on screen a latched Shift and then a locked Ctrl read as
+a broken keyboard and a hung desktop. The shortcut is now macOS's: a
+setting, `keyboard.sticky-keys-shortcut`, off by default, shown in
+Accessibility as "Press Shift five times to toggle Sticky Keys". A toggle
+says so with a line OSD ("Sticky Keys On" or "Off"), which shows over full
+screen, and the alert sound chosen in Sound. Rejected: Windows' question
+before turning it on, which the user passed over for macOS's behaviour.
+The latched modifiers' own display stays P20f's 20f.8.
+
+**B146 · Sticky Keys' latched modifiers show in the island.** Chosen at
+board 20f.1 (`p20f/sticky-keys.html`), built ahead of the rest of P20f.
+Each latched modifier is a `size-island-well` capsule at the rest pill's
+trailing end, before the privacy well, in macOS's order (⌃ ⌥ ⇧ ⌘), in the
+on-screen keyboard's forms: `colour-accent` with the symbol in
+`colour-on-accent` when latched, and a 12 by 2 bar under the symbol when
+locked. Over a full-screen window the island keeps a pill of the wells
+alone while anything is latched, since a latch over a game reads as a
+broken keyboard; the lock, which has its own field, shows none. macOS's
+"Beep when a modifier key is set" is a setting,
+`keyboard.sticky-keys-beep`, off by default, which plays the alert sound
+for each latch and lock. Rejected: macOS's plates in the top trailing
+corner, where Isle's banners stand.

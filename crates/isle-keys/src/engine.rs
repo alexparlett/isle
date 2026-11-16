@@ -167,6 +167,7 @@ pub struct Engine {
     used: Vec<u32>,
     shift_taps: u8,
     sticky_toggled: bool,
+    latch_set: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -214,6 +215,16 @@ impl Engine {
     /// Whether Shift was tapped five times since last asked, which toggles Sticky Keys.
     pub fn take_sticky_toggle(&mut self) -> bool {
         std::mem::take(&mut self.sticky_toggled)
+    }
+
+    /// Whether a modifier was latched or locked since last asked.
+    pub fn take_latch_set(&mut self) -> bool {
+        std::mem::take(&mut self.latch_set)
+    }
+
+    /// The modifiers Sticky Keys holds, with whether each is locked.
+    pub fn latches(&self) -> impl Iterator<Item = (Role, bool)> + '_ {
+        self.latched.iter().map(|l| (l.role, l.locked))
     }
 
     /// A held chord keeps the latched modifiers it was pressed with until they are tapped.
@@ -268,15 +279,19 @@ impl Engine {
             return;
         }
         match self.latched.iter().position(|l| l.role == role) {
-            None => self.latched.push(Latch {
-                role,
-                locked: false,
-                kept: false,
-                used_by: None,
-            }),
+            None => {
+                self.latched.push(Latch {
+                    role,
+                    locked: false,
+                    kept: false,
+                    used_by: None,
+                });
+                self.latch_set = true;
+            }
             Some(i) if !self.latched[i].locked && !self.latched[i].kept => {
                 self.latched[i].locked = true;
                 self.latched[i].used_by = None;
+                self.latch_set = true;
             }
             Some(i) => {
                 self.latched.remove(i);
@@ -771,6 +786,24 @@ mod tests {
             f.up(SHIFT);
         }
         assert!(f.engine.take_sticky_toggle());
+    }
+
+    #[test]
+    fn latches_are_listed_and_each_one_set_is_flagged() {
+        let mut f = Fixture::new();
+        f.engine.set_sticky(true);
+        f.down(CTRL);
+        f.up(CTRL);
+        assert!(f.engine.take_latch_set());
+        assert_eq!(f.engine.latches().collect::<Vec<_>>(), vec![(Role::Ctrl, false)]);
+        f.down(CTRL);
+        f.up(CTRL);
+        assert!(f.engine.take_latch_set(), "locking sets it too");
+        assert_eq!(f.engine.latches().collect::<Vec<_>>(), vec![(Role::Ctrl, true)]);
+        f.down(CTRL);
+        f.up(CTRL);
+        assert!(!f.engine.take_latch_set(), "freeing it sets nothing");
+        assert_eq!(f.engine.latches().count(), 0);
     }
 
     #[test]

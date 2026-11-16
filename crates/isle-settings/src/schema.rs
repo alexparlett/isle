@@ -106,10 +106,15 @@ pub struct Keyboard {
     pub repeat_delay: i32,
     #[setting(default = true)]
     pub numlock: bool,
-    /// A modifier tapped applies to the next key, tapped twice stays until tapped again;
-    /// Shift pressed five times turns this on or off.
+    /// A modifier tapped applies to the next key, tapped twice stays until tapped again.
     #[setting(default = false)]
     pub sticky_keys: bool,
+    /// Shift pressed five times turns Sticky Keys on or off.
+    #[setting(default = false)]
+    pub sticky_keys_shortcut: bool,
+    /// The alert sound plays when Sticky Keys latches or locks a modifier.
+    #[setting(default = false)]
+    pub sticky_keys_beep: bool,
     /// Milliseconds a key must be held to count; 0 turns Slow Keys off.
     #[setting(default = 0, range = 0..=2000)]
     pub slow_keys: i32,

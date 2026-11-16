@@ -348,6 +348,7 @@ impl State {
             .keyboards
             .engine
             .set_sticky(self.isle.settings.keyboard.sticky_keys);
+        self.show_latches();
         let keyboard = &self.isle.settings.keyboard;
         self.isle
             .seat
@@ -698,11 +699,42 @@ impl State {
         self.emit(outs, time);
         if key_state == KeyState::Released {
             self.check_held_chord();
-            if self.isle.keyboards.engine.take_sticky_toggle() {
+            if self.isle.keyboards.engine.take_sticky_toggle()
+                && self.isle.settings.keyboard.sticky_keys_shortcut
+            {
                 self.toggle_sticky_keys();
             }
         }
+        self.show_latches();
         self.update_bar_option();
+    }
+
+    /// Sticky Keys' latched modifiers on the island, and the alert sound for one just set.
+    pub fn show_latches(&mut self) {
+        use isle_keys::keyinfo::Role;
+        use isle_shell::island::model::{Latch, ModKey};
+        if self.isle.keyboards.engine.take_latch_set() && self.isle.settings.keyboard.sticky_keys_beep {
+            self.isle.play_alert();
+        }
+        let latched = self
+            .isle
+            .keyboards
+            .engine
+            .latches()
+            .filter_map(|(role, locked)| {
+                let key = match role {
+                    Role::Ctrl => ModKey::Ctrl,
+                    Role::Option => ModKey::Option,
+                    Role::Shift => ModKey::Shift,
+                    Role::Cmd => ModKey::Cmd,
+                    Role::Level3 | Role::Key => return None,
+                };
+                Some(Latch { key, locked })
+            })
+            .collect();
+        if self.isle.island.model.set_latched(latched) {
+            self.isle.refresh_island();
+        }
     }
 
     /// The evdev code of the named key `code` types in the active keymap, or 0 for any other.
@@ -727,10 +759,14 @@ impl State {
         }
     }
 
-    /// Shift pressed five times: Sticky Keys on or off, written to the settings.
+    /// Shift pressed five times: Sticky Keys on or off, written to the settings, said on the
+    /// island and with the alert sound.
     fn toggle_sticky_keys(&mut self) {
         let on = !self.isle.settings.keyboard.sticky_keys;
         info!(on, "Sticky Keys from Shift pressed five times");
+        self.isle
+            .osd_line("keyboard", if on { "Sticky Keys On" } else { "Sticky Keys Off" });
+        self.isle.play_alert();
         let (Some(worker), Some(store), Some(to_loop)) = (
             self.isle.worker.clone(),
             self.isle.settings_store.clone(),

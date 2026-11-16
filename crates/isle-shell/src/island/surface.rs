@@ -9,7 +9,9 @@ use isle_tokens::Theme;
 use isle_ui::{Glass, Glyph, Hit, LevelBar, LevelGlyph, colour, shadows, text, use_theme};
 use smithay::utils::{Logical, Rectangle, Size as SSize};
 
-use super::model::{Activity, ActivityKind, Event as IslandEvent, Form, GlyphKind, Privacy, Shown};
+use super::model::{
+    Activity, ActivityKind, Event as IslandEvent, Form, GlyphKind, Latch, Privacy, Shown,
+};
 use crate::{Action, Actions, Here, Layer, Scope, SurfaceDef};
 
 /// What the island asks of the compositor.
@@ -85,6 +87,11 @@ fn estimate(theme: &Theme, style: text::Style, s: &str) -> f32 {
     s.chars().count() as f32 * text::metrics(theme, style).0 * 0.56
 }
 
+fn latches_width(theme: &Theme, latched: usize) -> f32 {
+    let t = &theme.tokens;
+    latched as f32 * t.size_island_well + latched.saturating_sub(1) as f32 * t.space_xs
+}
+
 fn well_width(theme: &Theme, marks: usize) -> f32 {
     let t = &theme.tokens;
     if marks == 0 {
@@ -128,6 +135,10 @@ fn pill_size(shown: &Shown, theme: &Theme, clock_width: f32) -> (f32, f32) {
     match shown {
         Shown::Nothing => (0.0, 0.0),
         Shown::Privacy(p) => (well_width(theme, p.len()), t.size_island_well),
+        Shown::Latched(latched, p) => {
+            let inset = (pill - t.size_island_well) / 2.0;
+            (2.0 * inset + latches_width(theme, latched.len()) + well(p), pill)
+        }
         Shown::Alone(event, p) | Shown::Event(event, p) => {
             let (w, h) = event_size(event, theme, pill);
             ((w + well(p)).min(t.size_island_max), h)
@@ -137,6 +148,7 @@ fn pill_size(shown: &Shown, theme: &Theme, clock_width: f32) -> (f32, f32) {
             marks,
             more,
             glyphs,
+            latched,
             privacy,
         } => {
             let mut w = 2.0 * t.space_m + clock_width;
@@ -154,6 +166,9 @@ fn pill_size(shown: &Shown, theme: &Theme, clock_width: f32) -> (f32, f32) {
                 w += t.space_m
                     + glyphs.len() as f32 * 24.0
                     + (glyphs.len() as f32 - 1.0) * t.space_s;
+            }
+            if !latched.is_empty() {
+                w += t.space_s + latches_width(theme, latched.len());
             }
             w += well(privacy);
             (w.min(t.size_island_max).ceil(), pill)
@@ -443,6 +458,45 @@ fn well(theme: &Theme, marks: &[Privacy]) -> Element {
         .into_element()
 }
 
+/// Sticky Keys' modifiers in the on-screen keyboard's forms: an accent well, and a bar under
+/// the symbol when locked.
+fn latches(theme: &Theme, latched: &[Latch]) -> Element {
+    let t = &theme.tokens;
+    let on = colour(t.colour_on_accent);
+    rect()
+        .horizontal()
+        .spacing(t.space_xs)
+        .children(latched.iter().map(|latch| {
+            rect()
+                .width(Size::px(t.size_island_well))
+                .height(Size::px(t.size_island_well))
+                .corner_radius(t.size_island_well / 2.0)
+                .background(colour(t.colour_accent))
+                .center()
+                .spacing(t.space_xxs)
+                .a11y_alt(format!(
+                    "{} {}",
+                    latch.key.name(),
+                    if latch.locked { "locked" } else { "latched" }
+                ))
+                .child(
+                    text::line(theme, text::Style::Subheadline, on, latch.key.symbol())
+                        .font_weight(t.type_weight_semibold as i32),
+                )
+                .maybe(latch.locked, |el| {
+                    el.child(
+                        rect()
+                            .width(Size::px(t.size_glyph_small))
+                            .height(Size::px(2.))
+                            .corner_radius(1.)
+                            .background(on),
+                    )
+                })
+                .into_element()
+        }))
+        .into_element()
+}
+
 fn content(theme: &Theme, shown: &Shown, frame: &Frame, actions: &Actions) -> Element {
     let t = &theme.tokens;
     let ink = colour(t.colour_island_text);
@@ -459,6 +513,14 @@ fn content(theme: &Theme, shown: &Shown, frame: &Frame, actions: &Actions) -> El
             .main_align(Alignment::Center)
             .child(well(theme, marks))
             .into_element(),
+        Shown::Latched(latched, privacy) => row()
+            .main_align(Alignment::Center)
+            .child(latches(theme, latched))
+            .maybe(!privacy.is_empty(), |el| {
+                el.child(rect().width(Size::px(t.space_s)))
+                    .child(well(theme, privacy))
+            })
+            .into_element(),
         Shown::Alone(event, privacy) | Shown::Event(event, privacy) => {
             event_content(theme, event, privacy, actions)
         }
@@ -467,6 +529,7 @@ fn content(theme: &Theme, shown: &Shown, frame: &Frame, actions: &Actions) -> El
             marks,
             more,
             glyphs,
+            latched,
             privacy,
         } => {
             let clock_actions = actions.clone();
@@ -557,6 +620,10 @@ fn content(theme: &Theme, shown: &Shown, frame: &Frame, actions: &Actions) -> El
                                 })
                                 .into_element()
                         }))
+                })
+                .maybe(!latched.is_empty(), |el| {
+                    el.child(rect().width(Size::px(t.space_s)))
+                        .child(latches(theme, latched))
                 })
                 .maybe(!privacy.is_empty(), |el| {
                     el.child(rect().width(Size::px(t.space_s)))

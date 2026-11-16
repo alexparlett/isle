@@ -147,7 +147,7 @@ Notification Centre. What it shows while live, and where each kind of live activ
 9. The island always carries the clock; its format (date, weekday, seconds) is a setting. A click on the clock opens Notification Centre.
 10. The island carries a glyph for Isle's own status: Wi-Fi, Bluetooth, sound, VPN, Focus (the Gaming Focus included), updates and a restart owed, battery, Keep Awake on, keyboard shortcuts inhibited, a configuration error. Each shows only while its state is not the normal one, and the user can set each to always or never show; the last two show whenever their state holds. Other programs' status items are Control Centre's (Control Centre 9).
 11. Hovering the island opens Control Centre from it after a short dwell, without taking keyboard focus; a click pins it with focus. Hover never opens it during a window drag or while a menu is open, and a click that opens something elsewhere disarms it until the pointer leaves (`design-v1-lessons.md` §3.5).
-12. Windows keep a strip along the top of each screen clear for the island. A full-screen window covers it and the island hides, leaving its privacy indicators and OSDs; a push at the top edge in the island's zone brings it back.
+12. Windows keep a strip along the top of each screen clear for the island. A full-screen window covers it and the island hides, leaving its privacy indicators, OSDs and Sticky Keys' latched modifiers (B146); a push at the top edge in the island's zone brings it back.
 
 v1 lessons kept
 - Inventory §4 Island details: an open panel is never taken over by an event.

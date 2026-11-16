@@ -739,7 +739,10 @@
   from a shipped list, `text-input-v3` served for the password purpose only,
   the lock's and greeter's keyboards, a board (20f.1) for where Sticky Keys
   shows; showing it on a text field's focus not built. Phases
-  20f.0–20f.10. P20a and P20b are still for review.
+  20f.0–20f.10. P20a and P20b are still for review. 20f.1 and 20f.8 built
+  ahead of it 2026-11-16, after a silent Shift ×5 locked Ctrl on the host:
+  the shortcut opt-in with a notice (B145), the latches in the rest pill and
+  over full screen (B146).
 - P20b built and walked in the VM 2026-11-05 (20b.0–20b.8): the restore
   record frozen at the session's end; restore at each supervised start
   after one autostart read, windows taking their noted output and desktop

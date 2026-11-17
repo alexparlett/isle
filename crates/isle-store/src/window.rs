@@ -209,7 +209,7 @@ impl freya::prelude::App for StoreWindow {
         let mut offers = use_state(|| Rc::new(Vec::<Offer>::new()));
         let mut packages = use_state(|| Rc::new(HashSet::<String>::new()));
         let mut icons = use_state(|| Rc::new(HashMap::<PathBuf, Option<PathBuf>>::new()));
-        let mut shots = use_state(|| Rc::new(HashMap::<String, PathBuf>::new()));
+        let mut shots = use_state(|| Rc::new(HashMap::<String, Option<PathBuf>>::new()));
         let mut aur_found = use_state(|| Rc::new(None::<(String, Result<Vec<Offer>, String>)>));
         let mut plans = use_state(|| Rc::new(HashMap::<String, Plan>::new()));
         let mut sheet = use_state(|| None::<Sheet>);

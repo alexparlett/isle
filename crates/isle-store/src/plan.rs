@@ -357,8 +357,9 @@ pub fn remove(catalogue: &str, id: &str) -> Plan {
             plan.packages = parse_print(&out);
             plan.note = Some("Settings you changed are kept beside the originals as .pacsave files.".into());
         }
-        Some((false, _, err)) => {
-            let by = parse_breaks(&err);
+        // pacman prints what a removal would break on stdout, its error on stderr.
+        Some((false, out, err)) => {
+            let by = parse_breaks(&format!("{out}\n{err}"));
             plan.refused = Some(if by.is_empty() {
                 err.trim().to_string()
             } else {

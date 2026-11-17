@@ -161,7 +161,8 @@ pub struct Ctx {
     pub packages: Rc<HashSet<String>>,
     pub status: Rc<Value>,
     pub plans: Rc<HashMap<String, Plan>>,
-    pub shots: Rc<HashMap<String, PathBuf>>,
+    /// Screenshots fetched, or `None` for one that could not be.
+    pub shots: Rc<HashMap<String, Option<PathBuf>>>,
     pub aur: Rc<Option<(String, Result<Vec<Offer>, String>)>>,
     pub data: Data,
     pub page: State<Page>,
@@ -206,12 +207,19 @@ impl Ctx {
             .find(|o| o.kind == kind && o.install == install)
     }
 
+    /// The installed app an offer is: by its desktop entry, else by its package.
     pub fn installed_app(&self, o: &Offer) -> Option<&App> {
         let catalogue = catalogue_of(o.kind);
-        self.apps.iter().find(|a| match o.kind {
+        let bare = |id: &str| id.trim_end_matches(".desktop").to_string();
+        let ours = |a: &&App| match o.kind {
             Kind::Flathub => a.catalogue == catalogue && (a.id == o.install || a.source == o.install),
             _ => a.source == o.install,
-        })
+        };
+        self.apps
+            .iter()
+            .filter(ours)
+            .find(|a| bare(&a.id) == bare(&o.id))
+            .or_else(|| self.apps.iter().find(ours))
     }
 
     pub fn is_installed(&self, o: &Offer) -> bool {
@@ -714,13 +722,23 @@ impl Ctx {
     }
 
     /// The catalogue's entry for an installed app, or one made from what is installed.
+    /// The entry whose component is the app's own desktop entry, else the package's when the
+    /// package installs no other app, else one made from what is installed.
     pub fn offer_of(&self, app: &App) -> Offer {
-        let found = match app.catalogue {
-            Catalogue::Cachyos => self.find(Kind::Cachyos, &app.source),
-            Catalogue::Flathub => self.find(Kind::Flathub, &app.source),
-            _ => None,
+        let kind = match app.catalogue {
+            Catalogue::Cachyos => Kind::Cachyos,
+            Catalogue::Flathub => Kind::Flathub,
+            _ => return offer_for(app),
         };
-        found.cloned().unwrap_or_else(|| offer_for(app))
+        let bare = |id: &str| id.trim_end_matches(".desktop").to_string();
+        let own = self
+            .offers
+            .iter()
+            .find(|o| o.kind == kind && o.install == app.source && bare(&o.id) == bare(&app.id));
+        let alone = self.apps.iter().filter(|a| a.source == app.source).count() == 1;
+        own.or_else(|| self.find(kind, &app.source).filter(|_| alone))
+            .cloned()
+            .unwrap_or_else(|| offer_for(app))
     }
 
     pub fn installed(&self) -> Vec<Element> {
@@ -732,8 +750,10 @@ impl Ctx {
                 format!("{} apps · the system's packages are not listed here", self.apps.len()),
             ),
         ];
-        for a in self.apps.iter() {
-            out.push(self.row(&self.offer_of(a)));
+        let mut shown: Vec<Offer> = self.apps.iter().map(|a| self.offer_of(a)).collect();
+        shown.sort_by_key(|o| o.name.to_lowercase());
+        for o in &shown {
+            out.push(self.row(o));
         }
         out
     }
@@ -994,9 +1014,15 @@ impl Ctx {
             }
         }
 
-        if !o.screenshots.is_empty() {
+        let showable: Vec<&String> = o
+            .screenshots
+            .iter()
+            .take(4)
+            .filter(|u| !matches!(self.shots.get(*u), Some(None)))
+            .collect();
+        if !showable.is_empty() {
             let mut shots = rect().horizontal().spacing(t.space_m);
-            for url in o.screenshots.iter().take(4) {
+            for url in showable {
                 let frame = rect()
                     .width(Size::px(420.))
                     .height(Size::px(260.))
@@ -1004,7 +1030,7 @@ impl Ctx {
                     .background(colour(t.colour_window_sunken))
                     .overflow(Overflow::Clip)
                     .center();
-                shots = shots.child(match self.shots.get(url) {
+                shots = shots.child(match self.shots.get(url).cloned().flatten() {
                     Some(path) => frame
                         .child(
                             ImageViewer::new(path.clone())

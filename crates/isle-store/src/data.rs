@@ -23,8 +23,8 @@ pub enum Event {
     Offers(Vec<Offer>),
     /// Catalogue icons made drawable: the catalogue's file and the drawable one.
     Icons(Vec<(PathBuf, Option<PathBuf>)>),
-    /// A screenshot fetched: its address and the local copy.
-    Shot(String, PathBuf),
+    /// A screenshot fetched: its address and the local copy, or none when it could not be.
+    Shot(String, Option<PathBuf>),
     /// The AUR's answer to a search.
     Aur(String, Result<Vec<Offer>, String>),
     /// What Get or Remove would do, by the key it was asked under.
@@ -226,9 +226,8 @@ fn side(ask: Ask, events: &UnboundedSender<Event>) -> Option<Ask> {
             for url in urls {
                 let events = events.clone();
                 tokio::spawn(async move {
-                    if let Some(path) = shot(url.clone()).await {
-                        let _ = events.unbounded_send(Event::Shot(url, path));
-                    }
+                    let path = shot(url.clone()).await;
+                    let _ = events.unbounded_send(Event::Shot(url, path));
                 });
             }
         }

@@ -214,31 +214,35 @@ impl State {
         let settings_in_front =
             self.isle.front_app().as_deref() == Some(crate::settings_link::SETTINGS_APP);
         let store_in_front = self.isle.front_app().as_deref() == Some(STORE_APP);
-        // Get's and Remove's runs: the package and what was done to it.
-        let get = match isle_updates::Part::parse(&p.part) {
-            Some(isle_updates::Part::Install { id, .. }) => Some((id, "installed", "install")),
-            Some(isle_updates::Part::Remove { id, .. }) => Some((id, "removed", "remove")),
+        // Store's runs (Get, Remove, and apps' updates): what was done, and what failed.
+        use isle_updates::Part;
+        let store = match Part::parse(&p.part) {
+            Some(Part::Install { id, .. }) => {
+                Some((format!("{id} was installed"), format!("Couldn't install {id}")))
+            }
+            Some(Part::Remove { id, .. }) => {
+                Some((format!("{id} was removed"), format!("Couldn't remove {id}")))
+            }
+            Some(Part::Flathub(Some(id)) | Part::Aur(Some(id))) => {
+                Some((format!("{id} was updated"), format!("Couldn't update {id}")))
+            }
+            Some(Part::Flathub(None) | Part::Aur(None)) => {
+                Some(("Apps were updated".into(), "Couldn't update apps".into()))
+            }
             _ => None,
         };
         match p.state {
-            RunState::Done if get.is_some() => {
-                if let Some((id, done, _)) = get.filter(|_| !store_in_front) {
-                    self.post_desktop(
-                        "",
-                        "Store",
-                        format!("{id} was {done}"),
-                        String::new(),
-                        vec![],
-                        Note::Update,
-                    );
+            RunState::Done if store.is_some() => {
+                if let Some((done, _)) = store.filter(|_| !store_in_front) {
+                    self.post_desktop("", "Store", done, packages(p.total), vec![], Note::Update);
                 }
             }
-            RunState::Failed | RunState::Refused if get.is_some() => {
-                if let Some((id, _, verb)) = get {
+            RunState::Failed | RunState::Refused if store.is_some() => {
+                if let Some((_, failed)) = store {
                     self.post_desktop(
                         "",
                         "Store",
-                        format!("Couldn't {verb} {id}"),
+                        failed,
                         p.reason.clone().unwrap_or_default(),
                         vec![],
                         Note::Update,

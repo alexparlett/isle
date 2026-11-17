@@ -26,3 +26,7 @@ serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 zbus.workspace = true
+
+[dev-dependencies]
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
+isle-app = { workspace = true, features = ["testing"] }

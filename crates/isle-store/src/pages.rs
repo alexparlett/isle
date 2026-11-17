@@ -800,11 +800,21 @@ impl Ctx {
             if !wants(kind) {
                 continue;
             }
-            let mut found: Vec<&Offer> = self
+            let mut found: Vec<Offer> = self
                 .offers
                 .iter()
                 .filter(|o| o.kind == kind && isle_catalog::catalogue::matches(o, &q))
+                .cloned()
                 .collect();
+            // Installed apps the catalogue does not list are found too.
+            for o in self.apps.iter().map(|a| self.offer_of(a)) {
+                if o.kind == kind
+                    && isle_catalog::catalogue::matches(&o, &q)
+                    && !found.iter().any(|f| f.install == o.install)
+                {
+                    found.push(o);
+                }
+            }
             found.sort_by_key(|o| {
                 let n = o.name.to_lowercase();
                 (!n.starts_with(&q), !n.contains(&q), n)

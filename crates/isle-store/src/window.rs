@@ -9,7 +9,7 @@ use std::{
 };
 
 use freya::prelude::*;
-use isle_app::ToolbarExt;
+use isle_app::{Chord, Command, Desktop, Menu, ToolbarExt};
 use isle_catalog::catalogue::{Kind as Offered, Offer};
 use isle_tokens::{Colour, Theme};
 use isle_ui::{AppIcon, Button, Glyph, SearchField, button::Kind, colour, scroll_area, text, use_theme};
@@ -297,6 +297,53 @@ impl freya::prelude::App for StoreWindow {
                         }
                     }
                 });
+            }
+        });
+
+        let can_back = !back.read().is_empty();
+        isle_app::use_commands(vec![
+            Command::new("check", "Check for Updates", Menu::File, 1).chord(Chord::cmd('r')),
+            Command::new("back", "Back", Menu::Go, 0)
+                .chord(Chord::cmd('['))
+                .enabled(can_back),
+            Command::new("discover", "Discover", Menu::Go, 1).chord(Chord::cmd('1')),
+            Command::new("browse", "Browse", Menu::Go, 1).chord(Chord::cmd('2')),
+            Command::new("installed", "Installed", Menu::Go, 1).chord(Chord::cmd('3')),
+            Command::new("updates", "Updates", Menu::Go, 1).chord(Chord::cmd('4')),
+        ]);
+        let desktop = Desktop::get();
+        use_side_effect({
+            let data = data.clone();
+            move || {
+                if desktop.commands.read().is_empty() {
+                    return;
+                }
+                let mut queue = desktop.commands;
+                for command in std::mem::take(&mut *queue.write()) {
+                    let to = match command.as_str() {
+                        "check" => {
+                            data.ask(Ask::Check);
+                            None
+                        }
+                        "back" => {
+                            let last = back.write().pop();
+                            if let Some(last) = last {
+                                page.set(last);
+                            }
+                            None
+                        }
+                        "discover" => Some(Page::Discover),
+                        "browse" => Some(Page::Browse),
+                        "installed" => Some(Page::Installed),
+                        "updates" => Some(Page::Updates),
+                        _ => None,
+                    };
+                    if let Some(to) = to {
+                        query.set(String::new());
+                        back.set(Vec::new());
+                        page.set(to);
+                    }
+                }
             }
         });
 

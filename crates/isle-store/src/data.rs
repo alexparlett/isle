@@ -33,6 +33,7 @@ pub enum Event {
     Failed(String),
 }
 
+#[derive(Debug)]
 pub enum Ask {
     /// A run of a part: `flathub`, `flathub:<id>`, `aur`, `aur:<package>`.
     Install(String),
@@ -61,6 +62,13 @@ impl PartialEq for Data {
 impl Data {
     pub fn ask(&self, ask: Ask) {
         let _ = self.0.unbounded_send(ask);
+    }
+
+    /// A Data no worker reads, its asks kept for a test to look at.
+    #[cfg(test)]
+    pub fn detached() -> (Data, UnboundedReceiver<Ask>) {
+        let (asks, asked) = unbounded();
+        (Data(asks), asked)
     }
 }
 

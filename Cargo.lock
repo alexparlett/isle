@@ -5185,6 +5185,7 @@ name = "isle-store"
 version = "0.1.0"
 dependencies = [
  "freya",
+ "freya-testing",
  "futures-channel",
  "futures-util",
  "isle-app",

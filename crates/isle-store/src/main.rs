@@ -5,6 +5,8 @@ mod data;
 mod installed;
 mod pages;
 mod plan;
+#[cfg(test)]
+mod tests;
 mod window;
 
 use std::{cell::Cell, rc::Rc};

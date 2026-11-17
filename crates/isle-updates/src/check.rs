@@ -54,16 +54,21 @@ pub enum Part {
     },
     /// Remove: a package with what only it needed, or a Flatpak app.
     Remove { catalogue: String, id: String },
+    /// An AppImage brought up to date from its own update information.
+    AppImage(String),
 }
 
 impl Part {
     /// `system`, `isle`, `both`, `flathub[:<app id>]`, `aur[:<package>]`,
-    /// `install:<catalogue>[+updates]:<id>` or `remove:<catalogue>:<id>`.
+    /// `install:<catalogue>[+updates]:<id>`, `remove:<catalogue>:<id>` or `appimage:<path>`.
     pub fn parse(word: &str) -> Option<Part> {
         let (kind, one) = match word.split_once(':') {
             Some((k, one)) if !one.is_empty() => (k, Some(one.to_string())),
             _ => (word, None),
         };
+        if kind == "appimage" {
+            return one.map(Part::AppImage);
+        }
         if kind == "remove" {
             let one = one?;
             let (catalogue, id) = one.split_once(':')?;
@@ -104,6 +109,7 @@ impl Part {
                 if *with_updates { "+updates" } else { "" }
             ),
             Part::Remove { catalogue, id } => format!("remove:{catalogue}:{id}"),
+            Part::AppImage(path) => format!("appimage:{path}"),
         }
     }
 
@@ -265,6 +271,11 @@ impl Tools {
                 .concat(),
             ),
             (_, Part::Aur(None)) => (paru(), [&["-Sua", "--mode=a"][..], &PARU].concat()),
+            (_, Part::AppImage(path)) => (
+                appimage_tool()
+                    .map_or_else(|| "appimageupdatetool".into(), PathBuf::into_os_string),
+                vec!["--overwrite", path.as_str()],
+            ),
             (_, Part::Remove { catalogue, id }) => match catalogue.as_str() {
                 "flathub" => (
                     flatpak(),
@@ -427,6 +438,28 @@ async fn flathub_updates(flatpak: &str) -> Result<Vec<Pending>, CheckError> {
     ))
 }
 
+/// The tool that updates AppImages: `appimageupdatetool` on the path, else its own AppImage put
+/// in `~/Applications`.
+pub fn appimage_tool() -> Option<PathBuf> {
+    let on_path = std::env::var_os("PATH").into_iter().flat_map(|p| {
+        std::env::split_paths(&p)
+            .map(|d| d.join("appimageupdatetool"))
+            .collect::<Vec<_>>()
+    });
+    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let dropped = std::fs::read_dir(home.join("Applications"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("appimageupdatetool") && n.ends_with(".AppImage"))
+        });
+    on_path.chain(dropped).find(|p| p.is_file())
+}
+
 /// Where Store installs from Flathub: the user's installation when it has the remote, so no
 /// password is asked, else the system's. Named, since a remote in both makes flatpak ask.
 pub fn flathub_installation() -> &'static str {
@@ -576,6 +609,7 @@ mod tests {
             "install:aur:obs-vkcapture",
             "remove:cachyos:krita",
             "remove:flathub:com.obsproject.Studio",
+            "appimage:/home/u/Applications/Obsidian.AppImage",
         ] {
             assert_eq!(Part::parse(w).unwrap().word(), w);
         }

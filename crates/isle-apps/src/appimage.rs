@@ -46,6 +46,50 @@ pub fn data_home() -> Option<PathBuf> {
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
 }
 
+/// The image's update information, the `.upd_info` ELF section a type 2 image carries
+/// (`zsync|<url>`, `gh-releases-zsync|<owner>|<repo>|…`), read from its section headers alone.
+pub fn update_info(path: &Path) -> Option<String> {
+    use std::io::{Seek, SeekFrom};
+    let mut f = fs::File::open(path).ok()?;
+    let mut head = [0u8; 64];
+    f.read_exact(&mut head).ok()?;
+    if &head[..4] != b"\x7fELF" || head[4] != 2 || head[5] != 1 {
+        return None;
+    }
+    let u16_at = |b: &[u8], o: usize| u16::from_le_bytes([b[o], b[o + 1]]) as u64;
+    let u32_at = |b: &[u8], o: usize| u32::from_le_bytes(b[o..o + 4].try_into().unwrap()) as u64;
+    let u64_at = |b: &[u8], o: usize| u64::from_le_bytes(b[o..o + 8].try_into().unwrap());
+    let (shoff, shentsize, shnum, shstrndx) =
+        (u64_at(&head, 0x28), u16_at(&head, 0x3A), u16_at(&head, 0x3C), u16_at(&head, 0x3E));
+    if shentsize < 0x40 || shnum == 0 || shnum > 4096 || shstrndx >= shnum {
+        return None;
+    }
+    let mut table = vec![0u8; (shentsize * shnum) as usize];
+    f.seek(SeekFrom::Start(shoff)).ok()?;
+    f.read_exact(&mut table).ok()?;
+    let header = |i: u64| &table[(i * shentsize) as usize..((i + 1) * shentsize) as usize];
+    let mut read = |offset: u64, size: u64| -> Option<Vec<u8>> {
+        let mut out = vec![0u8; size.min(1 << 16) as usize];
+        f.seek(SeekFrom::Start(offset)).ok()?;
+        f.read_exact(&mut out).ok()?;
+        Some(out)
+    };
+    let names = header(shstrndx);
+    let names = read(u64_at(names, 0x18), u64_at(names, 0x20))?;
+    for i in 0..shnum {
+        let h = header(i);
+        let at = u32_at(h, 0) as usize;
+        let name = names.get(at..)?.split(|b| *b == 0).next()?;
+        if name == b".upd_info" {
+            let body = read(u64_at(h, 0x18), u64_at(h, 0x20))?;
+            let text = String::from_utf8_lossy(&body);
+            let text = text.trim_end_matches('\0').trim();
+            return (!text.is_empty()).then(|| text.to_string());
+        }
+    }
+    None
+}
+
 /// 1 or 2 for an AppImage of that type, `None` for any other file.
 pub fn kind_of(path: &Path) -> Option<u8> {
     let mut head = [0u8; 16];
@@ -472,6 +516,65 @@ pub fn sync(apps: &Path, entries: &Path, icons: &Path) -> Synced {
 
 #[cfg(test)]
 mod tests {
+    /// A 64-bit ELF with a section-name table and the given sections, as an image carries
+    /// its update information.
+    fn elf(sections: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut names = vec![0u8];
+        let mut name_at = Vec::new();
+        for (name, _) in sections.iter().chain([(".shstrtab", &[][..])].iter()) {
+            name_at.push(names.len() as u32);
+            names.extend_from_slice(name.as_bytes());
+            names.push(0);
+        }
+        let mut body = vec![0u8; 64];
+        let mut placed = Vec::new();
+        for (_, data) in sections {
+            placed.push((body.len() as u64, data.len() as u64));
+            body.extend_from_slice(data);
+        }
+        placed.push((body.len() as u64, names.len() as u64));
+        body.extend_from_slice(&names);
+        let shoff = body.len() as u64;
+        body.extend_from_slice(&[0u8; 64]);
+        for (i, (offset, size)) in placed.iter().enumerate() {
+            let mut h = [0u8; 64];
+            h[0..4].copy_from_slice(&name_at[i].to_le_bytes());
+            h[0x18..0x20].copy_from_slice(&offset.to_le_bytes());
+            h[0x20..0x28].copy_from_slice(&size.to_le_bytes());
+            body.extend_from_slice(&h);
+        }
+        let shnum = placed.len() as u16 + 1;
+        body[0..4].copy_from_slice(b"\x7fELF");
+        body[4] = 2;
+        body[5] = 1;
+        body[0x28..0x30].copy_from_slice(&shoff.to_le_bytes());
+        body[0x3A..0x3C].copy_from_slice(&64u16.to_le_bytes());
+        body[0x3C..0x3E].copy_from_slice(&shnum.to_le_bytes());
+        body[0x3E..0x40].copy_from_slice(&(shnum - 1).to_le_bytes());
+        body
+    }
+
+    #[test]
+    fn an_image_s_update_information() {
+        let dir = std::env::temp_dir().join(format!("isle-appimage-upd-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let mut info = b"gh-releases-zsync|owner|app|latest|App-*x86_64.AppImage.zsync".to_vec();
+        info.resize(1024, 0);
+        let with = dir.join("with.AppImage");
+        fs::write(&with, elf(&[(".text", b"code"), (".upd_info", &info)])).unwrap();
+        assert_eq!(
+            update_info(&with).as_deref(),
+            Some("gh-releases-zsync|owner|app|latest|App-*x86_64.AppImage.zsync")
+        );
+        let empty = dir.join("empty.AppImage");
+        fs::write(&empty, elf(&[(".upd_info", &[0u8; 512])])).unwrap();
+        assert_eq!(update_info(&empty), None);
+        let plain = dir.join("plain");
+        fs::write(&plain, b"not an elf at all, just text that is long enough to read a header from it").unwrap();
+        assert_eq!(update_info(&plain), None);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
     use super::*;
 
     /// An ELF header marked as a type 2 AppImage whose section headers end at 64, then

@@ -182,7 +182,7 @@ pub fn note(theme: &Theme, line: impl Into<String>) -> Element {
 fn store_run(status: &Value) -> Option<&Value> {
     let run = &status["progress"];
     let part = run["part"].as_str().unwrap_or_default();
-    (part.starts_with("flathub") || part.starts_with("aur") || part.starts_with("install"))
+    (["flathub", "aur", "install", "remove", "appimage"].iter().any(|p| part.starts_with(p)))
         .then_some(run)
 }
 
@@ -213,6 +213,7 @@ impl freya::prelude::App for StoreWindow {
         let mut aur_found = use_state(|| Rc::new(None::<(String, Result<Vec<Offer>, String>)>));
         let mut plans = use_state(|| Rc::new(HashMap::<String, Plan>::new()));
         let mut sheet = use_state(|| None::<Sheet>);
+        let mut images = use_state(HashMap::<String, data::Image>::new);
         let limit = use_state(|| pages::PAGE);
         let narrow = use_state(|| None::<Offered>);
         let narrowing = use_state(|| false);
@@ -261,6 +262,7 @@ impl freya::prelude::App for StoreWindow {
                             }
                             Event::Installed(list) => apps.set(list),
                             Event::Packages(set) => packages.set(Rc::new(set)),
+                            Event::Images(found) => images.set(found),
                             Event::Offers(list) => offers.set(Rc::new(list)),
                             Event::Icons(made) => {
                                 let mut all = (**icons.read()).clone();
@@ -369,7 +371,13 @@ impl freya::prelude::App for StoreWindow {
         let aur = pending(&s, "Aur");
         let system_waiting = !pending(&s, "Repositories").is_empty();
         let running = s["progress"]["state"] == "Running";
-        let store_count = flathub.len() + aur.len();
+        let image_states = images.read().clone();
+        let newer_images: Vec<(String, String)> = image_states
+            .iter()
+            .filter(|(_, i)| i.newer == Some(true))
+            .map(|(id, i)| (id.clone(), format!("appimage:{}", i.path.display())))
+            .collect();
+        let store_count = flathub.len() + aur.len() + newer_images.len();
 
         let ask = {
             let data = data.clone();
@@ -432,6 +440,7 @@ impl freya::prelude::App for StoreWindow {
                 ]
                 .into_iter()
                 .flatten()
+                .chain(newer_images.iter().map(|(_, part)| part.clone()))
                 .collect();
                 let queue_e = queue.clone();
                 let ask_e = ask.clone();
@@ -615,13 +624,26 @@ impl freya::prelude::App for StoreWindow {
                 if !images.is_empty() {
                     out.push(section(&theme, "AppImages", None));
                     for a in &images {
+                        let trailing = match image_states.get(&a.id) {
+                            Some(i) if i.newer == Some(true) => update_button(
+                                "Update",
+                                format!("appimage:{}", i.path.display()),
+                                true,
+                                true,
+                            ),
+                            Some(i) if i.newer == Some(false) => note(&theme, "Up to date"),
+                            Some(i) if i.info.is_some() => {
+                                note(&theme, "Put appimageupdatetool's AppImage in Applications to update it here")
+                            }
+                            _ => note(&theme, "Updates from its developer"),
+                        };
                         out.push(update_row(
                             &theme,
                             Some(a),
                             &a.name,
                             Catalogue::AppImages,
                             a.summary.clone(),
-                            note(&theme, "Updates from its developer"),
+                            trailing,
                         ));
                     }
                 }

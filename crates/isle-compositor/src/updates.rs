@@ -226,6 +226,12 @@ impl State {
             Some(Part::Flathub(Some(id)) | Part::Aur(Some(id))) => {
                 Some((format!("{id} was updated"), format!("Couldn't update {id}")))
             }
+            Some(Part::AppImage(path)) => {
+                let name = std::path::Path::new(&path)
+                    .file_stem()
+                    .map_or(path.clone(), |s| s.to_string_lossy().into_owned());
+                Some((format!("{name} was updated"), format!("Couldn't update {name}")))
+            }
             Some(Part::Flathub(None) | Part::Aur(None)) => {
                 Some(("Apps were updated".into(), "Couldn't update apps".into()))
             }

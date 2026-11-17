@@ -29,6 +29,8 @@ pub enum Event {
     Aur(String, Result<Vec<Offer>, String>),
     /// What Get or Remove would do, by the key it was asked under.
     Plan(String, Plan),
+    /// The registered AppImages and whether each can update, by entry id.
+    Images(std::collections::HashMap<String, Image>),
     /// Why the last ask was refused or failed.
     Failed(String),
 }
@@ -80,6 +82,54 @@ pub fn start(
     let (events, rx) = unbounded();
     worker.spawn(run(asked, events, bus));
     (Data(asks), rx)
+}
+
+/// An AppImage and how it updates.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Image {
+    pub path: PathBuf,
+    /// Its embedded update information, if it has any.
+    pub info: Option<String>,
+    /// From `appimageupdatetool -j`: `None` when the tool is not installed or could not tell.
+    pub newer: Option<bool>,
+}
+
+fn images() -> std::collections::HashMap<String, Image> {
+    let Some(home) = isle_apps::appimage::data_home() else {
+        return Default::default();
+    };
+    let tool = isle_updates::appimage_tool();
+    isle_apps::appimage::registered(&home.join("applications"))
+        .into_values()
+        .map(|r| {
+            let info = isle_apps::appimage::update_info(&r.image);
+            // `-j` exits 1 when an update is available and 0 when the image is current.
+            let newer = tool
+                .as_ref()
+                .filter(|_| info.is_some())
+                .map(|tool| {
+                    std::process::Command::new(tool)
+                        .arg("-j")
+                        .arg(&r.image)
+                        .output()
+                        .ok()
+                        .and_then(|o| match o.status.code() {
+                            Some(0) => Some(false),
+                            Some(1) => Some(true),
+                            _ => None,
+                        })
+                })
+                .flatten();
+            (
+                r.id,
+                Image {
+                    path: r.image,
+                    info,
+                    newer,
+                },
+            )
+        })
+        .collect()
 }
 
 fn packages() -> HashSet<String> {
@@ -280,6 +330,12 @@ async fn run(
     {
         let events = events.clone();
         tokio::task::spawn_blocking(move || {
+            let _ = events.unbounded_send(Event::Images(images()));
+        });
+    }
+    {
+        let events = events.clone();
+        tokio::task::spawn_blocking(move || {
             let _ = events.unbounded_send(Event::Offers(offers()));
         });
     }
@@ -299,10 +355,20 @@ async fn run(
         let Some(ask) = side(ask, &events) else {
             continue;
         };
+        if matches!(ask, Ask::Check) {
+            let events = events.clone();
+            tokio::task::spawn_blocking(move || {
+                let _ = events.unbounded_send(Event::Images(images()));
+            });
+        }
         if matches!(ask, Ask::Rescan) {
             let installed = tokio::task::spawn_blocking(scan).await.unwrap_or_default();
             let _ = events.unbounded_send(Event::Installed(installed));
             let _ = events.unbounded_send(Event::Packages(packages()));
+            let events = events.clone();
+            tokio::task::spawn_blocking(move || {
+                let _ = events.unbounded_send(Event::Images(images()));
+            });
             continue;
         }
         if let Err(why) = act(&bus, ask).await {

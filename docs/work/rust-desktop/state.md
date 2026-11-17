@@ -803,7 +803,14 @@
 - P14e 14e.0–14e.3 built and walked in the VM 2026-11-17: Software Update
   for the system, `isle-catalog`, Flathub and the AUR in the check, Store
   with Updates by catalogue and Installed.
-- P14e 14e.4–14e.6 built 2026-11-17: catalogue pages, search, Discover,
-  Browse, app pages, and Get and Remove with their sheets. Next: 14e.7
-  (package and VM walk), 14e.8 (the host).
+- P14e 14e.4–14e.6 built and walked in the VM 2026-11-17: catalogue pages,
+  search, Discover, Browse, app pages, and Get and Remove with their
+  sheets. Walked by input: Krita got from CachyOS with its 12 packages and
+  removed with them; Flatseal got from Flathub into the user's
+  installation; pfetch got from the AUR with one password; search
+  narrowed to the AUR. Fixed on the way: release notes in descriptions,
+  the AUR's bot check without a User-Agent, paru resolving dependencies in
+  the AUR alone, flatpak asking which installation. The guest has no
+  multilib, so AUR packages needing lib32 cannot install there. Next:
+  14e.7 (bars and the rest of the walk), 14e.8 (the host).
 

@@ -1,0 +1,347 @@
+<title>Store</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../p1/harness/harness.css">
+<link rel="stylesheet" href="../p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="../p1/system/phosphor.js"></script>
+<script src="../p1/harness/harness.js"></script>
+<script src="../p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // P14e: Store, on Package Installer 2.0's storefront (Discover, Browse, Installed, Updates), and Settings' Software Update for Isle alone.
+  const S = Scene, { h } = Isle, { el, sp, row, col, ic, appIcon } = S;
+  const add = (n, ...k) => (n.append(...k.flat(9).filter((x) => x != null && x !== false)), n);
+  const px = (n) => n + "px";
+
+  // Stand-in icons: the real ones come from AppStream.
+  const APPS = {
+    blender: ["Blender", "#f5a142", "#d86b1f", "circle-half", "3D creation suite", "Graphics"],
+    steam: ["Steam", "#3b5a7a", "#1b2838", "game-controller", "Play and buy games", "Games"],
+    zed: ["Zed", "#5b6bf5", "#3442c9", "code", "A fast editor for code", "Developer"],
+    kitty: ["kitty", "#6f6f6f", "#3d3d3d", "terminal-window", "A fast terminal", "Developer"],
+    mpv: ["mpv", "#8a4fd8", "#5b2aa6", "play", "A free media player", "Video"],
+    chromium: ["Chromium", "#4a90e2", "#2a64c1", "globe", "A web browser", "Internet"],
+    lutris: ["Lutris", "#f39c3d", "#c96a12", "game-controller", "Play games on Linux", "Games"],
+    protonplus: ["ProtonPlus", "#d94b6a", "#a6263f", "lightning", "Manage compatibility tools", "Games"],
+    obs: ["OBS Studio", "#3a3f4a", "#1f2229", "record", "Record and stream", "Video"],
+    krita: ["Krita", "#3aa6d9", "#1c75a6", "highlighter", "Digital painting", "Graphics"],
+    gimp: ["GIMP", "#8b7765", "#5e4f42", "image", "Image editor", "Graphics"],
+    heroic: ["Heroic", "#2b6fd6", "#16408a", "shield", "Epic, GOG and Amazon games", "Games"],
+  };
+  const icon = (id, size) => appIcon(size, APPS[id][1], APPS[id][2], APPS[id][3]);
+  const btn = (t, o) => { o = o || {}; return sp("s-btn" + (o.primary ? " primary" : "") + (o.small ? " small" : "") + (o.dim ? " is-disabled" : ""), t, o.style); };
+  const pill = (t) => sp("s-btn small", t, { borderRadius: "999px", minWidth: "64px", fontWeight: "600", color: "var(--colour-accent-text)" });
+
+  // ---- The Store window ----------------------------------------------------------------
+  const H = S.H, WX = 1020, WY = 200, WW = 1400, WH = 900, SIDE = 230;
+  const PAGES = [["discover", "Discover", "sun"], ["browse", "Browse", "squares-four"], ["installed", "Installed", "app-window"], ["updates", "Updates", "download-simple"]];
+
+  const CATALOGUES = [["cat-cachyos", "CachyOS", "#1aa79a"], ["cat-flathub", "Flathub", "#4a86cf"], ["cat-aur", "AUR", "#1793d1"], ["cat-appimage", "AppImages", "#8a6fd0"]];
+  function sidebar(sel, badge) {
+    const items = PAGES.map(([id, name, g]) => el("s-side-item" + (id === sel ? " sel focused" : ""), { flex: "none" },
+      ic(g, 16, id === sel, { color: id === sel ? "var(--colour-on-accent)" : "var(--colour-accent)" }), sp("", name, { flex: 1 }),
+      id === "updates" && badge ? sp("s-badge quiet", String(badge)) : null));
+    return el("", { position: "absolute", left: 0, top: 0, bottom: 0, width: px(SIDE), background: "var(--colour-sidebar)", borderRight: "1px solid var(--colour-hairline)", boxSizing: "border-box", display: "flex", flexDirection: "column" },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)" }, S.lights()),
+      el("s-field search", { margin: "0 var(--space-s) var(--space-m)", height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("ph", "Search")),
+      el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column", gap: "2px" }, ...items),
+      el("s-side-head", { padding: "var(--space-l) var(--space-l) var(--space-xs)" }, sp("s-callout s-2", "Catalogues", { fontWeight: "600" })),
+      el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column", gap: "2px" },
+        ...CATALOGUES.map(([id, name, colourHex]) => el("s-side-item" + (id === sel ? " sel focused" : ""), { flex: "none" },
+          el("", { width: "16px", height: "16px", borderRadius: "4px", background: colourHex, flex: "none" }), sp("", name, { flex: 1 })))),
+      el("", { flex: 1 }),
+      el("", { padding: "var(--space-m) var(--space-l)", borderTop: "1px solid var(--colour-hairline)" }, row({ gap: "var(--space-s)" }, ic("gear-six", 14, false, { color: "var(--colour-text-2)" }), sp("s-callout s-2", "Catalogues…"))));
+  }
+  function store(s, st, sel, badge, body, after) {
+    const content = el("", { marginLeft: px(SIDE), padding: "var(--space-xl) var(--space-xxl)", display: "flex", flexDirection: "column", gap: "var(--space-l)" }, ...body);
+    const win = el("s s-window", { left: px(WX), top: px(WY), width: px(WW), minHeight: px(WH), overflow: "hidden" }, sidebar(sel, badge), content);
+    s.append(win);
+    if (after) after(win);
+    st.crop = [WX - 60, WY - 40, WW + 120, Math.max(WH, win.offsetHeight) + 80];
+  }
+  const title = (t, right) => row({ alignItems: "center", gap: "var(--space-m)" }, sp("s-large-title", t, { flex: 1 }), right);
+  const section = (t, right) => row({ alignItems: "baseline", marginTop: "var(--space-m)", borderBottom: "1px solid var(--colour-hairline)", paddingBottom: "var(--space-xs)" }, sp("s-title-3", t, { flex: 1 }), right);
+
+  // ---- Updates, by source ------------------------------------------------------------------
+  Object.assign(APPS, {
+    bottles: ["Bottles", "#c94f4f", "#8f2a2a", "browsers", "Run Windows software", "Games"],
+    spotify: ["Spotify", "#1ed760", "#139a44", "music-note", "Music", "Audio"],
+    obsidian: ["Obsidian", "#7c5cd6", "#4b2fa3", "book-open", "Notes", "Office"],
+    bambu: ["Bambu Studio", "#22a06b", "#126a44", "printer", "3D printing", "Graphics"],
+    xremap: ["xremap-hypr-bin", "#6f6f6f", "#3d3d3d", "keyboard", "Key remapper", "Utilities"],
+    aitool: ["appimagetool-bin", "#6f6f6f", "#3d3d3d", "app-window", "Builds AppImages", "Developer"],
+  });
+  const SRC = { cachyos: ["CachyOS", "#1aa79a"], flatpak: ["Flathub", "#4a86cf"], appimage: ["AppImage", "#8a6fd0"], aur: ["AUR", "#1793d1"] };
+  const badge = (src) => sp("", SRC[src][0], { fontSize: "11px", fontWeight: "600", padding: "1px 6px", borderRadius: "999px", color: SRC[src][1], boxShadow: "inset 0 0 0 1px " + SRC[src][1] });
+  const tick = () => row({ gap: "var(--space-xs)" }, ic("check", 16, false, { color: "var(--colour-ok)" }), sp("s-callout s-2", "Updated"));
+  const busy = (t) => row({ gap: "var(--space-s)" }, sp("s-spinner", ""), sp("s-callout s-2", t || "Updating"));
+  function appRow(id, src, from, to, note, right) {
+    return row({ gap: "var(--space-m)", padding: "var(--space-m) 0", borderBottom: "1px solid var(--colour-hairline)" },
+      icon(id, 48),
+      col({ gap: "var(--space-xxs)", flex: 1, minWidth: 0 },
+        row({ gap: "var(--space-s)" }, sp("s-headline", APPS[id][0]), badge(src)),
+        sp("s-callout s-2 s-num", from + " → " + to + (note ? " · " + note : ""))),
+      right);
+  }
+  const SYS = [["Kernel", "linux-cachyos", "7.2.10", "7.3.4", "hard-drive"], ["Graphics driver", "NVIDIA", "615.78.08", "615.95.04", "monitor"], ["Graphics libraries", "Mesa", "26.2.6", "26.2.7", "monitor-play"], ["CachyOS tools", "cachyos-settings, cachy-update and 3 more", "", "", "gear-six"]];
+  // CachyOS's repositories, kernel and drivers first: one upgrade, since pacman upgrades all or nothing.
+  function cachyCard(state) {
+    const right = state === "now" ? busy("Installing 152 of 412") : state === "done" ? tick() : state === "wait" ? sp("s-callout s-2", "Waiting") : btn("Update Now", { primary: true });
+    return col({ gap: "var(--space-m)", padding: "var(--space-l)", borderRadius: "var(--radius-window)", background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" },
+      row({ gap: "var(--space-m)" },
+        el("", { width: "64px", height: "64px", borderRadius: "16px", background: "linear-gradient(160deg,#25c2b3,#0f7d73)", display: "grid", placeItems: "center", color: "#fff", flex: "none" }, ic("arrow-circle-up", 34, true)),
+        col({ gap: "var(--space-xxs)", flex: 1 }, sp("s-title-2", "CachyOS"), sp("s-callout s-2", "412 packages · 1.1 GB · Restart required")),
+        right),
+      state === "now" ? el("s-progress", {}, h("b", { style: { width: "37%" } })) : null,
+      el("", { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-s) var(--space-xl)" },
+        ...SYS.map(([what, name, a, b2, g]) => row({ gap: "var(--space-s)" }, ic(g, 18, false, { color: "var(--colour-text-2)" }),
+          col({ gap: 0, minWidth: 0 }, sp("", what), sp("s-callout s-2 s-num", a ? name + " " + a + " → " + b2 : name))))),
+      row({ gap: "var(--space-s)", alignItems: "center", paddingTop: "var(--space-s)", borderTop: "1px solid var(--colour-hairline)" },
+        sp("s-callout s-2", "Also updates 5 apps installed from CachyOS"), ...["blender", "steam", "zed", "mpv", "chromium"].map((id) => icon(id, 24)), sp("s-callout s-2", "and 401 libraries and tools", { flex: 1 }),
+        sp("s-callout", "Show All", { color: "var(--colour-accent-text)" })));
+  }
+  const restartBanner = () => row({ gap: "var(--space-m)", padding: "var(--space-m)", borderRadius: "var(--radius-card)", background: "color-mix(in srgb, var(--colour-accent) 12%, transparent)" },
+    ic("arrows-clockwise", 22, false, { color: "var(--colour-accent-text)" }), col({ gap: 0, flex: 1 }, sp("s-headline", "Restart to finish updating"), sp("s-callout s-2", "The kernel and the graphics driver were updated.")), btn("Restart…", { primary: true }));
+  const upd = (t) => pill(t || "Update");
+  const updatesWaiting = (o) => { o = o || {}; return [
+    title("Updates", btn("Update Everything", { primary: false })),
+    sp("s-callout s-2", "Checked 19:40 · Flathub, the AUR and AppImages"),
+    section("CachyOS", sp("s-callout", "Software Update…", { color: "var(--colour-accent-text)" })),
+    sp("s-callout s-2", "Apps from CachyOS update with the system, its kernel and drivers, in Settings › Software Update."),
+    ...[["blender", "4.5.3", "4.5.4"], ["steam", "1.0.0.82", "1.0.0.83"], ["zed", "0.214.6", "0.215.2"]].map(([id, a, b2]) => appRow(id, "cachyos", a, b2, "", o.cachy === "now" ? busy("With the system") : sp("s-callout s-2", "With the system"))),
+    sp("s-callout", "2 more", { color: "var(--colour-accent-text)" }),
+    section("Flathub", sp("s-callout", "Update All", { color: "var(--colour-accent-text)" })),
+    appRow("bottles", "flatpak", "51.21", "51.24", "Flathub", o.flat === "now" ? busy() : upd()),
+    appRow("spotify", "flatpak", "1.2.74", "1.2.77", "Flathub", o.flat === "now" ? sp("s-callout s-2", "Waiting") : upd()),
+    section("AppImages", sp("s-callout", "Update All", { color: "var(--colour-accent-text)" })),
+    appRow("obsidian", "appimage", "1.9.12", "1.10.3", "from its developer", upd()),
+    appRow("bambu", "appimage", "2.3.0", "?", "", sp("s-callout s-2", "Updates itself")),
+    section("AUR", row({ gap: "var(--space-m)" }, sp("s-callout s-2", "Built on this computer"), sp("s-callout", "Update All", { color: "var(--colour-accent-text)" }))),
+    appRow("xremap", "aur", "0.15.9-1", "0.15.15-1", "", upd()),
+    appRow("aitool", "aur", "r88", "latest commit", "", upd()),
+  ]; };
+  const updatesDone = () => [
+    title("Updates", btn("Check Now")),
+    col({ gap: "var(--space-s)", alignItems: "center", padding: "var(--space-xxl) 0" }, ic("check", 48, false, { color: "var(--colour-ok)" }), sp("s-title-2", "Everything is up to date"), sp("s-2", "Checked 20:12")),
+    section("Updated recently", null),
+    appRow("bottles", "flatpak", "51.21", "51.24", "Flathub", tick()),
+    appRow("blender", "cachyos", "4.5.3", "4.5.4", "", tick()),
+    appRow("obsidian", "appimage", "1.9.12", "1.10.3", "", tick()),
+  ];
+  // Store's own settings: where apps come from. The AUR off by default, as in Package Installer 2.0.
+  const sourcesSheet = (win) => { scrim(win); sheet(win, [
+    sp("s-title-3", "Catalogues"), sp("s-callout s-2", "All are on. Turn one off to hide it from Discover, Browse, search and Updates."),
+    ...[["CachyOS repositories", "The system, its drivers and apps. Always on.", "on", true], ["Flathub", "Flatpak apps, sandboxed and updated on their own.", "on"], ["AppImages", "Apps you downloaded, updated from their developers where they say how.", "on"], ["AUR", "Community build scripts, built on this computer. Read what you install.", "on"]].map(([n, d, st2, locked]) =>
+      row({ gap: "var(--space-l)", padding: "var(--space-s) 0", borderBottom: "1px solid var(--colour-hairline)" }, col({ gap: "2px", flex: 1 }, sp("s-headline", n), sp("s-callout s-2", d)), h("span", { class: "s-switch" + (st2 === "on" ? " on" : ""), style: locked ? { opacity: 0.5 } : {} }))),
+    row({ justifyContent: "flex-end" }, btn("Done", { primary: true })),
+  ]); };
+
+  // ---- A catalogue's own page, and search grouped by catalogue ------------------------------
+  const AURPKG = [["obs-vkcapture", "Vulkan and OpenGL game capture for OBS", "1.5.4-1", "412", "3 days ago", false], ["proton-ge-custom-bin", "Proton with extra fixes from GloriousEggroll", "GE-Proton10-25", "1,980", "2 days ago", false], ["heroic-games-launcher-bin", "Epic, GOG and Amazon games", "2.18.1-1", "1,204", "1 week ago", false], ["spotify-adblock", "Adblocker for Spotify", "1.0.3-2", "198", "8 months ago", true]];
+  const catHeader = (name, colourHex, what) => row({ gap: "var(--space-m)", padding: "var(--space-l)", borderRadius: "var(--radius-window)", background: "color-mix(in srgb, " + colourHex + " 14%, transparent)" },
+    el("", { width: "48px", height: "48px", borderRadius: "12px", background: colourHex, flex: "none" }),
+    col({ gap: "var(--space-xxs)", flex: 1 }, sp("s-title-2", name), sp("s-callout", what)));
+  const aurPage = () => [
+    catHeader("AUR", "#1793d1", "The Arch User Repository: build scripts written by the community, built on this computer when you install them. Nothing here is checked by CachyOS or Arch; read a package's script before you trust it."),
+    el("s-field search", { height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("ph", "Search the AUR")),
+    section("Popular in the AUR", null),
+    ...AURPKG.map(([n, d, v, votes, when, ood]) => row({ gap: "var(--space-m)", padding: "var(--space-m) 0", borderBottom: "1px solid var(--colour-hairline)" },
+      el("", { width: "40px", height: "40px", borderRadius: "10px", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, ic("file-text", 20)),
+      col({ gap: "2px", flex: 1, minWidth: 0 }, row({ gap: "var(--space-s)" }, sp("s-headline s-mono", n), badge("aur"), ood ? sp("s-callout", "Out of date", { color: "var(--colour-warn-text)" }) : null), sp("s-callout", d), sp("s-callout s-2 s-num", v + " · " + votes + " votes · updated " + when)),
+      pill("Get"))),
+  ];
+  const search = () => [
+    row({ gap: "var(--space-m)" }, el("s-field search", { flex: 1, height: "var(--size-control-large)" }, ic("magnifying-glass", 14), sp("", "obs")), h("span", { class: "s-popup", style: { minWidth: "160px", justifyContent: "space-between", boxSizing: "border-box" } }, "All catalogues", h("span", { class: "chev" }, ic("caret-up-down", 10, true)))),
+    section("CachyOS", sp("s-callout s-2", "1")),
+    row({ gap: "var(--space-m)", padding: "var(--space-s) 0" }, icon("obs", 40), col({ gap: 0, flex: 1 }, row({ gap: "var(--space-s)" }, sp("s-headline", "OBS Studio"), badge("cachyos")), sp("s-callout s-2", "Record and stream · obs-studio")), pill("Get")),
+    section("Flathub", sp("s-callout s-2", "1")),
+    row({ gap: "var(--space-m)", padding: "var(--space-s) 0" }, icon("obs", 40), col({ gap: 0, flex: 1 }, row({ gap: "var(--space-s)" }, sp("s-headline", "OBS Studio"), badge("flatpak")), sp("s-callout s-2", "Record and stream · com.obsproject.Studio")), pill("Get")),
+    section("AUR", sp("s-callout s-2", "23")),
+    ...AURPKG.slice(0, 1).concat([["obs-studio-git", "OBS Studio from its latest commit", "r12044", "51", "today", false]]).map(([n, d, v, votes]) => row({ gap: "var(--space-m)", padding: "var(--space-s) 0" },
+      el("", { width: "40px", height: "40px", borderRadius: "10px", background: "var(--colour-fill-strong)", display: "grid", placeItems: "center", flex: "none" }, ic("file-text", 20)),
+      col({ gap: 0, flex: 1 }, row({ gap: "var(--space-s)" }, sp("s-headline s-mono", n), badge("aur")), sp("s-callout s-2", d + " · " + votes + " votes")), pill("Get"))),
+    sp("s-callout", "Show all 23 from the AUR", { color: "var(--colour-accent-text)" }),
+  ];
+
+  // ---- Discover, Browse, an app, Installed ----------------------------------------------
+  function card(id, wide) {
+    return col({ gap: "var(--space-s)", padding: "var(--space-m)", borderRadius: "var(--radius-card)", background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)", width: wide ? "auto" : "250px", flex: wide ? 1 : "none" },
+      row({ gap: "var(--space-m)" }, icon(id, 48), col({ gap: 0, flex: 1, minWidth: 0 }, sp("s-headline", APPS[id][0]), sp("s-callout s-2", APPS[id][4]))),
+      row({ justifyContent: "flex-end" }, pill(["steam", "zed", "kitty", "mpv", "blender", "chromium", "lutris", "protonplus"].includes(id) ? "Open" : "Get")));
+  }
+  const discover = () => [
+    title("Discover", null),
+    el("", { height: "260px", borderRadius: "var(--radius-window)", background: "linear-gradient(120deg, #2b2f6b, #7a3fd1 60%, #d94b6a)", padding: "var(--space-xxl)", display: "flex", flexDirection: "column", justifyContent: "flex-end", color: "#fff", gap: "var(--space-s)" },
+      sp("s-callout", "GAMES ON CACHYOS", { letterSpacing: "0.08em", opacity: 0.8 }), sp("s-large-title", "Everything you need to play", { color: "#fff" }), sp("", "Steam, Heroic, Lutris and ProtonPlus, from the repositories.", { opacity: 0.9 })),
+    section("Popular", sp("s-callout", "See All", { color: "var(--colour-accent-text)" })),
+    row({ gap: "var(--space-m)", flexWrap: "wrap" }, card("obs"), card("krita"), card("gimp"), card("heroic")),
+    section("For developers", sp("s-callout", "See All", { color: "var(--colour-accent-text)" })),
+    row({ gap: "var(--space-m)", flexWrap: "wrap" }, card("zed"), card("kitty"), card("blender"), card("mpv")),
+  ];
+  const CATS = [["Games", "game-controller", "#d94b6a"], ["Graphics", "highlighter", "#f39c3d"], ["Video", "monitor-play", "#8a4fd8"], ["Audio", "music-note", "#20a4c8"], ["Developer", "code", "#5b6bf5"], ["Internet", "globe", "#2f7cf6"], ["Office", "file-text", "#22a06b"], ["Utilities", "gear-six", "#6f6f6f"], ["Science", "leaf", "#2b9a8e"]];
+  const browse = () => [
+    title("Browse", null),
+    el("", { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "var(--space-m)" },
+      ...CATS.map(([n, g, c]) => row({ gap: "var(--space-m)", padding: "var(--space-l)", borderRadius: "var(--radius-card)", background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" },
+        el("", { width: "40px", height: "40px", borderRadius: "10px", background: c, display: "grid", placeItems: "center", color: "#fff" }, ic(g, 22, true)), sp("s-headline", n)))),
+  ];
+  // What Krita brings: its dependencies not yet installed, as `pacman -S --print` lists them.
+  const DEPS = [["kimageformats", "1.9 MB"], ["libheif", "2.4 MB"], ["libjxl", "8.1 MB"], ["opencolorio", "6.2 MB"], ["openexr", "11.3 MB"], ["openjph", "0.6 MB"], ["poppler-qt6", "1.1 MB"], ["python-pyqt6", "41.8 MB"], ["qt6-multimedia", "5.9 MB"], ["qt6-svg", "1.0 MB"], ["quazip-qt6", "0.9 MB"], ["exiv2", "3.4 MB"], ["gsl", "7.8 MB"], ["libmypaint", "0.4 MB"]];
+  const OPT = [["krita-plugin-gmic", "G'MIC filters, over 500 of them"], ["libwebp", "WebP files", "installed"], ["poppler-qt6", "Opening PDF files", "with"]];
+  const pkgTable = (list, max) => el("s-table", {},
+    ...list.slice(0, max || list.length).map(([n, sz]) => el("tr", {}, sp("", n, { flex: 1 }), sp("s-2 s-num", sz))),
+    max && list.length > max ? el("tr", {}, sp("s-2", (list.length - max) + " more", { flex: 1 })) : null);
+  const appPage = (o) => { o = o || {};
+    const owned = o.installed;
+    return [
+    row({ gap: "var(--space-xs)" }, ic("caret-left", 16, false, { color: "var(--colour-accent-text)" }), sp("s-callout", "Popular", { color: "var(--colour-accent-text)" })),
+    row({ gap: "var(--space-l)", alignItems: "center" }, icon("krita", 112),
+      col({ gap: "var(--space-xs)", flex: 1 }, sp("s-large-title", "Krita"), sp("s-2", "Digital painting, creative freedom"),
+        row({ gap: "var(--space-m)", marginTop: "var(--space-s)" }, owned ? pill("Open") : pill("Get"), owned ? btn("Remove…", { small: true }) : null,
+          sp("s-callout s-2", owned ? "Installed" : "312 MB · also installs 14 packages, 532 MB in all"))),
+      col({ gap: "var(--space-xxs)", alignItems: "flex-end" }, sp("s-callout s-2", "Source"), h("span", { class: "s-popup", style: { minWidth: "150px", justifyContent: "space-between", boxSizing: "border-box" } }, "CachyOS", h("span", { class: "chev" }, ic("caret-up-down", 10, true))), sp("s-callout s-2", "Also on Flathub"))),
+    row({ gap: "var(--space-m)" }, ...[0, 1, 2].map((i) => el("", { flex: 1, height: "200px", borderRadius: "var(--radius-card)", background: ["linear-gradient(135deg,#1c75a6,#3aa6d9)", "linear-gradient(135deg,#2a2d35,#4b5160)", "linear-gradient(135deg,#a64b1c,#d9823a)"][i], display: "grid", placeItems: "center", color: "rgba(255,255,255,0.7)" }, sp("s-callout", "Screenshot " + (i + 1))))),
+    sp("", "Krita is a professional free and open source painting program. It is made by artists that want to see affordable art tools for everyone: concept art, texture and matte painters, illustrations and comics.", { maxWidth: "70ch", lineHeight: "1.5" }),
+    section("Works better with", null),
+    ...OPT.map(([n, what, st]) => row({ gap: "var(--space-m)", padding: "var(--space-s) 0", borderBottom: "1px solid var(--colour-hairline)" },
+      col({ gap: 0, flex: 1 }, sp("", what), sp("s-callout s-2 s-mono", n)),
+      st === "installed" ? sp("s-callout s-2", "Installed") : st === "with" ? sp("s-callout s-2", "Comes with Krita") : pill("Get"))),
+    section("Information", null),
+    el("", { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--space-m)" },
+      ...[["Version", "5.3.1"], ["Size", "312 MB"], ["Also installs", owned ? "—" : "14 packages, 220 MB"], ["Repository", "extra"], ["Package", "krita"], ["Licence", "GPL-3.0"], ["Developer", "KDE"], ["Website", "krita.org"]].map(([k, v]) =>
+        col({ gap: "2px" }, sp("s-callout s-2", k), k === "Also installs" && !owned ? sp("", v, { color: "var(--colour-accent-text)" }) : sp("", v)))),
+  ]; };
+  const installed = () => [
+    title("Installed", null),
+    sp("s-callout s-2", "42 apps · the system's packages are not listed here"),
+    ...[["blender", "cachyos"], ["bottles", "flatpak"], ["chromium", "cachyos"], ["kitty", "cachyos"], ["obsidian", "appimage"], ["spotify", "flatpak"], ["steam", "cachyos"], ["zed", "cachyos"]].map(([id, src]) => row({ gap: "var(--space-m)", padding: "var(--space-s) 0", borderBottom: "1px solid var(--colour-hairline)" }, icon(id, 40), col({ gap: 0, flex: 1 }, row({ gap: "var(--space-s)" }, sp("s-headline", APPS[id][0]), badge(src)), sp("s-callout s-2", APPS[id][4])), btn("Open", { small: true }), btn("Remove…", { small: true }))),
+  ];
+  const sheet = (win, kids) => win.append(el("s-sheet", { position: "absolute", left: px(SIDE + 220), right: "220px", top: "0", zIndex: 5, display: "flex", flexDirection: "column", gap: "var(--space-m)" }, ...kids));
+  const scrim = (win) => win.append(el("", { position: "absolute", inset: 0, background: "rgba(0,0,0,0.25)", zIndex: 4 }));
+  const getSheet = (updates) => (win) => { scrim(win); sheet(win, [
+    row({ gap: "var(--space-m)" }, icon("krita", 48), col({ gap: "2px" }, sp("s-title-3", "Install Krita?"), sp("s-callout s-2", "532 MB in all"))),
+    sp("", updates
+      ? "Krita needs 14 packages that aren't installed yet. 17 updates are also waiting, and are installed with it, so nothing on the system is left behind."
+      : "Krita needs 14 packages that aren't installed yet. They're installed with it, and removed with it if nothing else needs them."),
+    el("", { maxHeight: "260px", overflow: "hidden", borderRadius: "var(--radius-control)", background: "var(--colour-fill)", padding: "var(--space-xs) var(--space-s)" }, pkgTable(DEPS, 8)),
+    updates ? sp("s-callout s-2", "Plus 17 updates · 1.2 GB to download") : null,
+    row({ justifyContent: "flex-end", gap: "var(--space-s)" }, btn("Cancel"), btn(updates ? "Update and Install" : "Install", { primary: true })),
+  ]); };
+  const removeSheet = (win) => { scrim(win); sheet(win, [
+    row({ gap: "var(--space-m)" }, icon("krita", 48), col({ gap: "2px" }, sp("s-title-3", "Remove Krita?"), sp("s-callout s-2", "Frees 280 MB"))),
+    sp("", "9 packages were installed only for Krita and nothing else needs them; they're removed with it. Settings you changed are kept as .pacsave copies."),
+    el("", { borderRadius: "var(--radius-control)", background: "var(--colour-fill)", padding: "var(--space-xs) var(--space-s)" }, pkgTable([["krita", "312 MB"], ...DEPS.slice(3, 12)], 6)),
+    row({ justifyContent: "flex-end", gap: "var(--space-s)" }, btn("Cancel"), btn("Remove", { primary: true, style: { background: "var(--colour-danger)" } })),
+  ]); };
+  const refused = (win) => { scrim(win); win.append(el("s-alert", { position: "absolute", left: "50%", top: "180px", transform: "translateX(-50%)", width: "300px", zIndex: 5 },
+    icon("krita", 56), sp("s-headline", "Krita can't be removed"), sp("s-callout", "Kdenlive needs it. Remove Kdenlive first, or keep Krita."),
+    row({ gap: "var(--space-s)", width: "100%", marginTop: "var(--space-s)" }, btn("Show Kdenlive", { style: { flex: 1 } }), btn("OK", { primary: true, style: { flex: 1 } })))); };
+
+  // ---- Settings › General › Software Update, for Isle --------------------------------------
+  function isleCard(state) {
+    const waiting = state === "waiting" || state === "running";
+    const glyph = el("", { width: "64px", height: "64px", borderRadius: "16px", background: "linear-gradient(160deg,#5b8cff,#2f5fd0)", color: "#fff", display: "grid", placeItems: "center", flex: "none" }, ic("sun-horizon", 34, true));
+    const right = state === "running" ? sp("s-callout s-2", "After CachyOS") : waiting ? btn("Update Now", { primary: !waiting || state !== "running" }) : tick();
+    return col({ gap: "var(--space-m)", padding: "var(--space-l)", borderRadius: "var(--radius-window)", background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" },
+      row({ gap: "var(--space-m)" }, glyph, col({ gap: "var(--space-xxs)", flex: 1 }, sp("s-title-2", "Isle"),
+        sp("s-callout s-2 s-num", waiting ? "r729 (5268dd6) → ea99e00 · 3 changes · Built on this computer" : "r731 (ea99e00) · Up to date")), right),
+      waiting ? el("", { padding: "var(--space-s) var(--space-m)", borderRadius: "var(--radius-control)", background: "var(--colour-fill)" },
+        ...["Software Update leaves the AUR alone", "Force Quit acts over a game", "A cleared app id keeps the app the window had"].map((c) => row({ height: "var(--size-row)" }, sp("", c)))) : null);
+  }
+  function upToDateCard() {
+    return col({ gap: "var(--space-s)", alignItems: "center", padding: "var(--space-xl)", borderRadius: "var(--radius-window)", background: "var(--colour-window-raised)", boxShadow: "inset 0 0 0 1px var(--colour-hairline)" },
+      ic("check", 40, false, { color: "var(--colour-ok)" }), sp("s-title-3", "CachyOS and Isle are up to date"), sp("s-callout s-2 s-num", "CachyOS · kernel 7.3.4 · NVIDIA 615.95.04 · Isle r731"), sp("s-callout s-2", "Checked 20:12"));
+  }
+  function settings(s, st, state) {
+    const body = [];
+    if (state === "restart") body.push(restartBanner());
+    if (state === "waiting" || state === "running") body.push(cachyCard(state === "running" ? "now" : undefined), isleCard(state));
+    else body.push(upToDateCard());
+    const win = el("s s-window", { left: "1170px", top: "160px", width: "1100px", minHeight: "760px" },
+      el("s-toolbar", { padding: "0 var(--space-l)", gap: "var(--space-s)" }, S.lights(), sp("s-headline", "Software Update", { marginLeft: "var(--space-l)" })),
+      el("", { width: "760px", margin: "0 auto", padding: "var(--space-xl) 0", display: "flex", flexDirection: "column", gap: "var(--space-l)" },
+        row({ gap: "var(--space-m)" }, ic("arrow-circle-up", 28), col({ gap: 0, flex: 1 }, sp("s-title-2", "Software Update"), sp("s-2", "CachyOS, its kernel and drivers, and Isle."))),
+        ...body,
+        row({ gap: "var(--space-s)" }, sp("s-callout s-2", "Apps from Flathub, the AUR and AppImages update in Store.", { flex: 1 }), sp("s-callout", "Open Store…", { color: "var(--colour-accent-text)" })),
+        el("s-group", {}, el("r", { gap: "var(--space-l)" }, col({ gap: "2px", flex: 1 }, sp("", "Check for updates automatically"), sp("s-callout s-2", "Looks once an hour; nothing is installed until you choose.")), h("span", { class: "s-switch on" })))));
+    s.append(win);
+    st.crop = [1070, 100, 1300, Math.max(860, win.offsetHeight + 120)];
+  }
+
+  function systemMenu(s, st) {
+    S.bar(s, { app: "Finder", menus: ["File", "Edit", "View", "Go", "Window", "Help"] });
+    const m = S.menu(8, 30, ["About This Computer", "—", "System Settings…", { label: "Store…", sel: true }, "—", "Force Quit…", "—", "Sleep", "Restart…", "Shut Down…", "—", "Lock Screen", "Log Out Alex Parlett…"]);
+    s.append(m);
+    const it = [...m.querySelectorAll(".s-mi")].find((x) => x.textContent === "Store…");
+    it.append(sp("s-badge quiet", "6", { marginLeft: "auto" }));
+    const ss = [...m.querySelectorAll(".s-mi")].find((x) => x.textContent === "System Settings…");
+    ss.append(sp("s-badge quiet", "2", { marginLeft: "auto" }));
+    st.crop = [0, 0, 620, 420];
+  }
+
+  const sc = (id, name, note, draw) => ({ id, name, note, render(s) { draw(s, this); } });
+  const st = (sel, badge, body, after) => (s, me) => store(s, me, sel, badge, body(), after);
+
+  Isle.board({
+    title: "Store",
+    subtitle: "P14e: a Store app on Package Installer 2.0's storefront for apps and the system, and Settings' Software Update for Isle alone. Real app icons come from AppStream; these are stand-ins.",
+    tokens: "../../../../data/tokens/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "store", name: "Store", sheet: "p14e-store.md", states: [
+        sc("updates", "1 · Updates waiting", "Flathub, the AUR and AppImages, each a section with Update All and an Update per app; Update Everything runs those three. Apps from CachyOS are listed too, badged, saying they update with the system in Software Update.", st("updates", 6, () => updatesWaiting())),
+        sc("running", "2 · Flathub updating", "A Flathub app updating; the others wait their turn.", st("updates", 6, () => updatesWaiting({ flat: "now" }))),
+        sc("aur", "3 · AUR catalogue", "Each catalogue has its own page, saying what it is and who stands behind it; the AUR shows its own facts (votes, last update, out of date) since it has no AppStream data.", st("cat-aur", 9, aurPage)),
+        sc("search", "4 · Search", "Results grouped by catalogue, every row badged; a pop-up narrows to one.", st("discover", 9, search)),
+        sc("sources", "5 · Catalogues…", "All on; one turned off leaves Discover, Browse, search and Updates.", st("updates", 7, () => updatesWaiting(), sourcesSheet)),
+        sc("done", "6 · Up to date", "Everything in Store current; what updated lately listed below.", st("updates", null, updatesDone)),
+        sc("discover", "7 · Discover", "A curated feature and rows from AppStream categories: Isle's own list, shipped with Isle.", st("discover", 417, discover)),
+        sc("browse", "8 · Browse", "Categories from AppStream.", st("browse", 417, browse)),
+        sc("app", "9 · An app", "Under Get, before anything is clicked: what else it installs and the size in all; Also installs under Information opens the list. Works better with lists its optional extras, each its own Get.", st("discover", 417, () => appPage())),
+        sc("get", "10 · Get", "Get, from the page or a Discover card, shows what comes with it before the password prompt. Cancel installs nothing.", st("discover", 0, () => appPage(), getSheet(false))),
+        sc("install", "11 · Get while updates wait", "Installing with updates waiting would leave a partial upgrade, so the same sheet offers them together.", st("discover", 17, () => appPage(), getSheet(true))),
+        sc("installed", "12 · Installed", "Apps only, with Open and Remove….", st("installed", 417, installed)),
+        sc("remove", "13 · Remove…", "pacman -Rns: the app and what only it needed; changed settings kept as .pacsave.", st("installed", 417, () => appPage({ installed: true }), removeSheet)),
+        sc("refused", "14 · Needed by another", "An app another package needs can't be removed alone; it says which.", st("installed", 417, () => appPage({ installed: true }), refused)),
+      ] },
+      { id: "settings", name: "Settings", sheet: "p14e-store.md", states: [
+        sc("waiting", "1 · CachyOS and Isle waiting", "The system is CachyOS and Isle, as macOS is in macOS's Software Update. CachyOS names its kernel, driver, Mesa and tools and the apps it also updates; one Update Now, since pacman upgrades all or nothing. Isle shows the commits since your build.", (s, me) => settings(s, me, "waiting")),
+        sc("srunning", "2 · CachyOS updating", "One password; Stop until pacman starts. Isle's build follows.", (s, me) => settings(s, me, "running")),
+        sc("restart", "3 · Restart owed", "The restart banner stays until you restart, here as on the island and in the system menu.", (s, me) => settings(s, me, "restart")),
+        sc("uptodate", "4 · Up to date", "", (s, me) => settings(s, me, "uptodate")),
+      ] },
+      { id: "menu", name: "System menu", sheet: "p14e-store.md", states: [
+        sc("menu", "1 · Both counts", "As macOS: System Settings… counts CachyOS and Isle, Store… the apps. Was: counts Isle's update, Store… the rest.", systemMenu),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Gate 14e">
+  <h2>How it works</h2>
+  <p>A new app, <b>Store</b>, in Package Installer 2.0's shape: Discover, Browse, Installed and Updates in a sidebar, packages shown as apps from AppStream. Store's Updates covers Flathub, the AUR and AppImages, each a section with Update All and an Update per app; <b>Update Everything</b> runs those. Settings › Software Update is the system, as on a Mac: CachyOS (its kernel, drivers, Mesa and tools, and the repository apps that update with it) and Isle. Every catalogue is in it (CachyOS, Flathub, the AUR, AppImages), and each is always named where you are looking.</p>
+  <h2>For you to answer</h2>
+  <p>Reply lgtm or name changes. Recommended:</p>
+  <ol>
+    <li><b>Name: Store</b>, short like Files and Monitor, and "Store…" in the system menu beside System Settings…, each counting its own updates.</li>
+    <li><b>Build Updates and Installed first</b>; Discover, Browse and app pages after, in the same packet.</li>
+    <li><b>Settings › Software Update is the system: CachyOS and Isle.</b> CachyOS as one card naming the kernel, the graphics driver, Mesa and its tools, and the apps from CachyOS it also updates; one Update Now, since pacman upgrades all or nothing. Isle's card with the commits since your build. The restart owed is said there.</li>
+    <li><b>Store's Updates by catalogue:</b> Flathub, the AUR and AppImages, each a section with Update All and an Update per app; Update Everything runs those three. Apps from CachyOS are listed too, saying they update with the system, with a link to Software Update.</li>
+    <li><b>Every catalogue, all on: CachyOS, Flathub, the AUR and AppImages.</b> What you are looking at is always named: each catalogue has its own sidebar page saying what it is and who stands behind it; every app and package wears its catalogue's badge; search groups results by catalogue; an app in more than one picks its catalogue on its page. Catalogues… turns one off.</li>
+    <li><b>AppImages update from their developers</b> where they embed update information; one that updates itself says so.</li>
+    <li><b>Get with updates waiting</b> asks to update and install together.</li>
+    <li><b>What an app brings is said twice:</b> under Get on its page ("also installs 14 packages, 532 MB in all"), and in a sheet listing them that Get opens before the password, from anywhere. An app that brings nothing new installs without the sheet.</li>
+    <li><b>Remove takes what only it needed</b> (pacman -Rns) after a sheet listing it; an app another package needs is refused, naming it.</li>
+    <li><b>Optional extras are offered, never installed for you:</b> "Works better with" on the app page, each with its own Get.</li>
+    <li><b>Discover's features are Isle's own list</b>, shipped with Isle; rows come from AppStream categories.</li>
+  </ol>
+</section>

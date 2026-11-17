@@ -796,3 +796,7 @@
 - P14d revised 2026-11-15 at the user's word: no AUR. The run is `pkexec
   pacman -Syu`; with Isle's commit waiting, paru runs it in repository and
   PKGBUILD mode (`--mode=rp … isle-git`), which never looks at the AUR.
+- P14e, Store, planned 2026-11-17 in `p14e-store.md` after its board
+  (`p14e/store-1.html`) passed at the user's word: Software Update is the
+  system (CachyOS and Isle), Store is apps from CachyOS, Flathub, the AUR
+  and AppImages. Building from 14e.0.

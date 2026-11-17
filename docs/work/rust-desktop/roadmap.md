@@ -400,6 +400,14 @@ menu's count and restart line, the notifications, Settings › General ›
 Software Update behind a board, and `isle update`. Intent: platform.md
 Updates, apps.md Settings 12.
 
+**P14e · Store.** Planned 2026-11-17 after its board passed, building:
+`p14e-store.md`. Settings › Software Update becomes the system (CachyOS
+with its kernel, driver, Mesa and tools; Isle); a new app, Store, on
+CachyOS Package Installer 2.0's storefront, holds apps from CachyOS,
+Flathub, the AUR and AppImages, each catalogue named where you look, with
+updates by catalogue and what an install brings or a removal takes said
+first. Intent: platform.md Updates, apps.md.
+
 **P21 · Cut-over.** Remove v1's tree (`shell/`, `hypr/`, `plugins/`,
 `native/`, `theme/`) and its tooling; this branch becomes `main`.
 

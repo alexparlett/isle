@@ -284,7 +284,14 @@ impl Tools {
             (_, Part::Install { catalogue, id, with_updates }) => match catalogue.as_str() {
                 "flathub" => (
                     flatpak(),
-                    vec!["install", "-y", "--noninteractive", "flathub", id.as_str()],
+                    vec![
+                        "install",
+                        "-y",
+                        "--noninteractive",
+                        flathub_installation(),
+                        "flathub",
+                        id.as_str(),
+                    ],
                 ),
                 "aur" => (paru(), [&["-S", "--mode=a"][..], &PARU, &[id.as_str()]].concat()),
                 _ => {
@@ -416,6 +423,19 @@ async fn flathub_updates(flatpak: &str) -> Result<Vec<Pending>, CheckError> {
         &String::from_utf8_lossy(&newer.stdout),
         &String::from_utf8_lossy(&installed.stdout),
     ))
+}
+
+/// Where Store installs from Flathub: the user's installation when it has the remote, so no
+/// password is asked, else the system's. Named, since a remote in both makes flatpak ask.
+pub fn flathub_installation() -> &'static str {
+    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let config = std::fs::read_to_string(home.join(".local/share/flatpak/repo/config"))
+        .unwrap_or_default();
+    if config.contains("[remote \"flathub\"]") {
+        "--user"
+    } else {
+        "--system"
+    }
 }
 
 pub fn parse_flathub(newer: &str, installed: &str) -> Vec<Pending> {

@@ -269,7 +269,7 @@ async fn aur_get(package: &str) -> Plan {
 
 fn flathub_get(app: &str) -> Plan {
     let mut plan = Plan::default();
-    let Some((ok, out, err)) = run("flatpak", &["remote-info", "flathub", app]) else {
+    let Some((ok, out, err)) = run("flatpak", &["remote-info", isle_updates::flathub_installation(), "flathub", app]) else {
         plan.refused = Some("Flatpak is not installed. Install the flatpak package from CachyOS first.".into());
         return plan;
     };
@@ -286,7 +286,7 @@ fn flathub_get(app: &str) -> Plan {
     if let Some(runtime) = runtime {
         let have = run("flatpak", &["info", &runtime]).is_some_and(|(ok, _, _)| ok);
         if !have {
-            let (size, _) = run("flatpak", &["remote-info", "flathub", &runtime])
+            let (size, _) = run("flatpak", &["remote-info", isle_updates::flathub_installation(), "flathub", &runtime])
                 .map(|(_, out, _)| parse_remote_info(&out))
                 .unwrap_or_default();
             plan.packages.push(Package {

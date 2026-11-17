@@ -6,6 +6,7 @@ mod run;
 mod system;
 
 pub use check::{
+    flathub_installation,
     Check, CheckError, PKGBUILD, Part, Pending, Source, Tools, check, parse_flathub, parse_ls_remote, parse_updates,
     paru_config, pkgbuild_source, version_commit,
 };

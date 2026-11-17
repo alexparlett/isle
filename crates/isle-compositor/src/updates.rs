@@ -213,7 +213,38 @@ impl State {
         self.refresh_restart();
         let settings_in_front =
             self.isle.front_app().as_deref() == Some(crate::settings_link::SETTINGS_APP);
+        let store_in_front = self.isle.front_app().as_deref() == Some(STORE_APP);
+        // Get's and Remove's runs: the package and what was done to it.
+        let get = match isle_updates::Part::parse(&p.part) {
+            Some(isle_updates::Part::Install { id, .. }) => Some((id, "installed", "install")),
+            Some(isle_updates::Part::Remove { id, .. }) => Some((id, "removed", "remove")),
+            _ => None,
+        };
         match p.state {
+            RunState::Done if get.is_some() => {
+                if let Some((id, done, _)) = get.filter(|_| !store_in_front) {
+                    self.post_desktop(
+                        "",
+                        "Store",
+                        format!("{id} was {done}"),
+                        String::new(),
+                        vec![],
+                        Note::Update,
+                    );
+                }
+            }
+            RunState::Failed | RunState::Refused if get.is_some() => {
+                if let Some((id, _, verb)) = get {
+                    self.post_desktop(
+                        "",
+                        "Store",
+                        format!("Couldn't {verb} {id}"),
+                        p.reason.clone().unwrap_or_default(),
+                        vec![],
+                        Note::Update,
+                    );
+                }
+            }
             RunState::Done => {
                 if !settings_in_front {
                     let owed = !self.isle.updates.restart.is_empty();
@@ -377,6 +408,8 @@ impl State {
         }
     }
 }
+
+const STORE_APP: &str = "io.github.alexparlett.Isle.Store";
 
 fn packages(n: u32) -> String {
     match n {

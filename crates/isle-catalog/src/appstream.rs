@@ -135,6 +135,9 @@ pub fn read(input: impl BufRead) -> Result<Vec<Component>, quick_xml::Error> {
                 let name = e.name().as_ref().to_string();
                 match name.as_str() {
                     "component" => {
+                        in_description = false;
+                        in_release = false;
+                        in_releases = false;
                         current = Some(Component {
                             kind: attr(e, "type").unwrap_or_default(),
                             ..Component::default()
@@ -176,8 +179,17 @@ pub fn read(input: impl BufRead) -> Result<Vec<Component>, quick_xml::Error> {
                     }
                     "releases" => in_releases = true,
                     "release" if in_releases && release_version.is_empty() => {
-                        in_release = true;
-                        release_version = attr(e, "version").unwrap_or_default();
+                        let version = attr(e, "version").unwrap_or_default();
+                        // A release with no notes has no end tag to close it.
+                        if empty {
+                            if let Some(c) = current.as_mut() {
+                                c.release = Some((version, Vec::new()));
+                            }
+                            release_version = "-".into();
+                        } else {
+                            in_release = true;
+                            release_version = version;
+                        }
                     }
                     _ => {}
                 }
@@ -283,6 +295,28 @@ mod tests {
     use super::*;
 
     const DATA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data");
+
+    #[test]
+    fn release_notes_stay_out_of_the_description() {
+        let xml = r#"<components><component type="desktop-application"><id>k</id><name>K</name>
+<description><p>About it.</p></description>
+<releases>
+<release version="2"><description xml:lang="de"><p>Neu</p></description><description><p>Two</p></description></release>
+<release version="1"><description><p>One</p></description></release>
+</releases></component></components>"#;
+        let all = read(xml.as_bytes()).unwrap();
+        assert_eq!(all[0].description, ["About it."]);
+        assert_eq!(all[0].release, Some(("2".into(), vec!["Two".into()])));
+        // A notes-less release first, as many components have, then another component.
+        let xml = r#"<components><component type="desktop-application"><id>a</id><name>A</name>
+<description><p>A.</p></description><releases><release version="3" timestamp="1"/></releases></component>
+<component type="desktop-application"><id>b</id><name>B</name><description><p>B.</p></description>
+<releases><release version="2"><description><p>Two</p></description></release>
+<release version="1"><description><p>One</p></description></release></releases></component></components>"#;
+        let all = read(xml.as_bytes()).unwrap();
+        assert_eq!(all[0].release, Some(("3".into(), vec![])));
+        assert_eq!(all[1].description, ["B."]);
+    }
 
     #[test]
     fn a_repository_catalogue() {

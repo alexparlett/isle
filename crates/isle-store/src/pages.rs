@@ -172,6 +172,9 @@ pub struct Ctx {
     /// The Get whose plan, when it comes, may start the run with no sheet.
     pub pending_get: Rc<RefCell<Option<String>>>,
     pub narrow: State<Option<Kind>>,
+    /// The search an app's page was opened from: a new one shows results again.
+    pub opened_from: State<Option<String>>,
+    pub query: String,
     pub narrowing: State<bool>,
     pub system_waiting: bool,
 }
@@ -181,6 +184,10 @@ impl Ctx {
         let (mut page, mut back, mut limit) = (self.page, self.back, self.limit);
         let from = page.read().clone();
         if from != to {
+            if matches!(to, Page::App(_)) {
+                let mut opened = self.opened_from;
+                opened.set(Some(self.query.clone()));
+            }
             back.write().push(from);
             page.set(to);
             limit.set(PAGE);
@@ -857,7 +864,12 @@ impl Ctx {
                 }
             }
         }
-        if !any && (narrow.is_some() || q.len() < 2 || self.aur.as_ref().as_ref().is_some_and(|(t, _)| t.to_lowercase() == q)) {
+        let aur_answered = self
+            .aur
+            .as_ref()
+            .as_ref()
+            .is_some_and(|(t, got)| t.to_lowercase() == q && got.is_ok());
+        if !any && (narrow.is_some_and(|k| k != Kind::Aur) || q.len() < 2 || aur_answered) {
             out.push(note(theme, "Nothing found."));
         }
         out
@@ -1041,8 +1053,13 @@ impl Ctx {
             },
             o.install.clone(),
         ));
-        if let Some(v) = &o.version {
-            facts.push(("Version", v.clone()));
+        // The package's own version over AppStream's newest release, which can lag it.
+        let packaged = plan
+            .and_then(|p| p.packages.iter().find(|x| x.name == o.install))
+            .map(|x| x.version.clone())
+            .filter(|v| !v.is_empty());
+        if let Some(v) = packaged.or_else(|| o.version.clone()) {
+            facts.push(("Version", v));
         }
         if let Some(p) = plan.filter(|p| p.total() > 0) {
             facts.push(("Download", plan::size(p.total())));
@@ -1206,7 +1223,12 @@ impl Ctx {
                 isle_ui::scroll_area(theme)
                     .width(Size::fill())
                     .max_height(Size::px(220.))
-                    .child(rect().width(Size::fill()).children(list))
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .padding((0., t.space_l, 0., 0.))
+                            .children(list),
+                    )
                     .into_element(),
             );
         }

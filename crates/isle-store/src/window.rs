@@ -217,6 +217,7 @@ impl freya::prelude::App for StoreWindow {
         let narrow = use_state(|| None::<Offered>);
         let narrowing = use_state(|| false);
         let mut query = use_state(String::new);
+        let opened_from = use_state(|| None::<String>);
         let asked = use_hook(|| Rc::new(RefCell::new(HashSet::<String>::new())));
         let requested = use_hook(|| Rc::new(RefCell::new(HashSet::<PathBuf>::new())));
         let shots_requested = use_hook(|| Rc::new(RefCell::new(HashSet::<String>::new())));
@@ -360,10 +361,14 @@ impl freya::prelude::App for StoreWindow {
             pending_get: pending_get.clone(),
             narrow,
             narrowing,
+            opened_from,
+            query: typed.clone(),
             system_waiting,
         };
         let current = page.read().clone();
-        let searching = !typed.is_empty() && !matches!(current, Page::App(_));
+        let searching = !typed.is_empty()
+            && !(matches!(current, Page::App(_))
+                && opened_from.read().as_deref() == Some(typed.as_str()));
         let body: Vec<Element> = match current.clone() {
             _ if searching => ctx.search(&typed),
             Page::Discover => ctx.discover(),

@@ -168,9 +168,17 @@ pub fn parse_aur(json: &str) -> Result<Vec<Offer>, String> {
     Ok(out)
 }
 
+/// The AUR's client: one with no User-Agent is shown a bot check in place of JSON.
+pub fn aur_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .user_agent(concat!("isle-store/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .unwrap_or_default()
+}
+
 pub async fn search_aur(term: &str) -> Result<Vec<Offer>, String> {
     let url = "https://aur.archlinux.org/rpc/v5/search";
-    let reply = reqwest::Client::new()
+    let reply = aur_client()
         .get(format!("{url}/{term}"))
         .query(&[("by", "name-desc")])
         .timeout(std::time::Duration::from_secs(15))

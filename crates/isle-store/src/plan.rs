@@ -212,7 +212,7 @@ async fn aur_get(package: &str) -> Plan {
         ..Plan::default()
     };
     let reply = async {
-        reqwest::Client::new()
+        isle_catalog::catalogue::aur_client()
             .get("https://aur.archlinux.org/rpc/v5/info")
             .query(&[("arg[]", package)])
             .timeout(std::time::Duration::from_secs(15))

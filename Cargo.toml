@@ -17,6 +17,7 @@ isle-audio = { path = "crates/isle-audio" }
 isle-bluetooth = { path = "crates/isle-bluetooth" }
 isle-brightness = { path = "crates/isle-brightness" }
 isle-bus = { path = "crates/isle-bus" }
+isle-catalog = { path = "crates/isle-catalog" }
 isle-fakes = { path = "crates/isle-fakes" }
 isle-power = { path = "crates/isle-power" }
 isle-disks = { path = "crates/isle-disks" }

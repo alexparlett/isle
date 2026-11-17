@@ -636,14 +636,14 @@ fn update_run(part: &str) -> ExitCode {
     };
     let tools = isle_updates::Tools::from_env();
     let mut envs = Vec::new();
-    if tools.paru.is_some() && part != isle_updates::Part::System {
+    if tools.paru.is_some() && (part.builds_isle() || matches!(part, isle_updates::Part::Aur(_))) {
         let dir = home("XDG_CACHE_HOME", ".cache").join("isle/updates");
         match isle_updates::paru_config(&dir, &home("XDG_CONFIG_HOME", ".config")) {
             Ok(path) => envs.push(("PARU_CONF".into(), path.into_os_string())),
             Err(err) => eprintln!("isle: paru's config for Isle: {err}"),
         }
     }
-    let code = isle_updates::run(&tools.run_argv(part), &envs, &isle_updates::progress_path());
+    let code = isle_updates::run(&tools.run_argv(&part), &envs, &isle_updates::progress_path());
     ExitCode::from(code.clamp(0, 255) as u8)
 }
 

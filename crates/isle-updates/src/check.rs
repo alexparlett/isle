@@ -13,6 +13,8 @@ use crate::ISLE_PACKAGE;
 pub enum Source {
     Repositories,
     Isle,
+    Flathub,
+    Aur,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -33,31 +35,49 @@ pub struct Check {
     pub checked_at: u64,
 }
 
-/// What a run updates: the repositories, Isle's own build, or both in one run.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+/// What a run updates: the repositories, Isle's own build, or both in one run, for Software
+/// Update; a Flathub app or all of them, an AUR package or all of them, for Store.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Part {
     System,
     Isle,
     Both,
+    Flathub(Option<String>),
+    Aur(Option<String>),
 }
 
 impl Part {
+    /// `system`, `isle`, `both`, `flathub`, `flathub:<app id>`, `aur` or `aur:<package>`.
     pub fn parse(word: &str) -> Option<Part> {
-        match word {
-            "system" => Some(Part::System),
-            "isle" => Some(Part::Isle),
-            "both" => Some(Part::Both),
+        let (kind, one) = match word.split_once(':') {
+            Some((k, one)) if !one.is_empty() => (k, Some(one.to_string())),
+            _ => (word, None),
+        };
+        match (kind, one) {
+            ("system", None) => Some(Part::System),
+            ("isle", None) => Some(Part::Isle),
+            ("both", None) => Some(Part::Both),
+            ("flathub", one) => Some(Part::Flathub(one)),
+            ("aur", one) => Some(Part::Aur(one)),
             _ => None,
         }
     }
 
-    pub fn word(self) -> &'static str {
+    pub fn word(&self) -> String {
         match self {
-            Part::System => "system",
-            Part::Isle => "isle",
-            Part::Both => "both",
+            Part::System => "system".into(),
+            Part::Isle => "isle".into(),
+            Part::Both => "both".into(),
+            Part::Flathub(None) => "flathub".into(),
+            Part::Flathub(Some(id)) => format!("flathub:{id}"),
+            Part::Aur(None) => "aur".into(),
+            Part::Aur(Some(name)) => format!("aur:{name}"),
         }
+    }
+
+    /// Whether the run goes through paru on Isle's config.
+    pub fn builds_isle(&self) -> bool {
+        matches!(self, Part::Isle | Part::Both)
     }
 }
 
@@ -153,8 +173,10 @@ fn reason(out: &std::process::Output) -> String {
 pub struct Tools {
     pub checkupdates: PathBuf,
     pub pacman: Option<PathBuf>,
-    /// None where paru is not installed: Isle's own package is then not looked at.
+    /// None where paru is not installed: Isle's own package and the AUR are then not looked at.
     pub paru: Option<PathBuf>,
+    /// None where flatpak is not installed: Flathub is then not looked at.
+    pub flatpak: Option<PathBuf>,
 }
 
 impl Tools {
@@ -173,6 +195,7 @@ impl Tools {
                 .unwrap_or_else(|| "checkupdates".into()),
             pacman: std::env::var_os("ISLE_PACMAN").map(PathBuf::from),
             paru: path("ISLE_PARU", "paru"),
+            flatpak: path("ISLE_FLATPAK", "flatpak"),
         }
     }
 
@@ -180,7 +203,7 @@ impl Tools {
     /// mode, naming Isle's package, which paru rebuilds only when named until it has installed
     /// it once; both together are one paru in repository and PKGBUILD mode, so one process asks
     /// once and the AUR is never looked at. Without paru, Isle cannot be built.
-    pub fn run_argv(&self, part: Part) -> Vec<std::ffi::OsString> {
+    pub fn run_argv(&self, part: &Part) -> Vec<std::ffi::OsString> {
         const PARU: [&str; 5] = [
             "--noconfirm",
             "--skipreview",
@@ -188,7 +211,32 @@ impl Tools {
             "--sudo",
             "pkexec",
         ];
+        let flatpak = || {
+            self.flatpak
+                .clone()
+                .unwrap_or_else(|| "flatpak".into())
+                .into_os_string()
+        };
+        let paru = || {
+            self.paru
+                .clone()
+                .unwrap_or_else(|| "paru".into())
+                .into_os_string()
+        };
         let (first, words): (std::ffi::OsString, Vec<&str>) = match (&self.paru, part) {
+            (_, Part::Flathub(one)) => (
+                flatpak(),
+                [
+                    &["update", "-y", "--noninteractive"][..],
+                    one.as_deref().as_slice(),
+                ]
+                .concat(),
+            ),
+            (_, Part::Aur(None)) => (paru(), [&["-Sua", "--mode=a"][..], &PARU].concat()),
+            (_, Part::Aur(Some(name))) => (
+                paru(),
+                [&["-S", "--mode=a"][..], &PARU, &[name.as_str()]].concat(),
+            ),
             (Some(paru), Part::Both) => (
                 paru.clone().into_os_string(),
                 [&["-Syu", "--mode=rp"][..], &PARU, &[ISLE_PACKAGE]].concat(),
@@ -260,12 +308,69 @@ pub async fn check(tools: &Tools, now: u64) -> Result<Check, CheckError> {
     {
         pending.push(isle);
     }
+    if let Some(flatpak) = tools.flatpak.as_deref().and_then(|p| p.to_str()) {
+        pending.extend(flathub_updates(flatpak).await?);
+    }
+    if let Some(paru) = tools.paru.as_deref().and_then(|p| p.to_str()) {
+        let out = output(paru, &["-Qua", "--mode=a"]).await?;
+        // paru exits 1 when nothing is waiting; only an error line on stderr is a failure.
+        let text = String::from_utf8_lossy(&out.stdout);
+        if !out.status.success()
+            && text.trim().is_empty()
+            && String::from_utf8_lossy(&out.stderr).contains("error")
+        {
+            return Err(CheckError::Failed(reason(&out)));
+        }
+        pending.extend(
+            parse_updates(&text, Source::Aur)
+                .into_iter()
+                .filter(|p| p.name != ISLE_PACKAGE),
+        );
+    }
     let system = crate::system::summarise(&root, &pending);
     Ok(Check {
         pending,
         system,
         checked_at: now,
     })
+}
+
+/// Flathub's apps with a newer build: `remote-ls --updates` gives the new version, `list` the
+/// installed one; both are tab-separated columns.
+async fn flathub_updates(flatpak: &str) -> Result<Vec<Pending>, CheckError> {
+    let columns = "--columns=application,version";
+    let newer = output(flatpak, &["remote-ls", "--updates", "--app", columns]).await?;
+    if !newer.status.success() {
+        return Err(CheckError::Failed(reason(&newer)));
+    }
+    let installed = output(flatpak, &["list", "--app", columns]).await?;
+    Ok(parse_flathub(
+        &String::from_utf8_lossy(&newer.stdout),
+        &String::from_utf8_lossy(&installed.stdout),
+    ))
+}
+
+pub fn parse_flathub(newer: &str, installed: &str) -> Vec<Pending> {
+    let row = |line: &str| {
+        let mut cols = line.split('\t');
+        Some((
+            cols.next()?.trim().to_string(),
+            cols.next().unwrap_or("").trim().to_string(),
+        ))
+    };
+    let have: std::collections::HashMap<String, String> =
+        installed.lines().filter_map(row).collect();
+    newer
+        .lines()
+        .filter_map(row)
+        .filter(|(id, _)| !id.is_empty())
+        .map(|(id, to)| Pending {
+            from: have.get(&id).cloned().unwrap_or_default(),
+            to,
+            name: id,
+            source: Source::Flathub,
+        })
+        .collect()
 }
 
 /// The PKGBUILD the run builds Isle from, as this build was packaged with it.
@@ -345,6 +450,40 @@ mod tests {
                 source: Source::Repositories
             }
         );
+    }
+
+    #[test]
+    fn flathub_s_columns() {
+        let got = parse_flathub(
+            "com.usebottles.bottles\t51.24\ncom.spotify.Client\t1.2.77\n",
+            "com.usebottles.bottles\t51.21\ncom.spotify.Client\t1.2.74\norg.other.App\t1\n",
+        );
+        assert_eq!(got.len(), 2);
+        assert_eq!(
+            (
+                got[0].name.as_str(),
+                got[0].from.as_str(),
+                got[0].to.as_str()
+            ),
+            ("com.usebottles.bottles", "51.21", "51.24")
+        );
+        assert_eq!(got[0].source, Source::Flathub);
+    }
+
+    #[test]
+    fn parts_by_word() {
+        for w in [
+            "system",
+            "isle",
+            "both",
+            "flathub",
+            "flathub:com.spotify.Client",
+            "aur",
+            "aur:xremap-hypr-bin",
+        ] {
+            assert_eq!(Part::parse(w).unwrap().word(), w);
+        }
+        assert_eq!(Part::parse("nothing"), None);
     }
 
     #[test]

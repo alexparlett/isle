@@ -1,0 +1,477 @@
+<?xml version='1.0' encoding='utf-8'?>
+<components version="1.0" origin="archlinux-arch-extra" time="2026-10-17T10:07:46Z"><component type="desktop-application">
+  <id>io.mpv.mpv</id>
+  <name>mpv</name>
+  <summary>A free, open source, and cross-platform media player</summary>
+  <project_license>GPL-2.0-or-later AND LGPL-2.0-or-later</project_license>
+  <description>
+    <p>mpv is a free (as in freedom) media player for the command line. It supports a wide variety
+      of media file formats, audio and video codecs, and subtitle types.</p>
+    <p>mpv has an OpenGL, Vulkan, and D3D11 based video output that is capable of many features loved
+      by videophiles, such as video scaling with popular high quality algorithms, color management, frame
+      timing, interpolation, HDR, and more.</p>
+    <p>While mpv strives for minimalism and provides no real GUI, it has a small controller on top
+      of the video for basic control.</p>
+    <p>mpv can leverage most hardware decoding APIs on all platforms. Hardware decoding can be enabled
+      at runtime on demand.</p>
+    <p>Powerful scripting capabilities can make the player do almost anything. There is a large selection
+      of user scripts on the wiki.</p>
+    <p>A straightforward C API was designed from the ground up to make mpv usable as a library and
+      facilitate easy integration into other applications.</p>
+  </description>
+  <developer>
+    <name>mpv.io</name>
+  </developer>
+  <developer_name>mpv.io</developer_name>
+  <pkgname>mpv</pkgname>
+  <launchable type="desktop-id">mpv.desktop</launchable>
+  <icon type="cached" width="48" height="48">mpv_mpv.jxl</icon>
+  <icon type="cached" width="64" height="64">mpv_mpv.jxl</icon>
+  <icon type="cached" width="128" height="128">mpv_mpv.jxl</icon>
+  <icon type="stock">mpv</icon>
+  <url type="homepage">https://mpv.io/</url>
+  <url type="bugtracker">https://github.com/mpv-player/mpv/issues</url>
+  <url type="faq">https://github.com/mpv-player/mpv/wiki/FAQ</url>
+  <url type="help">https://mpv.io/manual/stable</url>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Audio</category>
+    <category>Video</category>
+    <category>Player</category>
+    <category>TV</category>
+  </categories>
+  <provides>
+    <mediatype>application/ogg</mediatype>
+    <mediatype>application/x-ogg</mediatype>
+    <mediatype>application/mxf</mediatype>
+    <mediatype>application/sdp</mediatype>
+    <mediatype>application/smil</mediatype>
+    <mediatype>application/x-smil</mediatype>
+    <mediatype>application/streamingmedia</mediatype>
+    <mediatype>application/x-streamingmedia</mediatype>
+    <mediatype>application/vnd.rn-realmedia</mediatype>
+    <mediatype>application/vnd.rn-realmedia-vbr</mediatype>
+    <mediatype>audio/aac</mediatype>
+    <mediatype>audio/x-aac</mediatype>
+    <mediatype>audio/vnd.dolby.heaac.1</mediatype>
+    <mediatype>audio/vnd.dolby.heaac.2</mediatype>
+    <mediatype>audio/aiff</mediatype>
+    <mediatype>audio/x-aiff</mediatype>
+    <mediatype>audio/m4a</mediatype>
+    <mediatype>audio/x-m4a</mediatype>
+    <mediatype>application/x-extension-m4a</mediatype>
+    <mediatype>audio/mp1</mediatype>
+    <mediatype>audio/x-mp1</mediatype>
+    <mediatype>audio/mp2</mediatype>
+    <mediatype>audio/x-mp2</mediatype>
+    <mediatype>audio/mp3</mediatype>
+    <mediatype>audio/x-mp3</mediatype>
+    <mediatype>audio/mpeg</mediatype>
+    <mediatype>audio/mpeg2</mediatype>
+    <mediatype>audio/mpeg3</mediatype>
+    <mediatype>audio/mpegurl</mediatype>
+    <mediatype>audio/x-mpegurl</mediatype>
+    <mediatype>audio/mpg</mediatype>
+    <mediatype>audio/x-mpg</mediatype>
+    <mediatype>audio/rn-mpeg</mediatype>
+    <mediatype>audio/musepack</mediatype>
+    <mediatype>audio/x-musepack</mediatype>
+    <mediatype>audio/ogg</mediatype>
+    <mediatype>audio/scpls</mediatype>
+    <mediatype>audio/x-scpls</mediatype>
+    <mediatype>audio/vnd.rn-realaudio</mediatype>
+    <mediatype>audio/wav</mediatype>
+    <mediatype>audio/x-pn-wav</mediatype>
+    <mediatype>audio/x-pn-windows-pcm</mediatype>
+    <mediatype>audio/x-realaudio</mediatype>
+    <mediatype>audio/x-pn-realaudio</mediatype>
+    <mediatype>audio/x-ms-wma</mediatype>
+    <mediatype>audio/x-pls</mediatype>
+    <mediatype>audio/x-wav</mediatype>
+    <mediatype>video/mpeg</mediatype>
+    <mediatype>video/x-mpeg2</mediatype>
+    <mediatype>video/x-mpeg3</mediatype>
+    <mediatype>video/mp4v-es</mediatype>
+    <mediatype>video/x-m4v</mediatype>
+    <mediatype>video/mp4</mediatype>
+    <mediatype>application/x-extension-mp4</mediatype>
+    <mediatype>video/divx</mediatype>
+    <mediatype>video/vnd.divx</mediatype>
+    <mediatype>video/msvideo</mediatype>
+    <mediatype>video/x-msvideo</mediatype>
+    <mediatype>video/ogg</mediatype>
+    <mediatype>video/quicktime</mediatype>
+    <mediatype>video/vnd.rn-realvideo</mediatype>
+    <mediatype>video/x-ms-afs</mediatype>
+    <mediatype>video/x-ms-asf</mediatype>
+    <mediatype>audio/x-ms-asf</mediatype>
+    <mediatype>application/vnd.ms-asf</mediatype>
+    <mediatype>video/x-ms-wmv</mediatype>
+    <mediatype>video/x-ms-wmx</mediatype>
+    <mediatype>video/x-ms-wvxvideo</mediatype>
+    <mediatype>video/x-avi</mediatype>
+    <mediatype>video/avi</mediatype>
+    <mediatype>video/x-flic</mediatype>
+    <mediatype>video/fli</mediatype>
+    <mediatype>video/x-flc</mediatype>
+    <mediatype>video/flv</mediatype>
+    <mediatype>video/x-flv</mediatype>
+    <mediatype>video/x-theora</mediatype>
+    <mediatype>video/x-theora+ogg</mediatype>
+    <mediatype>video/x-matroska</mediatype>
+    <mediatype>video/mkv</mediatype>
+    <mediatype>audio/x-matroska</mediatype>
+    <mediatype>application/x-matroska</mediatype>
+    <mediatype>video/webm</mediatype>
+    <mediatype>audio/webm</mediatype>
+    <mediatype>audio/vorbis</mediatype>
+    <mediatype>audio/x-vorbis</mediatype>
+    <mediatype>audio/x-vorbis+ogg</mediatype>
+    <mediatype>video/x-ogm</mediatype>
+    <mediatype>video/x-ogm+ogg</mediatype>
+    <mediatype>application/x-ogm</mediatype>
+    <mediatype>application/x-ogm-audio</mediatype>
+    <mediatype>application/x-ogm-video</mediatype>
+    <mediatype>application/x-shorten</mediatype>
+    <mediatype>audio/x-shorten</mediatype>
+    <mediatype>audio/x-ape</mediatype>
+    <mediatype>audio/x-wavpack</mediatype>
+    <mediatype>audio/x-tta</mediatype>
+    <mediatype>audio/AMR</mediatype>
+    <mediatype>audio/ac3</mediatype>
+    <mediatype>audio/eac3</mediatype>
+    <mediatype>audio/amr-wb</mediatype>
+    <mediatype>video/mp2t</mediatype>
+    <mediatype>audio/flac</mediatype>
+    <mediatype>audio/mp4</mediatype>
+    <mediatype>application/x-mpegurl</mediatype>
+    <mediatype>video/vnd.mpegurl</mediatype>
+    <mediatype>application/vnd.apple.mpegurl</mediatype>
+    <mediatype>audio/x-pn-au</mediatype>
+    <mediatype>video/3gp</mediatype>
+    <mediatype>video/3gpp</mediatype>
+    <mediatype>video/3gpp2</mediatype>
+    <mediatype>audio/3gpp</mediatype>
+    <mediatype>audio/3gpp2</mediatype>
+    <mediatype>video/dv</mediatype>
+    <mediatype>audio/dv</mediatype>
+    <mediatype>audio/opus</mediatype>
+    <mediatype>audio/vnd.dts</mediatype>
+    <mediatype>audio/vnd.dts.hd</mediatype>
+    <mediatype>audio/x-adpcm</mediatype>
+    <mediatype>application/x-cue</mediatype>
+    <mediatype>audio/m3u</mediatype>
+    <mediatype>audio/vnd.wave</mediatype>
+    <mediatype>video/vnd.avi</mediatype>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window</caption>
+      <image type="source">https://mpv.io/images/mpv-screenshot-34cd36ae.jpg</image>
+    </screenshot>
+  </screenshots>
+  <keywords>
+    <keyword>mpv</keyword>
+    <keyword>media</keyword>
+    <keyword>player</keyword>
+    <keyword>video</keyword>
+    <keyword>audio</keyword>
+    <keyword>tv</keyword>
+  </keywords>
+  <content_rating type="oars-1.1" />
+</component>
+<component type="desktop-application">
+  <id>org.blender.Blender</id>
+  <name>Blender</name>
+  <summary>Free and open source 3D creation suite</summary>
+  <project_license>GPL-3.0</project_license>
+  <description>
+    <p>Blender is the free and open source 3D creation suite. It supports the entirety of the 3D pipeline
+      — modeling, rigging, animation, simulation, rendering, compositing, motion tracking, and video
+      editing.</p>
+    <p>Blender is a public project, made by hundreds of people from around the world; by studios and
+      individual artists, professionals and hobbyists, scientists, students, VFX experts, animators,
+      game artists, modders, and the list goes on.</p>
+  </description>
+  <pkgname>blender</pkgname>
+  <launchable type="desktop-id">blender.desktop</launchable>
+  <icon type="cached" width="48" height="48">blender_blender.jxl</icon>
+  <icon type="cached" width="64" height="64">blender_blender.jxl</icon>
+  <icon type="cached" width="128" height="128">blender_blender.jxl</icon>
+  <icon type="stock">blender</icon>
+  <url type="homepage">https://www.blender.org</url>
+  <url type="bugtracker">https://projects.blender.org/blender/blender/issues?q=&amp;labels=296</url>
+  <url type="faq">https://www.blender.org/support/faq/</url>
+  <url type="help">https://www.blender.org/support/</url>
+  <url type="donation">https://fund.blender.org/</url>
+  <url type="translate">https://developer.blender.org/docs/handbook/translating/translator_guide/</url>
+  <url type="vcs-browser">https://projects.blender.org/blender/blender</url>
+  <url type="contribute">https://www.blender.org/get-involved/</url>
+  <categories>
+    <category>Graphics</category>
+    <category>3DGraphics</category>
+  </categories>
+  <provides>
+    <mediatype>application/x-blender</mediatype>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Sculpt</caption>
+      <image type="source">https://download.blender.org/demo/screenshots/blender_screenshot_1.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>Model</caption>
+      <image type="source">https://download.blender.org/demo/screenshots/blender_screenshot_2.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>Animate</caption>
+      <image type="source">https://download.blender.org/demo/screenshots/blender_screenshot_3.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>Edit &amp; Grade</caption>
+      <image type="source">https://download.blender.org/demo/screenshots/blender_screenshot_4.jpg</image>
+    </screenshot>
+  </screenshots>
+  <keywords>
+    <keyword>3d</keyword>
+    <keyword>cg</keyword>
+    <keyword>modeling</keyword>
+    <keyword>animation</keyword>
+    <keyword>painting</keyword>
+    <keyword>sculpting</keyword>
+    <keyword>texturing</keyword>
+    <keyword>video editing</keyword>
+    <keyword>video tracking</keyword>
+    <keyword>rendering</keyword>
+    <keyword>render engine</keyword>
+    <keyword>cycles</keyword>
+    <keyword>python</keyword>
+  </keywords>
+  <releases>
+    <release type="stable" version="5.2" timestamp="1783987200">
+      <description>
+        <p>New features:</p>
+        <ul>
+          <li>Support for Online Asset Libraries</li>
+          <li>Cycles: Texture Cache for reduced memory</li>
+          <li>Virtual Reality: Introducing Location Scouting</li>
+        </ul>
+        <p>Enhancements:</p>
+        <ul>
+          <li>EEVEE: Screen Space Raytracing Overhaul</li>
+          <li>Geometry Nodes: New experimental physics system with an initial focus on hair and cloth</li>
+          <li>VSE: New "Compositor" effect, strip enhancements, scopes support HDR</li>
+          <li>And much more!</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="5.1" timestamp="1773705600">
+      <description>
+        <p>New features:</p>
+        <ul>
+          <li>Rendering: New Shader Raycast Node, improved Cycles rendering performance</li>
+          <li>Geometry Nodes: New nodes for Volume Grids, string handling and a Bone Info node</li>
+          <li>Virtual Reality: Arc teleportation ray drawing and functionality overhaul</li>
+        </ul>
+        <p>Enhancements:</p>
+        <ul>
+          <li>Grease Pencil: New Fill Workflow</li>
+          <li>Compositor: New Mask To SDF node, various improvements to existing nodes</li>
+          <li>VSE: Blade tool now has a box gesture that allows for quick cuts</li>
+          <li>UI: Searching within Preferences, Quad View improvements</li>
+          <li>I/O: Support for the AVIF image format, USD, FBX and glTF improvements</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="5.0" timestamp="1763424000">
+      <description>
+        <p>New features:</p>
+        <ul>
+          <li>Completely overhauled color management pipeline now natively supports wide-gamut and
+            HDR color spaces</li>
+          <li>Cycles: unbiased volume rendering, multi bounce SSS</li>
+          <li>Video Sequencer: added a compositor strip modifier</li>
+        </ul>
+        <p>Enhancements:</p>
+        <ul>
+          <li>EEVEE: material compilation speed has been improved</li>
+          <li>Geometry Nodes: support for Bundles, Closures and new volume nodes</li>
+          <li>Grease Pencil: motion blur support</li>
+          <li>Rendering: new multiple scattering mode for Sky node and a new Radial Tiling node</li>
+          <li>Several improvements for virtual reality</li>
+        </ul>
+      </description>
+    </release>
+    <release type="stable" version="4.5" timestamp="1752537600">
+      <description>
+        <p>New features:</p>
+        <ul>
+          <li>Vulkan backend with support for OpenXR, Subdivision, USD/Hydra and more</li>
+          <li>New Manifold boolean solver</li>
+          <li>New Geometry Nodes for mesh normals, file import, Grease Pencil and more</li>
+        </ul>
+        <p>Enhancements:</p>
+        <ul>
+          <li>Grease Pencil: Added a new supersampling anti-aliasing (SSAA) method for rendering</li>
+          <li>File I/O: New experimental FBX importer and improvements to USD, glTF, OBJ and SVG</li>
+          <li>Cycles: Improvements to Adaptive Subdivision, Bump Mapping and new custom cameras</li>
+          <li>Compositor: New nodes and most options are exposed as single value inputs now</li>
+          <li>Sculpt: Pen Tablet Tilt Support, brush and performance improvements</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>
+<component type="desktop-application">
+  <id>org.kde.krita</id>
+  <name>Krita</name>
+  <name xml:lang="de">Krita</name>
+  <summary>Digital Painting, Creative Freedom</summary>
+  <summary xml:lang="de">Digitales Malen, kreative Freiheit</summary>
+  <project_license>GPL-3.0-only</project_license>
+  <description>
+    <p>Krita is the full-featured digital art studio.</p>
+    <p>It is perfect for sketching and painting, and presents an end–to–end solution for creating digital
+      painting files from scratch by masters.</p>
+    <p>Krita is a great choice for creating concept art, comics, textures for rendering and matte paintings.
+      Krita supports many colorspaces like RGB and CMYK at 8 and 16 bits integer channels, as well as
+      16 and 32 bits floating point channels.</p>
+    <p>Have fun painting with the advanced brush engines, amazing filters and many handy features that
+      make Krita enormously productive.</p>
+  </description>
+  <description xml:lang="de">
+    <p>Krita ist ein digitales Designstudio mit umfangreichen Funktionen.</p>
+    <p>Krita ist perfekt zum Zeichnen oder Malen und stellt eine umfängliche Lösung für die Erstellung
+      digitaler Bilder dar.</p>
+    <p>Krita ist eine großartige Wahl zur Erstellung von Concept Art, Comics, Rendertexturen und Vorsatzmalerei.
+      Krita unterstützt viele Farbräume, wie RGB und CMYK mit 8 oder 16 Bit Integerkanälen, sowie 16
+      und 32 Bit Fließkomma-Kanälen.</p>
+    <p>Viel Spaß beim Malen mit den fortschrittlichen Pinsel-Engines, verblüffenden Filtern und vielen
+      praktischen Features, die Krita eine enorme Produktivität verleihen.</p>
+  </description>
+  <project_group>KDE</project_group>
+  <developer id="org.krita">
+    <name>Krita Foundation</name>
+  </developer>
+  <developer_name>Krita Foundation</developer_name>
+  <pkgname>krita</pkgname>
+  <launchable type="desktop-id">org.kde.krita.desktop</launchable>
+  <icon type="cached" width="48" height="48">krita_krita.jxl</icon>
+  <icon type="cached" width="64" height="64">krita_krita.jxl</icon>
+  <icon type="cached" width="128" height="128">krita_krita.jxl</icon>
+  <icon type="stock">krita</icon>
+  <url type="homepage">https://www.krita.org/</url>
+  <url type="bugtracker">https://docs.krita.org/en/untranslatable_pages/reporting_bugs.html</url>
+  <url type="faq">https://docs.krita.org/KritaFAQ.html</url>
+  <url type="help">https://docs.krita.org/</url>
+  <url type="donation">https://krita.org/support-us/donations/</url>
+  <url type="contribute">https://docs.krita.org/en/contributors_manual.html</url>
+  <categories>
+    <category>Graphics</category>
+    <category>2DGraphics</category>
+    <category>RasterGraphics</category>
+  </categories>
+  <provides>
+    <binary>krita</binary>
+    <id>org.kde.krita.desktop</id>
+    <mediatype>application/x-krita</mediatype>
+    <mediatype>image/openraster</mediatype>
+    <mediatype>application/x-krita-paintoppreset</mediatype>
+  </provides>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Krita is a full-featured digital painting studio</caption>
+      <caption xml:lang="de">Krita ist ein digitales Zeichenstudio mit umfangreichen Funktionen</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/splash.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The startup window now also gives you the latest news about Krita</caption>
+      <caption xml:lang="de">Das Startfenster bietet jetzt auch die aktuellsten Neuigkeiten über Krita</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/welcomepage.png</image>
+    </screenshot>
+    <screenshot type="default">
+      <caption>There are over ten immensely powerful brush engines</caption>
+      <caption xml:lang="de">Es sind mehr als zehn überaus leistungsfähige Pinsel-Engines enthalten</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/brush_editor.png</image>
+    </screenshot>
+    <screenshot type="default">
+      <caption>Into animation? Krita provides everything you need for traditional, hand-drawn animation</caption>
+      <caption xml:lang="de">Sie interessieren sich für Animation? Krita bietet alles was für traditionelle, handgezeichnete Animation benötigt wird</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/animation.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>If you're new to digital painting, there's an extensive, up-to-date manual</caption>
+      <caption xml:lang="de">Für Einsteiger in das digitale Malen gibt es ein umfassendes, ständig aktualisiertes Handbuch</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/manual.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Krita offers powerful filters</caption>
+      <caption xml:lang="de">Krita bietet leistungsstarke Filter</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/filters.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>And, there is integration with G'Mic, too, which adds hundreds of filters more</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/gmic.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Join our Youtube channel!</caption>
+      <caption xml:lang="de">Besuchen Sie underen YouTube-Kanal.</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/youtube.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Or the active Krita Artists community</caption>
+      <image type="source">https://cdn.kde.org/screenshots/krita/community.png</image>
+    </screenshot>
+  </screenshots>
+  <releases>
+    <release type="stable" version="5.3.4.1" timestamp="1791331200">
+      <description>
+        <p>A minor bugfix release for the Krita Stable channel</p>
+      </description>
+      <url>https://krita.org/en/posts/2026/krita-5.3.4.1-released/</url>
+    </release>
+    <release type="stable" version="5.3.4" timestamp="1789516800">
+      <description>
+        <p>A minor bugfix release for the Krita Stable channel</p>
+      </description>
+      <url>https://krita.org/en/posts/2026/krita-5.3.4-released/</url>
+    </release>
+    <release type="stable" version="5.3.3" timestamp="1784764800">
+      <description>
+        <p>A minor bugfix release for the Krita Stable channel</p>
+      </description>
+      <url>https://krita.org/en/posts/2026/krita-5.3.3-released/</url>
+    </release>
+    <release type="stable" version="5.3.2.1" timestamp="1780272000">
+      <description>
+        <p>A minor bugfix release for the Krita Stable channel</p>
+      </description>
+      <url>https://krita.org/en/posts/2026/krita-5.3.2.1-released/</url>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>
+<component type="addon">
+  <id>codeblocks-contrib</id>
+  <name>Code::Blocks Plugins</name>
+  <summary>Additional plugins for the Code::Blocks IDE</summary>
+  <description>
+    <p>Contains over 40 additional plugins for the Code::Blocks IDE, including:</p>
+    <ul>
+      <li>AutoVersioning -- Auto increments the version and build number of your application every
+        time a change has been made</li>
+      <li>BrowseTracker -- Browse to previous source positions</li>
+      <li>BYO Games -- A collection of Games</li>
+      <li>Koders query -- Searches the Koders website for keywords, and returns results</li>
+      <li>Cccc -- runs the C and C++ Code Counter (CCCC) on the current project</li>
+      <li>Code snippets -- create and save code snippets for later use</li>
+      <li>Copy Strings -- copies all strings in the editor to the clipboard, and removes duplicates</li>
+      <li>CppCheck -- runs CppCheck over the current project</li>
+    </ul>
+  </description>
+  <extends>codeblocks.desktop</extends>
+  <pkgname>codeblocks</pkgname>
+  <url type="homepage">http://www.codeblocks.org/cbplugins</url>
+</component>
+</components>

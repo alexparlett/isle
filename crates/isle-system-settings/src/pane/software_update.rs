@@ -238,6 +238,12 @@ impl Card {
 /// The cards the page shows: the run's or the restart's when there is one, then a card each
 /// for CachyOS and Isle while they have updates waiting.
 pub fn cards(s: &Value) -> Vec<Card> {
+    // Store's catalogues are not Software Update's.
+    let mut own = s.clone();
+    if let Some(pending) = own["pending"].as_array_mut() {
+        pending.retain(|p| p["source"] == "Repositories" || p["source"] == "Isle");
+    }
+    let s = &own;
     let first = Card::from_status(s);
     let running = s["progress"]["state"] == "Running";
     let mut out = Vec::new();

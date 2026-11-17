@@ -6,7 +6,7 @@ mod run;
 mod system;
 
 pub use check::{
-    Check, CheckError, PKGBUILD, Part, Pending, Source, Tools, check, parse_ls_remote, parse_updates,
+    Check, CheckError, PKGBUILD, Part, Pending, Source, Tools, check, parse_flathub, parse_ls_remote, parse_updates,
     paru_config, pkgbuild_source, version_commit,
 };
 pub use restart::{Reason, restart_owed};

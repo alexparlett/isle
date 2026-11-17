@@ -306,12 +306,18 @@ impl State {
         let system = self.isle.updates.count(Source::Repositories) > 0;
         match part {
             "isle" if !isle => Err("Isle is up to date.".into()),
-            "isle" => Ok(Part::Isle),
-            "system" => Ok(Part::System),
             "" if isle && system => Ok(Part::Both),
             "" if isle => Ok(Part::Isle),
             "" => Ok(Part::System),
-            other => Err(format!("No part called {other}.")),
+            other => match Part::parse(other) {
+                // An AUR package is built against the system as it is; one still waiting for
+                // its own update would leave the build behind it.
+                Some(Part::Aur(_)) if system => {
+                    Err("Update CachyOS first, in Software Update.".into())
+                }
+                Some(part) => Ok(part),
+                None => Err(format!("No part called {other}.")),
+            },
         }
     }
 
@@ -379,7 +385,8 @@ fn packages(n: u32) -> String {
 /// manager; `ISLE_CLI` names the `isle` that runs it.
 pub async fn start_run(part: isle_updates::Part) -> Result<(), String> {
     let cli = std::env::var("ISLE_CLI").unwrap_or_else(|_| "isle".into());
-    let args = ["update", "run", "--part", part.word()];
+    let word = part.word();
+    let args = ["update", "run", "--part", word.as_str()];
     if std::env::var("ISLE_UPDATE_DIRECT").as_deref() == Ok("1") {
         let mut command = tokio::process::Command::new(&cli);
         command.args(args).stdin(std::process::Stdio::null());
@@ -480,8 +487,10 @@ impl Isle {
             } else if u.waiting() > 0 {
                 let mut page = Vec::new();
                 for (source, name) in [
-                    (Source::Repositories, "Repositories"),
+                    (Source::Repositories, "CachyOS"),
                     (Source::Isle, "Isle"),
+                    (Source::Flathub, "Flathub"),
+                    (Source::Aur, "AUR"),
                 ] {
                     let n = u.count(source);
                     if n > 0 {
@@ -560,6 +569,12 @@ impl Isle {
                     .to_string()
             })
             .unwrap_or_default()
+    }
+
+    /// Store's count in the system menu: Flathub's and the AUR's updates.
+    pub fn store_count(&self) -> Option<usize> {
+        let n = self.updates.count(Source::Flathub) + self.updates.count(Source::Aur);
+        (n > 0 && !self.updates.running()).then_some(n)
     }
 
     /// System Settings' count in the system menu: the system's parts waiting (CachyOS, Isle),

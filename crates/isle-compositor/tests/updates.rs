@@ -205,7 +205,7 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
         .collect();
     assert_eq!(
         sources,
-        ["Repositories", "Repositories", "Isle"],
+        ["Repositories", "Repositories", "Isle", "Aur"],
         "{s}"
     );
     let isle_update = &s["pending"][2];
@@ -221,7 +221,7 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
     assert!(item(&system, "Restart to finish updating…").is_none());
 
     isle.open_panel(None).await;
-    wait_until(|| async { isle.module("updates").await["state"] == "3 updates" }).await;
+    wait_until(|| async { isle.module("updates").await["state"] == "4 updates" }).await;
 
     // Isle waiting: paru runs the upgrade in repository and PKGBUILD mode, never the AUR.
     assert_eq!(install(&isle, "ok").await, "");

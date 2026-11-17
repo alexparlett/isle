@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-11-17 (P14e)
+
+- P14e planned after its board passed; 14e.0–14e.3 built. Commits
+  86f09d74 (plan), 25a3c03f (evidence, `store-2026.md`), ff10036c
+  (Software Update for the system: CachyOS and Isle cards, runs by part),
+  5857f168 (`isle-catalog`'s AppStream reader; Flathub and the AUR in the
+  check and the runs), 4b2a8f57 (Store's window, Updates by catalogue,
+  Installed, Store… in the system menu), and the walk's fixes after.
+- The VM walk on r744 by QMP input: the system menu with System
+  Settings… counting 2 and Store…; Store opened from it with Walk Notes,
+  a repository app with a newer version in a local repository, under
+  CachyOS "With the system"; Installed with 31 apps, icons and badges;
+  Software Update… from Store opened Settings at the page with the
+  restart card, CachyOS's card ("Also updates 1 app installed from
+  CachyOS") and Isle's; CachyOS's Update Now ran `pkexec pacman -Syu`
+  alone (part "system"), one password, 3 of 3, its card gone after. Found
+  and fixed: the app named by its package, Check Now twice. Not walked:
+  Flathub and AUR updates (none waiting in the guest), Update
+  Everything's queue. A misplaced click opened the restart confirmation,
+  cancelled before its countdown ended.
+
 ## 2026-11-12 (P14d)
 
 - P14d planned, approved and built 14d.0–14d.7 the same day at the user's

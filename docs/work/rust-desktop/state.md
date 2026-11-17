@@ -800,3 +800,9 @@
   (`p14e/store-1.html`) passed at the user's word: Software Update is the
   system (CachyOS and Isle), Store is apps from CachyOS, Flathub, the AUR
   and AppImages. Building from 14e.0.
+- P14e 14e.0–14e.3 built and walked in the VM 2026-11-17: Software Update
+  for the system, `isle-catalog`, Flathub and the AUR in the check, Store
+  with Updates by catalogue and Installed. Next: 14e.4 (catalogue pages
+  and search), 14e.5 (Discover, Browse, app pages, with JPEG XL icons),
+  14e.6 (Get and Remove).
+

@@ -237,7 +237,7 @@ impl Card {
 
 /// The cards the page shows: the run's or the restart's when there is one, then a card each
 /// for CachyOS and Isle while they have updates waiting.
-pub fn cards(s: &Value) -> Vec<Card> {
+pub fn cards(s: &Value, app_name: &dyn Fn(&str) -> Option<String>) -> Vec<Card> {
     // Store's catalogues are not Software Update's.
     let mut own = s.clone();
     if let Some(pending) = own["pending"].as_array_mut() {
@@ -271,6 +271,13 @@ pub fn cards(s: &Value) -> Vec<Card> {
         }
     }
     let pending = s["pending"].as_array().cloned().unwrap_or_default();
+    if !pending.is_empty()
+        && let Some(restart) = out
+            .iter_mut()
+            .find(|c| c.title == "Restart to finish updating")
+    {
+        restart.buttons.retain(|b| b.label != "Check Now");
+    }
     let system = &s["system"];
     let repo = pending
         .iter()
@@ -320,11 +327,17 @@ pub fn cards(s: &Value) -> Vec<Card> {
         if !tools.is_empty() {
             sources.push(("CachyOS tools".into(), tools.join(", ")));
         }
-        let apps: Vec<&str> = system["apps"]
+        let apps: Vec<String> = system["apps"]
             .as_array()
             .into_iter()
             .flatten()
-            .filter_map(|a| a["package"].as_str())
+            .filter_map(|a| {
+                let package = a["package"].as_str()?;
+                Some(
+                    app_name(a["desktop"].as_str().unwrap_or_default())
+                        .unwrap_or_else(|| package.to_owned()),
+                )
+            })
             .collect();
         if !apps.is_empty() {
             sources.push((
@@ -398,13 +411,20 @@ impl Component for SoftwareUpdatePage {
     fn render(&self) -> impl IntoElement {
         let theme = use_theme();
         let t = &theme.tokens;
-        let services = use_follow(&[Follow::Updates]);
+        let services = use_follow(&[Follow::Updates, Follow::Apps]);
         let r = Rows::new(&self.at);
         let details = use_state(|| false);
         let mut more = use_state(|| false);
         let status = services.updates.read().state.clone();
         let mut groups: Vec<Element> = Vec::new();
-        for card in cards(&status) {
+        let installed = services.apps.read().state.clone();
+        let app_name = |id: &str| {
+            installed
+                .iter()
+                .find(|a| a.id == id)
+                .map(|a| a.name.clone())
+        };
+        for card in cards(&status, &app_name) {
             groups.push(
                 form::group(
                     None,
@@ -700,16 +720,20 @@ impl Component for MoreInfo {
 mod tests {
     use super::*;
 
+    fn cards_of(s: &Value) -> Vec<Card> {
+        cards(s, &|id| (id == "blender").then(|| "Blender".to_owned()))
+    }
+
     fn status(json: &str) -> Value {
         serde_json::from_str(json).unwrap()
     }
 
     #[test]
     fn the_system_and_isle_each_have_a_card() {
-        let up = cards(&status(r#"{"pending":[],"checked_at":0,"restart":[]}"#));
+        let up = cards_of(&status(r#"{"pending":[],"checked_at":0,"restart":[]}"#));
         assert_eq!(up.len(), 1);
         assert_eq!(up[0].title, "CachyOS and Isle are up to date");
-        let waiting = cards(&status(
+        let waiting = cards_of(&status(
             r#"{"pending":[{"name":"linux-cachyos","from":"7.2.10-1","to":"7.3.4-1","source":"Repositories"},
                 {"name":"blender","from":"4.5.3-1","to":"4.5.4-1","source":"Repositories"},
                 {"name":"isle-git","from":"r725.g0f8209c46951-1","to":"7a1b2c3d4e5f","source":"Isle"}],
@@ -730,7 +754,7 @@ mod tests {
                 ("Kernel".into(), "linux-cachyos 7.2.10 → 7.3.4".into()),
                 (
                     "Also updates 1 app installed from CachyOS".into(),
-                    "blender".into()
+                    "Blender".into()
                 )
             ]
         );
@@ -744,20 +768,20 @@ mod tests {
             waiting[1].buttons[0].act,
             Some(Act::InstallUpdates("isle".into()))
         );
-        let running = cards(&status(
+        let running = cards_of(&status(
             r#"{"progress":{"state":"Running","done":112,"total":469,"phase":"Upgrading libuv","lines":[],"started_at":0},"can_stop":false,
                 "pending":[{"name":"glibc","from":"1","to":"2","source":"Repositories"}],"restart":[]}"#,
         ));
         assert_eq!(running.len(), 1);
         assert_eq!(running[0].title, "Installing 112 of 469");
         assert_eq!(running[0].buttons[0].act, None);
-        let owed = cards(&status(
+        let owed = cards_of(&status(
             r#"{"progress":{"state":"Done","total":3},"restart":["The kernel was updated"],
                 "pending":[{"name":"isle-git","from":"r1.gabc-1","to":"def","source":"Isle"}]}"#,
         ));
         assert_eq!(owed[0].title, "Restart to finish updating");
         assert_eq!(owed[1].title, "Isle");
-        let refused = cards(&status(r#"{"progress":{"state":"Refused"},"restart":[]}"#));
+        let refused = cards_of(&status(r#"{"progress":{"state":"Refused"},"restart":[]}"#));
         assert_eq!(refused[0].title, "The update didn't start");
     }
 }

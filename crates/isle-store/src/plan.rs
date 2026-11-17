@@ -159,6 +159,37 @@ fn missing(deps: &[String]) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// A dependency's name without its version: `obs-studio>=28` is `obs-studio`.
+fn bare_name(dep: &str) -> &str {
+    dep.split(['>', '<', '=']).next().unwrap_or(dep)
+}
+
+/// What installing `lacking` brings: the repositories' packages with what they need and their
+/// sizes, then those only the AUR has, which paru builds.
+fn resolve(lacking: &[String]) -> Vec<Package> {
+    let names: Vec<&str> = lacking.iter().map(|d| bare_name(d)).collect();
+    let in_repos = |name: &str| {
+        run("pacman", &["-Sp", "--print-format", "%n", name]).is_some_and(|(ok, _, _)| ok)
+    };
+    let (repo, aur): (Vec<&str>, Vec<&str>) = names.iter().partition(|n| in_repos(n));
+    let mut out = Vec::new();
+    if !repo.is_empty() {
+        let args: Vec<&str> = ["-S", "--print", "--print-format", "%n %v %s"]
+            .into_iter()
+            .chain(repo.iter().copied())
+            .collect();
+        if let Some((true, printed, _)) = run("pacman", &args) {
+            out.extend(parse_print(&printed));
+        }
+    }
+    out.extend(aur.into_iter().map(|name| Package {
+        name: name.to_string(),
+        version: "from the AUR".into(),
+        size: None,
+    }));
+    out
+}
+
 fn pacman_get(package: &str) -> Plan {
     let mut plan = Plan::default();
     match run(
@@ -246,16 +277,10 @@ async fn aur_get(package: &str) -> Plan {
         .chain(&info.make_depends)
         .cloned()
         .collect();
-    let lacking = tokio::task::spawn_blocking(move || missing(&deps))
+    let found = tokio::task::spawn_blocking(move || resolve(&missing(&deps)))
         .await
         .unwrap_or_default();
-    for name in lacking {
-        plan.packages.push(Package {
-            name,
-            version: String::new(),
-            size: None,
-        });
-    }
+    plan.packages.extend(found);
     plan.extras = info
         .opt_depends
         .iter()

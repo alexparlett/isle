@@ -233,6 +233,8 @@ impl Reader {
             Some("There isn't enough free disk space.".into())
         } else if l.contains("conflicting files") || l.ends_with("exists in filesystem") {
             Some("A package's files conflict with files already on the computer.".into())
+        } else if l.contains("could not find all required packages") {
+            Some("It needs packages that neither CachyOS nor the AUR has.".into())
         } else if l.contains("could not satisfy dependencies")
             || l.contains("unable to satisfy dependency")
         {
@@ -248,8 +250,9 @@ impl Reader {
         if known.is_some() && self.known.is_none() {
             self.known = known;
         }
-        if let Some(rest) = l.strip_prefix("error: ") {
-            self.last_error = Some(rest.to_string());
+        // paru prints its errors after a prompt on the same line.
+        if let Some(at) = l.find("error: ") {
+            self.last_error = Some(l[at + "error: ".len()..].to_string());
         }
     }
 
@@ -448,6 +451,18 @@ mod tests {
             r.line(line);
         }
         assert_eq!((r.progress.total, r.progress.done), (2, 1));
+    }
+
+    #[test]
+    fn missing_dependencies_are_said() {
+        let mut r = Reader::new(0, 1);
+        r.line("Enter a number (default=1): error: could not find all required packages:");
+        r.line("    lib32-libx11 (wanted by: obs-vkcapture -> lib32-vulkan-icd-loader)");
+        r.finish(Some(1), None, false, 1);
+        assert_eq!(
+            r.progress.reason.as_deref(),
+            Some("It needs packages that neither CachyOS nor the AUR has.")
+        );
     }
 
     #[test]

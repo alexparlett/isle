@@ -293,7 +293,9 @@ impl Tools {
                         id.as_str(),
                     ],
                 ),
-                "aur" => (paru(), [&["-S", "--mode=a"][..], &PARU, &[id.as_str()]].concat()),
+                // `-a` takes the target alone from the AUR; its dependencies come from the
+                // repositories where they are.
+                "aur" => (paru(), [&["-S", "-a"][..], &PARU, &[id.as_str()]].concat()),
                 _ => {
                     let sync = if *with_updates { "-Syu" } else { "-S" };
                     match &self.pacman {

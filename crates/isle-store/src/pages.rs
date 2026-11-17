@@ -1174,7 +1174,10 @@ impl Ctx {
                 format!("Install {}?", o.name),
                 format!(
                     "From {}. {}{}",
-                    catalogue_of(o.kind).name(),
+                    match o.kind {
+                        Kind::Aur => "the AUR",
+                        k => catalogue_of(k).name(),
+                    },
                     if others > 0 {
                         format!(
                             "It also installs {others} package{} it needs",

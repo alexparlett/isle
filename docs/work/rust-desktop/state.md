@@ -811,6 +811,15 @@
   narrowed to the AUR. Fixed on the way: release notes in descriptions,
   the AUR's bot check without a User-Agent, paru resolving dependencies in
   the AUR alone, flatpak asking which installation. The guest has no
-  multilib, so AUR packages needing lib32 cannot install there. Next:
-  14e.7 (bars and the rest of the walk), 14e.8 (the host).
+  multilib, so AUR packages needing lib32 cannot install there.
+- P14e 14e.7 2026-11-17: Store's File and Go menus (⌘R, ⌘[, ⌘1–4); its
+  pages tested headless from a fake catalogue; Get, Remove and app updates
+  notify as Store; search finds installed apps the catalogue lacks;
+  AppImages update through appimageupdatetool (on the path or its AppImage
+  in ~/Applications) as `appimage:<path>` runs. Walked: Update Everything
+  (Flatseal from Flathub without a password, then pfetch from the AUR with
+  one), ⌘3, a removal refused naming network-manager-applet. Not walked:
+  an AppImage update (its tool is downloaded in the guest, set aside in
+  ~/held; running it waits on the user). Next: 14e.8 (the host, the
+  acceptance bars).
 

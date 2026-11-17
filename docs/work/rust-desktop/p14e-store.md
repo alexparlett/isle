@@ -191,6 +191,13 @@ app's data. Parts `install:<catalogue>[+updates]:<id>` and
 
 ### 14e.7 · The package, the bars and the walk
 
+Store's menus and its pages tested headless; its runs' notes in its own
+name; AppImage updates from the image's `.upd_info` through
+`appimageupdatetool` (`-j` to ask, `--overwrite` to run), found on the
+path or as its own AppImage in `~/Applications`, since the AUR has only a
+`-git` build. The walk: Update Everything across Flathub and the AUR, the
+refused removal, the menus' keys.
+
 ### 14e.8 · The host and close
 
 ## Not in P14e

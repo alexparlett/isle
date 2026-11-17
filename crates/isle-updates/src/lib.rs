@@ -3,12 +3,14 @@
 mod check;
 mod restart;
 mod run;
+mod system;
 
 pub use check::{
-    Check, CheckError, PKGBUILD, Pending, Source, Tools, check, parse_ls_remote, parse_updates,
+    Check, CheckError, PKGBUILD, Part, Pending, Source, Tools, check, parse_ls_remote, parse_updates,
     paru_config, pkgbuild_source, version_commit,
 };
 pub use restart::{Reason, restart_owed};
+pub use system::{AppUpdate, Named, System, summarise};
 pub use run::{Progress, Reader, RunState, read_progress, run, write_progress};
 
 /// Isle's own package, built from git through paru's PKGBUILD repository.

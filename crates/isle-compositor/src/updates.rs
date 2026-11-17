@@ -290,8 +290,10 @@ impl State {
         }
     }
 
-    /// Why a run cannot start now; else whether Isle's own package is among the updates.
-    pub fn may_install(&self) -> Result<bool, String> {
+    /// Why a run of `part` cannot start now; else the part to run. No part runs everything
+    /// waiting: the system, Isle's build, or both in one run.
+    pub fn may_install(&self, part: &str) -> Result<isle_updates::Part, String> {
+        use isle_updates::Part;
         if self.isle.updates.running() {
             return Err("An update is already running.".into());
         }
@@ -300,7 +302,17 @@ impl State {
                 "Another program is installing packages. Try again when it has finished.".into(),
             );
         }
-        Ok(self.isle.updates.count(Source::Isle) > 0)
+        let isle = self.isle.updates.count(Source::Isle) > 0;
+        let system = self.isle.updates.count(Source::Repositories) > 0;
+        match part {
+            "isle" if !isle => Err("Isle is up to date.".into()),
+            "isle" => Ok(Part::Isle),
+            "system" => Ok(Part::System),
+            "" if isle && system => Ok(Part::Both),
+            "" if isle => Ok(Part::Isle),
+            "" => Ok(Part::System),
+            other => Err(format!("No part called {other}.")),
+        }
     }
 
     /// Stops the run: refused while pacman holds its lock, since a half transaction is the
@@ -365,13 +377,9 @@ fn packages(n: u32) -> String {
 /// Starts the run in its own unit, so it outlives the compositor (choice 11).
 /// `ISLE_UPDATE_DIRECT=1` starts it as a detached process instead, for tests without a user
 /// manager; `ISLE_CLI` names the `isle` that runs it.
-pub async fn start_run(isle: bool) -> Result<(), String> {
+pub async fn start_run(part: isle_updates::Part) -> Result<(), String> {
     let cli = std::env::var("ISLE_CLI").unwrap_or_else(|_| "isle".into());
-    let args: &[&str] = if isle {
-        &["update", "run", "--isle"]
-    } else {
-        &["update", "run"]
-    };
+    let args = ["update", "run", "--part", part.word()];
     if std::env::var("ISLE_UPDATE_DIRECT").as_deref() == Ok("1") {
         let mut command = tokio::process::Command::new(&cli);
         command.args(args).stdin(std::process::Stdio::null());
@@ -554,9 +562,11 @@ impl Isle {
             .unwrap_or_default()
     }
 
-    /// The system menu's count: what is waiting, none while a run is going.
+    /// System Settings' count in the system menu: the system's parts waiting (CachyOS, Isle),
+    /// none while a run is going.
     pub fn updates_count(&self) -> Option<usize> {
-        let n = self.updates.waiting();
+        let n = usize::from(self.updates.count(Source::Repositories) > 0)
+            + usize::from(self.updates.count(Source::Isle) > 0);
         (n > 0 && !self.updates.running()).then_some(n)
     }
 
@@ -564,6 +574,7 @@ impl Isle {
         let u = &self.updates;
         serde_json::json!({
             "pending": u.check.as_ref().map(|c| &c.pending),
+            "system": u.check.as_ref().map(|c| &c.system),
             "checked_at": u.check.as_ref().map(|c| c.checked_at),
             "checking": u.checking,
             "check_error": u.check_error,

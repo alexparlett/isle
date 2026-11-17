@@ -175,7 +175,7 @@ async fn install(isle: &Isle, mode: &str) -> String {
     UpdatesProxy::new(&isle.bus)
         .await
         .unwrap()
-        .install()
+        .install("")
         .await
         .unwrap()
 }
@@ -213,10 +213,10 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
     assert_eq!(isle_update["to"].as_str().unwrap().len(), 12);
 
     let system = system_menu(&isle).await;
-    let update = item(&system, "Software Update…").unwrap();
+    let update = item(&system, "System Settings…").unwrap();
     assert_eq!(
         (update["enabled"].clone(), update["badge"].clone()),
-        (Value::Bool(true), Value::from("3"))
+        (Value::Bool(true), Value::from("2"))
     );
     assert!(item(&system, "Restart to finish updating…").is_none());
 

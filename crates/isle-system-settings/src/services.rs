@@ -162,7 +162,8 @@ pub enum Act {
         on: bool,
     },
     CheckUpdates,
-    InstallUpdates,
+    /// A run of "system", "isle", or everything waiting with "".
+    InstallUpdates(String),
     StopUpdates,
     /// The session dialog's restart, to finish an update.
     RestartForUpdates,
@@ -1023,13 +1024,13 @@ async fn act_on(bus: Option<zbus::Connection>, act: Act) -> Result<(), String> {
         .await
         .map_err(|e| err(&e))?,
         Act::LoginItem { id, unit: true, on } => switch_unit(session()?, id, on).await,
-        Act::CheckUpdates | Act::InstallUpdates | Act::StopUpdates | Act::RestartForUpdates => {
+        Act::CheckUpdates | Act::InstallUpdates(_) | Act::StopUpdates | Act::RestartForUpdates => {
             let proxy = isle_ipc::updates::UpdatesProxy::new(&session()?)
                 .await
                 .map_err(|e| err(&e))?;
             let why = match act {
                 Act::CheckUpdates => proxy.check().await.map(|()| String::new()),
-                Act::InstallUpdates => proxy.install().await,
+                Act::InstallUpdates(part) => proxy.install(&part).await,
                 Act::StopUpdates => proxy.stop().await,
                 _ => proxy.restart().await.map(|()| String::new()),
             }

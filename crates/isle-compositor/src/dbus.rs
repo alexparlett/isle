@@ -270,10 +270,10 @@ impl UpdatesIface {
         Ok(())
     }
 
-    async fn install(&self) -> fdo::Result<String> {
-        match self.to_loop.call(|state| state.may_install()).await? {
+    async fn install(&self, part: String) -> fdo::Result<String> {
+        match self.to_loop.call(move |state| state.may_install(&part)).await? {
             Err(why) => Ok(why),
-            Ok(isle) => Ok(crate::updates::start_run(isle).await.err().unwrap_or_default()),
+            Ok(part) => Ok(crate::updates::start_run(part).await.err().unwrap_or_default()),
         }
     }
 

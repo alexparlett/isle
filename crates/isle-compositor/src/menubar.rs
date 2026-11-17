@@ -35,8 +35,6 @@ pub enum Command {
     /// System Settings, at a pane when one is named.
     Settings(Option<&'static str>),
     About,
-    /// General › Software Update.
-    SoftwareUpdate,
     Hide,
     HideOthers,
     ShowAll,
@@ -508,10 +506,9 @@ impl State {
         let mut system = vec![
             b.item("About This Computer", Some(Command::Settings(Some("general"))), None),
             MenuEntry::Separator,
-            b.item("System Settings…", Some(Command::Settings(None)), None),
             b.badged(
-                "Software Update…",
-                Command::SoftwareUpdate,
+                "System Settings…",
+                Command::Settings(None),
                 updates_count.map(|n| n.to_string()),
             ),
         ];
@@ -1350,9 +1347,6 @@ impl State {
                 self.open_settings(pane, None);
             }
             Command::About => self.open_about(&app),
-            Command::SoftwareUpdate => {
-                self.open_settings(Some("general"), Some(crate::updates::ROW));
-            }
             Command::Hide => {
                 self.set_app_hidden(&app, true);
             }

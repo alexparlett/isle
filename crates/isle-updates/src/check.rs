@@ -26,8 +26,39 @@ pub struct Pending {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Check {
     pub pending: Vec<Pending>,
+    /// What the repositories' updates hold, named for Software Update's CachyOS card.
+    #[serde(default)]
+    pub system: crate::System,
     /// Seconds since the epoch.
     pub checked_at: u64,
+}
+
+/// What a run updates: the repositories, Isle's own build, or both in one run.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Part {
+    System,
+    Isle,
+    Both,
+}
+
+impl Part {
+    pub fn parse(word: &str) -> Option<Part> {
+        match word {
+            "system" => Some(Part::System),
+            "isle" => Some(Part::Isle),
+            "both" => Some(Part::Both),
+            _ => None,
+        }
+    }
+
+    pub fn word(self) -> &'static str {
+        match self {
+            Part::System => "system",
+            Part::Isle => "isle",
+            Part::Both => "both",
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -145,33 +176,35 @@ impl Tools {
         }
     }
 
-    /// The run: `pacman -Syu` through pkexec. With Isle's package waiting, paru runs it
-    /// instead in repository and PKGBUILD mode, so one process asks once for both and the
-    /// AUR is never looked at; it rebuilds Isle only when named, until it has installed it
-    /// once.
-    pub fn run_argv(&self, isle: bool) -> Vec<std::ffi::OsString> {
-        let (first, words): (std::ffi::OsString, &[&str]) = match (&self.paru, isle) {
-            (Some(paru), true) => (
+    /// The run. The system is `pacman -Syu` through pkexec. Isle's build is paru in PKGBUILD
+    /// mode, naming Isle's package, which paru rebuilds only when named until it has installed
+    /// it once; both together are one paru in repository and PKGBUILD mode, so one process asks
+    /// once and the AUR is never looked at. Without paru, Isle cannot be built.
+    pub fn run_argv(&self, part: Part) -> Vec<std::ffi::OsString> {
+        const PARU: [&str; 5] = [
+            "--noconfirm",
+            "--skipreview",
+            "--noprogressbar",
+            "--sudo",
+            "pkexec",
+        ];
+        let (first, words): (std::ffi::OsString, Vec<&str>) = match (&self.paru, part) {
+            (Some(paru), Part::Both) => (
                 paru.clone().into_os_string(),
-                &[
-                    "-Syu",
-                    "--mode=rp",
-                    "--noconfirm",
-                    "--skipreview",
-                    "--noprogressbar",
-                    "--sudo",
-                    "pkexec",
-                    ISLE_PACKAGE,
-                ],
+                [&["-Syu", "--mode=rp"][..], &PARU, &[ISLE_PACKAGE]].concat(),
+            ),
+            (Some(paru), Part::Isle) => (
+                paru.clone().into_os_string(),
+                [&["-S", "--mode=p"][..], &PARU, &[ISLE_PACKAGE]].concat(),
             ),
             _ => match &self.pacman {
                 Some(pacman) => (
                     pacman.clone().into_os_string(),
-                    &["-Syu", "--noconfirm", "--noprogressbar"],
+                    vec!["-Syu", "--noconfirm", "--noprogressbar"],
                 ),
                 None => (
                     "pkexec".into(),
-                    &["pacman", "-Syu", "--noconfirm", "--noprogressbar"],
+                    vec!["pacman", "-Syu", "--noconfirm", "--noprogressbar"],
                 ),
             },
         };
@@ -219,16 +252,18 @@ pub async fn check(tools: &Tools, now: u64) -> Result<Check, CheckError> {
     }
     let mut pending = parse_updates(&String::from_utf8_lossy(&out.stdout), Source::Repositories);
 
+    let root =
+        std::env::var_os("ISLE_UPDATES_ROOT").map_or_else(|| PathBuf::from("/"), PathBuf::from);
     // Only paru can build Isle, so without it Isle's commit is not looked at.
-    if tools.paru.is_some() {
-        let root =
-            std::env::var_os("ISLE_UPDATES_ROOT").map_or_else(|| PathBuf::from("/"), PathBuf::from);
-        if let Some(isle) = isle_update(&root).await? {
-            pending.push(isle);
-        }
+    if tools.paru.is_some()
+        && let Some(isle) = isle_update(&root).await?
+    {
+        pending.push(isle);
     }
+    let system = crate::system::summarise(&root, &pending);
     Ok(Check {
         pending,
+        system,
         checked_at: now,
     })
 }

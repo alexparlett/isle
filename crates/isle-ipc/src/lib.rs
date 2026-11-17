@@ -945,8 +945,9 @@ pub mod updates {
         fn status(&self) -> zbus::Result<String>;
         /// Looks for updates now and returns once the check is done.
         fn check(&self) -> zbus::Result<()>;
-        /// Starts the full upgrade; returns why not, or nothing once it has started.
-        fn install(&self) -> zbus::Result<String>;
+        /// Starts a run of `part` ("system", "isle", or "" for everything waiting); returns why
+        /// not, or nothing once it has started.
+        fn install(&self, part: &str) -> zbus::Result<String>;
         /// Stops the run; returns why not, or nothing once asked.
         fn stop(&self) -> zbus::Result<String>;
         /// The session dialog's restart, to finish an update.

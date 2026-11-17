@@ -391,15 +391,18 @@ enum UpdateCommand {
         /// Follow the run until it ends, and exit with its result.
         #[arg(long)]
         wait: bool,
+        /// Only the system ("system") or only Isle ("isle"); everything waiting without it.
+        #[arg(long, default_value = "")]
+        part: String,
     },
     /// Stop the run, unless pacman is installing.
     Stop,
     /// The run itself, as the transient unit starts it.
     #[command(hide = true)]
     Run {
-        /// Isle's own package is among the updates.
-        #[arg(long)]
-        isle: bool,
+        /// What the run updates: system, isle or both.
+        #[arg(long, default_value = "system")]
+        part: String,
     },
 }
 
@@ -555,8 +558,10 @@ async fn main() -> ExitCode {
             return widget_run(folder, size.as_deref(), *no_grants, cli.json).await;
         }
         Command::Awake { display, command } => return awake(*display, command).await,
-        Command::Update(UpdateCommand::Run { isle }) => return update_run(*isle),
-        Command::Update(UpdateCommand::Install { wait: true }) => return update_and_wait(cli.json).await,
+        Command::Update(UpdateCommand::Run { part }) => return update_run(part),
+        Command::Update(UpdateCommand::Install { wait: true, part }) => {
+            return update_and_wait(part, cli.json).await;
+        }
         _ => {}
     }
     match run(&cli).await {
@@ -617,7 +622,11 @@ async fn awake(display: bool, command: &[String]) -> ExitCode {
 }
 
 /// `isle update run`: the full upgrade, with paru on Isle's own config so it can build Isle.
-fn update_run(isle: bool) -> ExitCode {
+fn update_run(part: &str) -> ExitCode {
+    let Some(part) = isle_updates::Part::parse(part) else {
+        eprintln!("isle: no part called {part}");
+        return ExitCode::FAILURE;
+    };
     let home = |var: &str, under: &str| {
         std::env::var_os(var)
             .map(std::path::PathBuf::from)
@@ -627,14 +636,14 @@ fn update_run(isle: bool) -> ExitCode {
     };
     let tools = isle_updates::Tools::from_env();
     let mut envs = Vec::new();
-    if tools.paru.is_some() {
+    if tools.paru.is_some() && part != isle_updates::Part::System {
         let dir = home("XDG_CACHE_HOME", ".cache").join("isle/updates");
         match isle_updates::paru_config(&dir, &home("XDG_CONFIG_HOME", ".config")) {
             Ok(path) => envs.push(("PARU_CONF".into(), path.into_os_string())),
             Err(err) => eprintln!("isle: paru's config for Isle: {err}"),
         }
     }
-    let code = isle_updates::run(&tools.run_argv(isle), &envs, &isle_updates::progress_path());
+    let code = isle_updates::run(&tools.run_argv(part), &envs, &isle_updates::progress_path());
     ExitCode::from(code.clamp(0, 255) as u8)
 }
 
@@ -666,11 +675,11 @@ fn print_update_status(status: &str) {
 }
 
 /// `isle update install --wait`: starts the run and follows it until it ends.
-async fn update_and_wait(json: bool) -> ExitCode {
+async fn update_and_wait(part: &str, json: bool) -> ExitCode {
     let followed = async {
         let bus = zbus::Connection::session().await?;
         let proxy = isle_ipc::updates::UpdatesProxy::new(&bus).await?;
-        let why = proxy.install().await?;
+        let why = proxy.install(part).await?;
         if !why.is_empty() {
             return Err(zbus::Error::Failure(why));
         }
@@ -1169,7 +1178,8 @@ async fn run(cli: &Cli) -> zbus::Result<()> {
                 UpdateCommand::Install { .. } | UpdateCommand::Stop => {
                     let why = match command {
                         UpdateCommand::Stop => proxy.stop().await?,
-                        _ => proxy.install().await?,
+                        UpdateCommand::Install { part, .. } => proxy.install(part).await?,
+                        _ => String::new(),
                     };
                     if !why.is_empty() {
                         return Err(zbus::Error::Failure(why));

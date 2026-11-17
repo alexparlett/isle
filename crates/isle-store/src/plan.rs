@@ -100,7 +100,7 @@ pub fn parse_remote_info(out: &str) -> (Option<u64>, Option<String>) {
             continue;
         };
         match key.trim() {
-            "Download" => size = parse_size(value.trim()),
+            "Download" | "Download Size" => size = parse_size(value.trim()),
             "Runtime" => runtime = Some(value.trim().to_string()),
             _ => {}
         }
@@ -314,9 +314,12 @@ fn flathub_get(app: &str) -> Plan {
             let (size, _) = run("flatpak", &["remote-info", isle_updates::flathub_installation(), "flathub", &runtime])
                 .map(|(_, out, _)| parse_remote_info(&out))
                 .unwrap_or_default();
+            // `org.gnome.Platform/x86_64/50`: the runtime and its version.
+            let mut parts = runtime.split('/');
+            let (name, version) = (parts.next().unwrap_or_default(), parts.nth(1).unwrap_or_default());
             plan.packages.push(Package {
-                name: runtime,
-                version: String::new(),
+                name: name.to_string(),
+                version: version.to_string(),
                 size,
             });
         }
@@ -405,6 +408,10 @@ mod tests {
         assert_eq!(
             parse_remote_info(out),
             (Some(112_600_000), Some("org.kde.Platform/x86_64/6.8".into()))
+        );
+        assert_eq!(
+            parse_remote_info(" Download Size: 930.5 kB\n       Runtime: org.gnome.Platform/x86_64/50\n").0,
+            Some(930_500)
         );
         assert_eq!(size(532_000_000), "532 MB");
         assert_eq!(size(1_234_000_000), "1.2 GB");

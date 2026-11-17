@@ -58,6 +58,8 @@ pub struct Reader {
     table_rows: bool,
     building: Option<String>,
     last_error: Option<String>,
+    /// The flatpak ref being worked on, finished when the next one starts.
+    flatpak_ref: Option<String>,
     known: Option<String>,
     refused: bool,
 }
@@ -190,6 +192,22 @@ impl Reader {
                 let mut word = verb.to_string();
                 word[..1].make_ascii_uppercase();
                 self.progress.phase = format!("{word} {}", display(name));
+                return;
+            }
+        }
+        // flatpak's non-interactive runs: `Installing runtime/<id>/<arch>/<branch>`.
+        for (verb, word) in [("Installing ", "Installing"), ("Updating ", "Updating"), ("Uninstalling ", "Removing")] {
+            if let Some(id) = l
+                .strip_prefix(verb)
+                .and_then(|r| r.split('/').nth(1))
+                .filter(|_| l.contains('/'))
+            {
+                self.announced.insert(id.to_string());
+                if let Some(before) = self.flatpak_ref.replace(id.to_string()) {
+                    self.finished.insert(before);
+                }
+                self.count();
+                self.progress.phase = format!("{word} {id}");
                 return;
             }
         }
@@ -451,6 +469,15 @@ mod tests {
             r.line(line);
         }
         assert_eq!((r.progress.total, r.progress.done), (2, 1));
+    }
+
+    #[test]
+    fn flatpak_s_refs_are_counted() {
+        let mut r = Reader::new(0, 1);
+        r.line("Installing runtime/org.gnome.Platform/x86_64/50");
+        r.line("Installing app/com.github.tchx84.Flatseal/x86_64/stable");
+        assert_eq!(r.progress.phase, "Installing com.github.tchx84.Flatseal");
+        assert_eq!((r.progress.done, r.progress.total), (1, 2));
     }
 
     #[test]

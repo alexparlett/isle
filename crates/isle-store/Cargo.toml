@@ -1,0 +1,25 @@
+[package]
+name = "isle-store"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "isle-store"
+path = "src/main.rs"
+
+[dependencies]
+freya = { workspace = true, features = ["winit"] }
+futures-channel = "0.3"
+futures-util = { workspace = true, features = ["std"] }
+isle-app.workspace = true
+isle-apps.workspace = true
+isle-ipc.workspace = true
+isle-tokens.workspace = true
+isle-ui.workspace = true
+isle-updates.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zbus.workspace = true

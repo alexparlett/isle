@@ -643,7 +643,12 @@ fn update_run(part: &str) -> ExitCode {
             Err(err) => eprintln!("isle: paru's config for Isle: {err}"),
         }
     }
-    let code = isle_updates::run(&tools.run_argv(&part), &envs, &isle_updates::progress_path());
+    let code = isle_updates::run(
+        &tools.run_argv(&part),
+        &envs,
+        &isle_updates::progress_path(),
+        &part.word(),
+    );
     ExitCode::from(code.clamp(0, 255) as u8)
 }
 

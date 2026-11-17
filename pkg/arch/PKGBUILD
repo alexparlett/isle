@@ -10,6 +10,7 @@ arch=(x86_64)
 url='https://github.com/alexparlett/isle'
 license=('LicenseRef-Isle' 'MIT')
 depends=(
+  archlinux-appstream-data
   ffmpeg fontconfig freetype2 gcc-libs glibc libdisplay-info libglvnd libinput
   libpipewire libxkbcommon mesa pam seatd sqlite systemd systemd-libs wayland
   accountsservice dbus gnome-keyring libarchive pipewire-pulse polkit xdg-desktop-portal
@@ -25,6 +26,7 @@ optdepends=(
   'gcr-4: the SSH agent'
   'greetd: signing in at the greeter'
   'greetd-tuigreet: the greeter when the compositor cannot draw'
+  'flatpak: apps from Flathub in Store'
   'squashfs-tools: AppImages'
   'udisks2: drives and disk images in Files'
   'xdg-terminal-exec: apps that run in a terminal'
@@ -78,13 +80,13 @@ build() {
   # (B26).
   cargo build --frozen --release \
     -p isle-compositor -p isle-session -p isle-cli -p isle-auth -p isle-record -p isle-providers
-  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail -p isle-monitor -p isle-process-helper -p isle-cleaner -p isle-clean-helper -p isle-keychain
+  cargo build --frozen --release -p isle-system-settings -p isle-files -p isle-thumbnail -p isle-monitor -p isle-process-helper -p isle-cleaner -p isle-clean-helper -p isle-keychain -p isle-store
 }
 
 package() {
   cd isle
   local target="${ISLE_TARGET_DIR:-$startdir/target}/release"
-  for bin in isle-compositor isle-session isle isle-auth isle-record isle-provider-init isle-settings isle-files isle-thumbnail isle-monitor isle-cleaner isle-keychain; do
+  for bin in isle-compositor isle-session isle isle-auth isle-record isle-provider-init isle-settings isle-files isle-thumbnail isle-monitor isle-cleaner isle-keychain isle-store; do
     install -Dm755 "$target/$bin" "$pkgdir/usr/bin/$bin"
   done
   install -Dm644 data/session/isle.desktop "$pkgdir/usr/share/wayland-sessions/isle.desktop"
@@ -121,6 +123,10 @@ package() {
     "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Keychain.desktop"
   install -Dm644 data/apps/io.github.alexparlett.Isle.Keychain.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Keychain.service"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Store.desktop \
+    "$pkgdir/usr/share/applications/io.github.alexparlett.Isle.Store.desktop"
+  install -Dm644 data/apps/io.github.alexparlett.Isle.Store.service \
+    "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.Store.service"
   install -Dm644 data/apps/org.freedesktop.FileManager1.service \
     "$pkgdir/usr/share/dbus-1/services/io.github.alexparlett.Isle.FileManager1.service"
   install -Dm644 data/pam/isle "$pkgdir/usr/lib/pam.d/isle"

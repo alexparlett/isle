@@ -35,6 +35,8 @@ pub enum Command {
     /// System Settings, at a pane when one is named.
     Settings(Option<&'static str>),
     About,
+    /// The Store app.
+    Store,
     Hide,
     HideOthers,
     ShowAll,
@@ -412,6 +414,7 @@ impl State {
         let labels = self.labels();
         let game = self.focus_is_game();
         let updates_count = self.isle.updates_count();
+        let store_count = self.isle.store_count();
         let restart_owed = !self.isle.updates.restart.is_empty();
         let names: Vec<String> = {
             let mut n = self.focus_names();
@@ -511,6 +514,7 @@ impl State {
                 Command::Settings(None),
                 updates_count.map(|n| n.to_string()),
             ),
+            b.badged("Store…", Command::Store, store_count.map(|n| n.to_string())),
         ];
         if restart_owed {
             system.push(b.item(
@@ -1347,6 +1351,13 @@ impl State {
                 self.open_settings(pane, None);
             }
             Command::About => self.open_about(&app),
+            Command::Store => {
+                self.launch(crate::launch::Launch::App {
+                    app: "io.github.alexparlett.Isle.Store".into(),
+                    action: None,
+                    uris: Vec::new(),
+                });
+            }
             Command::Hide => {
                 self.set_app_hidden(&app, true);
             }

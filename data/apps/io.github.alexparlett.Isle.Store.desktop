@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Store
+Comment=Find, install and update apps from CachyOS, Flathub, the AUR and AppImages
+Icon=system-software-install
+Exec=isle-store
+DBusActivatable=true
+StartupNotify=true
+Categories=System;PackageManager;
+Keywords=Apps;Install;Updates;Software;Flatpak;Flathub;AUR;AppImage;Packages;
+OnlyShowIn=Isle;

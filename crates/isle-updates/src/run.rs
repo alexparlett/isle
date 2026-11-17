@@ -40,6 +40,10 @@ pub struct Progress {
     pub code: Option<i32>,
     pub reason: Option<String>,
     pub pid: u32,
+    /// What the run updates, as `Part::word` names it: Software Update shows the system's,
+    /// Store the rest.
+    #[serde(default)]
+    pub part: String,
 }
 
 /// Reads the run's lines into its progress.
@@ -311,7 +315,7 @@ fn now() -> u64 {
 /// the unit.
 /// SIGTERM, which Stop sends the whole unit, is noted rather than obeyed: the child ends of it
 /// and the record still gets written.
-pub fn run(argv: &[OsString], envs: &[(OsString, OsString)], path: &Path) -> i32 {
+pub fn run(argv: &[OsString], envs: &[(OsString, OsString)], path: &Path, part: &str) -> i32 {
     // A handler, not SIG_IGN, so the child starts with SIGTERM at its default.
     unsafe {
         let mut action: libc::sigaction = std::mem::zeroed();
@@ -319,6 +323,7 @@ pub fn run(argv: &[OsString], envs: &[(OsString, OsString)], path: &Path) -> i32
         libc::sigaction(libc::SIGTERM, &action, std::ptr::null_mut());
     }
     let mut reader = Reader::new(now(), std::process::id());
+    reader.progress.part = part.to_string();
     let _ = write_progress(path, &reader.progress);
 
     let mut fds = [0; 2];
@@ -512,7 +517,7 @@ mod tests {
         ]
         .map(Into::into)
         .to_vec();
-        assert_eq!(run(&argv, &[], &path), 0);
+        assert_eq!(run(&argv, &[], &path, "system"), 0);
         let p = read_progress(&path).unwrap();
         assert_eq!((p.state, p.done, p.total), (RunState::Done, 1, 1));
         let argv: Vec<OsString> = [
@@ -522,7 +527,7 @@ mod tests {
         ]
         .map(Into::into)
         .to_vec();
-        assert_eq!(run(&argv, &[], &path), 1);
+        assert_eq!(run(&argv, &[], &path, "system"), 1);
         assert_eq!(read_progress(&path).unwrap().state, RunState::Failed);
         std::fs::remove_dir_all(dir).unwrap();
     }

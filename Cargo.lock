@@ -5179,6 +5179,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "isle-store"
+version = "0.1.0"
+dependencies = [
+ "freya",
+ "futures-channel",
+ "futures-util",
+ "isle-app",
+ "isle-apps",
+ "isle-ipc",
+ "isle-tokens",
+ "isle-ui",
+ "isle-updates",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
 name = "isle-sun"
 version = "0.1.0"
 

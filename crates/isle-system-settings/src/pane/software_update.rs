@@ -243,6 +243,10 @@ pub fn cards(s: &Value) -> Vec<Card> {
     if let Some(pending) = own["pending"].as_array_mut() {
         pending.retain(|p| p["source"] == "Repositories" || p["source"] == "Isle");
     }
+    let part = own["progress"]["part"].as_str().unwrap_or_default();
+    if part.starts_with("flathub") || part.starts_with("aur") {
+        own["progress"] = Value::Null;
+    }
     let s = &own;
     let first = Card::from_status(s);
     let running = s["progress"]["state"] == "Running";

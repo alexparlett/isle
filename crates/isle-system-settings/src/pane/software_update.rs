@@ -244,7 +244,7 @@ pub fn cards(s: &Value, app_name: &dyn Fn(&str) -> Option<String>) -> Vec<Card> 
         pending.retain(|p| p["source"] == "Repositories" || p["source"] == "Isle");
     }
     let part = own["progress"]["part"].as_str().unwrap_or_default();
-    if part.starts_with("flathub") || part.starts_with("aur") {
+    if part.starts_with("flathub") || part.starts_with("aur") || part.starts_with("install") {
         own["progress"] = Value::Null;
     }
     let s = &own;

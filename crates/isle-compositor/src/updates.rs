@@ -315,6 +315,12 @@ impl State {
                 Some(Part::Aur(_)) if system => {
                     Err("Update CachyOS first, in Software Update.".into())
                 }
+                Some(Part::Install { catalogue, .. }) if catalogue == "aur" && system => {
+                    Err("Update CachyOS first, in Software Update.".into())
+                }
+                Some(Part::Install { catalogue, id, .. }) if catalogue == "cachyos" => {
+                    Ok(Part::Install { catalogue, id, with_updates: system })
+                }
                 Some(part) => Ok(part),
                 None => Err(format!("No part called {other}.")),
             },

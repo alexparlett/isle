@@ -802,7 +802,8 @@
   and AppImages. Building from 14e.0.
 - P14e 14e.0–14e.3 built and walked in the VM 2026-11-17: Software Update
   for the system, `isle-catalog`, Flathub and the AUR in the check, Store
-  with Updates by catalogue and Installed. Next: 14e.4 (catalogue pages
-  and search), 14e.5 (Discover, Browse, app pages, with JPEG XL icons),
-  14e.6 (Get and Remove).
+  with Updates by catalogue and Installed.
+- P14e 14e.4–14e.6 built 2026-11-17: catalogue pages, search, Discover,
+  Browse, app pages, and Get and Remove with their sheets. Next: 14e.7
+  (package and VM walk), 14e.8 (the host).
 

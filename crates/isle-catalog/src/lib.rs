@@ -2,3 +2,5 @@
 //! (`p14e-store.md` choices 4–8).
 
 pub mod appstream;
+pub mod icons;
+pub mod catalogue;

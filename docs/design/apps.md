@@ -433,6 +433,33 @@ D89: rules as data, XDG cache first, root's share by its own tools. D90: own fil
 `data/cleaner/rules.kdl` and the user's `~/.config/isle/cleaner/rules.kdl` beside it, a user rule
 replacing a shipped one of the same id (`p19b-cleaner.md` choice 11).
 
+### Store
+
+The user gets a store like the Mac's App Store over the catalogues CachyOS offers, shaped like
+CachyOS's Package Installer 2.0 (`p14e-store.md`): apps found, read about, got, removed and
+updated, with the catalogue each comes from always named.
+
+1. Four catalogues: CachyOS's repositories, Flathub, the AUR and AppImages. A sidebar of Discover,
+   Browse, Installed and Updates, then Catalogues with a page each saying what it is and who stands
+   behind it; every app wears its catalogue's badge.
+2. CachyOS and Flathub are read from AppStream; an app is a component with a desktop entry, and a
+   library or tool is never listed. The AUR is searched through its RPC and shows its own facts
+   (votes, popularity, maintainer, last updated, out of date). AppImages are those Isle registered
+   from `~/Applications`.
+3. Search covers every catalogue, grouped by catalogue, and a pop-up narrows it to one.
+4. An app's page: icon, name, summary, developer, catalogue; Get or Open; its size and what else it
+   installs; the same app in another catalogue; screenshots; description; optional extras ("Works
+   better with"), each with its own Get and never installed for you; information.
+5. What Get installs and Remove takes is listed before the password. Get with nothing else to bring
+   starts at once. With CachyOS updates waiting, Get from CachyOS is Update and Install, and the
+   AUR waits until they are done, since pacman never does a partial upgrade.
+6. Remove takes what only the app needed; an app another package needs is refused, naming it.
+7. Updates covers Flathub, the AUR and AppImages by catalogue, each with Update All, and Update
+   Everything; apps from CachyOS update with the system in Settings › Software Update and are
+   listed there "With the system".
+8. Every run is Software Update's: a transient unit, one password, it outlives the window, Stop only
+   outside a transaction, failures said in words.
+
 ## For the design process
 
 What this document leaves to P1, per app; "proposal" is the answer it gave before.

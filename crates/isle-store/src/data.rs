@@ -1,18 +1,34 @@
-//! Store's worker: follows `Updates1`, reads the installed apps, and carries the window's asks
-//! to the compositor.
+//! Store's worker: follows `Updates1`, reads the installed apps and the catalogues, works out
+//! what Get and Remove do, and carries the window's asks to the compositor.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
+
+use isle_catalog::catalogue::{self, Offer};
 
 use futures_channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures_util::StreamExt;
 use tracing::warn;
 
 use crate::installed::{self, App};
+use crate::plan::{self, Plan};
 
 pub enum Event {
     /// `Updates1.Status`, read again on every change.
     Status(serde_json::Value),
     Installed(Vec<App>),
+    /// Every package installed, by name.
+    Packages(HashSet<String>),
+    /// CachyOS's and Flathub's apps.
+    Offers(Vec<Offer>),
+    /// Catalogue icons made drawable: the catalogue's file and the drawable one.
+    Icons(Vec<(PathBuf, Option<PathBuf>)>),
+    /// A screenshot fetched: its address and the local copy.
+    Shot(String, PathBuf),
+    /// The AUR's answer to a search.
+    Aur(String, Result<Vec<Offer>, String>),
+    /// What Get or Remove would do, by the key it was asked under.
+    Plan(String, Plan),
     /// Why the last ask was refused or failed.
     Failed(String),
 }
@@ -26,6 +42,11 @@ pub enum Ask {
     /// Settings at Software Update, where the system updates.
     SoftwareUpdate,
     Rescan,
+    Icons(Vec<PathBuf>),
+    Shots(Vec<String>),
+    SearchAur(String),
+    PlanGet(String, Offer),
+    PlanRemove(String, String, String),
 }
 
 #[derive(Clone)]
@@ -51,6 +72,125 @@ pub fn start(
     let (events, rx) = unbounded();
     worker.spawn(run(asked, events, bus));
     (Data(asks), rx)
+}
+
+fn packages() -> HashSet<String> {
+    std::fs::read_dir("/var/lib/pacman/local")
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|d| {
+            let dir = d.file_name().to_string_lossy().into_owned();
+            let mut parts = dir.rsplitn(3, '-');
+            parts.next()?;
+            parts.next()?;
+            parts.next().map(str::to_owned)
+        })
+        .collect()
+}
+
+fn cache(kind: &str) -> PathBuf {
+    let base = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache")))
+        .unwrap_or_else(std::env::temp_dir);
+    base.join("isle/store").join(kind)
+}
+
+fn offers() -> Vec<Offer> {
+    let root = std::path::Path::new("/");
+    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let mut all = catalogue::repositories(root);
+    all.extend(catalogue::flathub(&home, root));
+    all
+}
+
+async fn shot(url: String) -> Option<PathBuf> {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    url.hash(&mut h);
+    let ext = url.rsplit('.').next().filter(|e| e.len() <= 4).unwrap_or("png");
+    let dir = cache("shots");
+    let path = dir.join(format!("{:016x}.{ext}", h.finish()));
+    if path.exists() {
+        return Some(path);
+    }
+    let bytes = reqwest::Client::new()
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(30))
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?
+        .bytes()
+        .await
+        .ok()?;
+    std::fs::create_dir_all(&dir).ok()?;
+    let part = path.with_extension("part");
+    std::fs::write(&part, &bytes).ok()?;
+    std::fs::rename(&part, &path).ok()?;
+    Some(path)
+}
+
+/// The latest search asked for, so an older one's answer is dropped and typing is not a
+/// request per key.
+static LATEST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+async fn search_aur(term: String, events: UnboundedSender<Event>) {
+    *LATEST.lock().unwrap() = term.clone();
+    tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+    if *LATEST.lock().unwrap() != term {
+        return;
+    }
+    let got = catalogue::search_aur(&term).await;
+    let _ = events.unbounded_send(Event::Aur(term, got));
+}
+
+/// The asks that only read, each in its own task so a slow one holds up none.
+fn side(ask: Ask, events: &UnboundedSender<Event>) -> Option<Ask> {
+    let events = events.clone();
+    match ask {
+        Ask::Icons(list) => {
+            tokio::task::spawn_blocking(move || {
+                let dir = cache("icons");
+                let made = list
+                    .into_iter()
+                    .map(|icon| {
+                        let drawable = isle_catalog::icons::drawable(&icon, &dir);
+                        (icon, drawable)
+                    })
+                    .collect();
+                let _ = events.unbounded_send(Event::Icons(made));
+            });
+        }
+        Ask::Shots(urls) => {
+            for url in urls {
+                let events = events.clone();
+                tokio::spawn(async move {
+                    if let Some(path) = shot(url.clone()).await {
+                        let _ = events.unbounded_send(Event::Shot(url, path));
+                    }
+                });
+            }
+        }
+        Ask::SearchAur(term) => {
+            tokio::spawn(search_aur(term, events));
+        }
+        Ask::PlanGet(key, offer) => {
+            tokio::spawn(async move {
+                let got = plan::get(offer).await;
+                let _ = events.unbounded_send(Event::Plan(key, got));
+            });
+        }
+        Ask::PlanRemove(key, catalogue, id) => {
+            tokio::task::spawn_blocking(move || {
+                let _ = events.unbounded_send(Event::Plan(key, plan::remove(&catalogue, &id)));
+            });
+        }
+        other => return Some(other),
+    }
+    None
 }
 
 fn scan() -> Vec<App> {
@@ -116,7 +256,7 @@ async fn act(bus: &zbus::Connection, ask: Ask) -> Result<(), String> {
                 .map_err(err)?;
             String::new()
         }
-        Ask::Rescan => String::new(),
+        _ => String::new(),
     };
     if why.is_empty() { Ok(()) } else { Err(why) }
 }
@@ -128,6 +268,13 @@ async fn run(
 ) {
     let installed = tokio::task::spawn_blocking(scan).await.unwrap_or_default();
     let _ = events.unbounded_send(Event::Installed(installed));
+    let _ = events.unbounded_send(Event::Packages(packages()));
+    {
+        let events = events.clone();
+        tokio::task::spawn_blocking(move || {
+            let _ = events.unbounded_send(Event::Offers(offers()));
+        });
+    }
     let Some(bus) = bus else {
         let _ = events.unbounded_send(Event::Failed("Isle is not running on this session.".into()));
         return;
@@ -141,9 +288,13 @@ async fn run(
         });
     }
     while let Some(ask) = asked.next().await {
+        let Some(ask) = side(ask, &events) else {
+            continue;
+        };
         if matches!(ask, Ask::Rescan) {
             let installed = tokio::task::spawn_blocking(scan).await.unwrap_or_default();
             let _ = events.unbounded_send(Event::Installed(installed));
+            let _ = events.unbounded_send(Event::Packages(packages()));
             continue;
         }
         if let Err(why) = act(&bus, ask).await {

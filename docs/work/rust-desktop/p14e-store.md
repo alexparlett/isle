@@ -160,11 +160,34 @@ Open and Remove….
 
 ### 14e.4 · Catalogue pages and search
 
+A Catalogues section in the sidebar, a page each saying what it is and who
+stands behind it: CachyOS's and Flathub's apps listed sixty at a time, the
+AUR's searched (it has no pictures or categories), AppImages' installed
+ones. Search in the toolbar over CachyOS and Flathub as typed and the AUR's
+RPC after a pause, grouped by catalogue, narrowed by a pop-up.
+
 ### 14e.5 · Discover, Browse and app pages
+
+Discover: Isle's featured list, then a row per category chosen afresh each
+day among apps with an icon and a screenshot. Browse: the categories, each
+a page. An app's page: icon, name, summary, developer, catalogue; Get or
+Open, its size and what it also installs; Also in, for the same app in
+another catalogue; screenshots fetched and kept in
+`~/.cache/isle/store/shots`; About; Works better with; Information, with
+the AUR's own facts. Catalogue icons in JPEG XL are made PNG in
+`~/.cache/isle/store/icons` as a page first draws them.
 
 ### 14e.6 · Get and Remove
 
-The sheets, the lists, the refusals, Works better with.
+Get goes straight to its run when the app brings nothing else; otherwise a
+sheet lists the packages with versions and sizes (`pacman -S --print`,
+the AUR's info and `pacman -T`, `flatpak remote-info` and its runtime).
+With CachyOS's updates waiting it says so and offers Update and Install
+(`install:cachyos+updates:<pkg>`, `pacman -Syu --needed <pkg>`); the AUR
+is refused until they are done. Remove lists what goes from `pacman -Rs
+--print` and runs `pacman -Rns`, or names who needs it; Flathub's keeps the
+app's data. Parts `install:<catalogue>[+updates]:<id>` and
+`remove:<catalogue>:<id>` run through `Updates1.Install` like every other.
 
 ### 14e.7 · The package, the bars and the walk
 

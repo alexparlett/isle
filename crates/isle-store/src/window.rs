@@ -1,32 +1,45 @@
-//! Store's window (`p14e-store.md`, board `p14e/store-1.html`): the sidebar, then Updates by
-//! catalogue or the installed apps.
+//! Store's window (`p14e-store.md`, board `p14e/store-1.html`): the sidebar, a toolbar with
+//! Back and search, then the page.
 
-use std::{cell::RefCell, collections::VecDeque, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet, VecDeque},
+    path::PathBuf,
+    rc::Rc,
+};
 
 use freya::prelude::*;
 use isle_app::ToolbarExt;
+use isle_catalog::catalogue::{Kind as Offered, Offer};
 use isle_tokens::{Colour, Theme};
-use isle_ui::{AppIcon, Button, Glyph, button::Kind, colour, scroll_area, text, use_theme};
+use isle_ui::{AppIcon, Button, Glyph, SearchField, button::Kind, colour, scroll_area, text, use_theme};
 use serde_json::Value;
 
 use crate::{
     data::{self, Ask, Event},
     installed::{App, Catalogue},
+    pages::{self, Ctx, Sheet},
+    plan::Plan,
 };
 
 /// The compositor's lights over the toolbar's leading end.
 const LIGHTS: f32 = 68.;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq)]
 pub enum Page {
-    Updates,
+    Discover,
+    Browse,
+    Category(&'static str),
     Installed,
+    Updates,
+    Catalogue(Catalogue),
+    App(Box<Offer>),
 }
 
 #[derive(Clone, PartialEq)]
 pub struct StoreWindow;
 
-fn hue(theme: &Theme, name: &str) -> Colour {
+pub fn hue(theme: &Theme, name: &str) -> Colour {
     let t = &theme.tokens;
     match name {
         "teal" => t.pane_teal,
@@ -38,7 +51,7 @@ fn hue(theme: &Theme, name: &str) -> Colour {
 }
 
 /// A catalogue's name in its hue, as every app and package wears it.
-fn badge(theme: &Theme, catalogue: Catalogue) -> Element {
+pub fn badge(theme: &Theme, catalogue: Catalogue) -> Element {
     let t = &theme.tokens;
     let ink = colour(hue(theme, catalogue.hue()));
     rect()
@@ -132,7 +145,7 @@ fn update_row(
         .into_element()
 }
 
-fn section(theme: &Theme, title: &str, trailing: Option<Element>) -> Element {
+pub fn section(theme: &Theme, title: &str, trailing: Option<Element>) -> Element {
     let t = &theme.tokens;
     rect()
         .width(Size::fill())
@@ -160,7 +173,7 @@ fn section(theme: &Theme, title: &str, trailing: Option<Element>) -> Element {
         .into_element()
 }
 
-fn note(theme: &Theme, line: impl Into<String>) -> Element {
+pub fn note(theme: &Theme, line: impl Into<String>) -> Element {
     let t = &theme.tokens;
     text::line(theme, text::Style::Callout, colour(t.colour_text_2), line).into_element()
 }
@@ -169,7 +182,8 @@ fn note(theme: &Theme, line: impl Into<String>) -> Element {
 fn store_run(status: &Value) -> Option<&Value> {
     let run = &status["progress"];
     let part = run["part"].as_str().unwrap_or_default();
-    (part.starts_with("flathub") || part.starts_with("aur")).then_some(run)
+    (part.starts_with("flathub") || part.starts_with("aur") || part.starts_with("install"))
+        .then_some(run)
 }
 
 fn pending<'a>(status: &'a Value, source: &str) -> Vec<&'a Value> {
@@ -187,10 +201,26 @@ impl freya::prelude::App for StoreWindow {
         let t = &theme.tokens;
         let worker = isle_app::worker();
         let bus = isle_app::session_bus();
-        let mut page = use_state(|| Page::Updates);
+        let mut page = use_state(|| Page::Discover);
+        let mut back = use_state(Vec::<Page>::new);
         let mut status = use_state(|| Value::Null);
         let mut apps = use_state(Vec::<App>::new);
         let mut failed = use_state(|| None::<String>);
+        let mut offers = use_state(|| Rc::new(Vec::<Offer>::new()));
+        let mut packages = use_state(|| Rc::new(HashSet::<String>::new()));
+        let mut icons = use_state(|| Rc::new(HashMap::<PathBuf, Option<PathBuf>>::new()));
+        let mut shots = use_state(|| Rc::new(HashMap::<String, PathBuf>::new()));
+        let mut aur_found = use_state(|| Rc::new(None::<(String, Result<Vec<Offer>, String>)>));
+        let mut plans = use_state(|| Rc::new(HashMap::<String, Plan>::new()));
+        let mut sheet = use_state(|| None::<Sheet>);
+        let limit = use_state(|| pages::PAGE);
+        let narrow = use_state(|| None::<Offered>);
+        let narrowing = use_state(|| false);
+        let mut query = use_state(String::new);
+        let asked = use_hook(|| Rc::new(RefCell::new(HashSet::<String>::new())));
+        let requested = use_hook(|| Rc::new(RefCell::new(HashSet::<PathBuf>::new())));
+        let shots_requested = use_hook(|| Rc::new(RefCell::new(HashSet::<String>::new())));
+        let pending_get = use_hook(|| Rc::new(RefCell::new(None::<String>)));
         // Update Everything's parts still to run, one after another.
         let queue = use_hook(|| Rc::new(RefCell::new(VecDeque::<String>::new())));
         let (data, incoming) = use_hook(move || {
@@ -200,6 +230,8 @@ impl freya::prelude::App for StoreWindow {
         use_hook({
             let data = data.clone();
             let queue = queue.clone();
+            let asked = asked.clone();
+            let pending_get = pending_get.clone();
             move || {
                 let Some(mut rx) = incoming.borrow_mut().take() else {
                     return;
@@ -213,6 +245,8 @@ impl freya::prelude::App for StoreWindow {
                                 let running = next["progress"]["state"] == "Running";
                                 if was_running && !running {
                                     data.ask(Ask::Rescan);
+                                    plans.set(Rc::new(HashMap::new()));
+                                    asked.borrow_mut().clear();
                                     if next["progress"]["state"] == "Done"
                                         && let Some(part) = queue.borrow_mut().pop_front()
                                     {
@@ -225,10 +259,53 @@ impl freya::prelude::App for StoreWindow {
                                 status.set(next);
                             }
                             Event::Installed(list) => apps.set(list),
+                            Event::Packages(set) => packages.set(Rc::new(set)),
+                            Event::Offers(list) => offers.set(Rc::new(list)),
+                            Event::Icons(made) => {
+                                let mut all = (**icons.read()).clone();
+                                all.extend(made);
+                                icons.set(Rc::new(all));
+                            }
+                            Event::Shot(url, path) => {
+                                let mut all = (**shots.read()).clone();
+                                all.insert(url, path);
+                                shots.set(Rc::new(all));
+                            }
+                            Event::Aur(term, got) => aur_found.set(Rc::new(Some((term, got)))),
+                            Event::Plan(key, plan) => {
+                                let waiting = pending_get.borrow().as_deref() == Some(key.as_str());
+                                if waiting {
+                                    *pending_get.borrow_mut() = None;
+                                    let system_waiting = status.read()["pending"]
+                                        .as_array()
+                                        .is_some_and(|l| l.iter().any(|p| p["source"] == "Repositories"));
+                                    let shown = sheet.read().clone();
+                                    if let Some(Sheet::Get(o)) = shown
+                                        && pages::get_key(&o) == key
+                                        && pages::straight(&o, &plan, system_waiting)
+                                    {
+                                        sheet.set(None);
+                                        data.ask(Ask::Install(pages::install_part(&o)));
+                                    }
+                                }
+                                let mut all = (**plans.read()).clone();
+                                all.insert(key, plan);
+                                plans.set(Rc::new(all));
+                            }
                             Event::Failed(why) => failed.set(Some(why)),
                         }
                     }
                 });
+            }
+        });
+
+        let typed = query.read().trim().to_string();
+        use_side_effect_with_deps(&typed, {
+            let data = data.clone();
+            move |typed: &String| {
+                if typed.len() >= 2 {
+                    data.ask(Ask::SearchAur(typed.clone()));
+                }
             }
         });
 
@@ -262,7 +339,39 @@ impl freya::prelude::App for StoreWindow {
                 .into_element()
         };
 
-        let body: Vec<Element> = match *page.read() {
+        let ctx = Ctx {
+            theme: theme.clone(),
+            offers: offers.read().clone(),
+            icons: icons.read().clone(),
+            wanted: Rc::new(RefCell::new(Vec::new())),
+            shots_wanted: Rc::new(RefCell::new(Vec::new())),
+            apps: Rc::new(installed.clone()),
+            packages: packages.read().clone(),
+            status: Rc::new(s.clone()),
+            plans: plans.read().clone(),
+            shots: shots.read().clone(),
+            aur: aur_found.read().clone(),
+            data: data.clone(),
+            page,
+            back,
+            sheet,
+            limit,
+            failed,
+            pending_get: pending_get.clone(),
+            narrow,
+            narrowing,
+            system_waiting,
+        };
+        let current = page.read().clone();
+        let searching = !typed.is_empty() && !matches!(current, Page::App(_));
+        let body: Vec<Element> = match current.clone() {
+            _ if searching => ctx.search(&typed),
+            Page::Discover => ctx.discover(),
+            Page::Browse => ctx.browse(),
+            Page::Category(key) => ctx.category(key),
+            Page::Catalogue(c) => ctx.catalogue(c),
+            Page::App(o) => ctx.app(&o, &asked),
+            Page::Installed => ctx.installed(),
             Page::Updates => {
                 let mut out = Vec::new();
                 let everything: Vec<String> = [
@@ -486,45 +595,35 @@ impl freya::prelude::App for StoreWindow {
                 }
                 out
             }
-            Page::Installed => {
-                let mut out = vec![
-                    text::line(
-                        &theme,
-                        text::Style::Title,
-                        colour(t.colour_text),
-                        "Installed",
-                    )
-                    .into_element(),
-                    note(
-                        &theme,
-                        format!(
-                            "{} apps · the system's packages are not listed here",
-                            installed.len()
-                        ),
-                    ),
-                ];
-                for a in &installed {
-                    let ask_o = ask.clone();
-                    let id = a.id.clone();
-                    out.push(update_row(
-                        &theme,
-                        Some(a),
-                        &a.name,
-                        a.catalogue,
-                        a.summary.clone(),
-                        Button::new("Open")
-                            .small()
-                            .on_press(move |_| ask_o(Ask::Launch(id.clone())))
-                            .into_element(),
-                    ));
-                }
-                out
-            }
         };
 
-        let current = *page.read();
+        // The icons and screenshots this render drew without, asked for once each.
+        let icons_wanted: Vec<PathBuf> = ctx
+            .wanted
+            .borrow_mut()
+            .drain(..)
+            .filter(|p| requested.borrow_mut().insert(p.clone()))
+            .collect();
+        for chunk in icons_wanted.chunks(8) {
+            data.ask(Ask::Icons(chunk.to_vec()));
+        }
+        let shots_wanted: Vec<String> = ctx
+            .shots_wanted
+            .borrow_mut()
+            .drain(..)
+            .filter(|u| shots_requested.borrow_mut().insert(u.clone()))
+            .collect();
+        if !shots_wanted.is_empty() {
+            data.ask(Ask::Shots(shots_wanted));
+        }
+
+        let lit = match &current {
+            Page::Category(_) => Some(Page::Browse),
+            Page::App(_) => None,
+            p => Some(p.clone()),
+        };
         let side_row = |p: Page, label: &'static str, glyph: &'static str, count: usize| {
-            let selected = current == p;
+            let selected = !searching && lit.as_ref() == Some(&p);
             let (fill, ink) = if selected {
                 (Some(t.colour_accent), t.colour_on_accent)
             } else {
@@ -542,7 +641,13 @@ impl freya::prelude::App for StoreWindow {
                 .map(fill, |el, f| el.background(colour(f)))
                 .a11y_role(AccessibilityRole::ListItem)
                 .a11y_alt(label)
-                .on_press(move |_| page.set(p))
+                .on_press(move |_| {
+                    query.set(String::new());
+                    back.set(Vec::new());
+                    let mut limit = limit;
+                    limit.set(pages::PAGE);
+                    page.set(p.clone());
+                })
                 .child(Glyph::new(
                     glyph,
                     t.size_glyph,
@@ -565,6 +670,17 @@ impl freya::prelude::App for StoreWindow {
                 }))
                 .into_element()
         };
+        let heading = |words: &'static str| {
+            rect()
+                .padding((t.space_l, t.space_s, t.space_xxs, t.space_s))
+                .child(text::line(
+                    &theme,
+                    text::Style::Footnote,
+                    colour(t.colour_text_2),
+                    words,
+                ))
+                .into_element()
+        };
         let sidebar = rect()
             .width(Size::px(t.size_sidebar))
             .height(Size::fill())
@@ -572,18 +688,62 @@ impl freya::prelude::App for StoreWindow {
             .padding((t.size_toolbar, t.space_s, t.space_s, t.space_s))
             .spacing(t.space_xxs)
             .a11y_role(AccessibilityRole::List)
+            .child(side_row(Page::Discover, "Discover", "diamond", 0))
+            .child(side_row(Page::Browse, "Browse", "squares-four", 0))
+            .child(side_row(Page::Installed, "Installed", "app-window", 0))
             .child(side_row(
                 Page::Updates,
                 "Updates",
                 "download-simple",
                 store_count,
             ))
-            .child(side_row(Page::Installed, "Installed", "app-window", 0));
+            .child(heading("Catalogues"))
+            .child(side_row(
+                Page::Catalogue(Catalogue::Cachyos),
+                "CachyOS",
+                "package",
+                0,
+            ))
+            .child(side_row(
+                Page::Catalogue(Catalogue::Flathub),
+                "Flathub",
+                "stack",
+                0,
+            ))
+            .child(side_row(Page::Catalogue(Catalogue::Aur), "AUR", "users", 0))
+            .child(side_row(
+                Page::Catalogue(Catalogue::AppImages),
+                "AppImages",
+                "folder",
+                0,
+            ));
+        let can_go_back = !back.read().is_empty();
         let toolbar = rect()
             .width(Size::fill())
             .height(Size::px(t.size_toolbar))
             .padding((0., t.space_l, 0., LIGHTS))
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::Center)
+            .child(
+                Button::icon("caret-left", "Back")
+                    .enabled(can_go_back)
+                    .on_press(move |_| {
+                        let last = back.write().pop();
+                        if let Some(last) = last {
+                            page.set(last);
+                        }
+                    }),
+            )
+            .child(rect().width(Size::flex(1.)))
+            .child(SearchField {
+                value: query.into_writable(),
+                placeholder: "Search".into(),
+                width: 240.,
+                focus: false,
+            })
             .toolbar();
+        let shown_sheet = sheet.read().clone().map(|sh| ctx.sheet(&sh));
         let content = rect()
             .width(Size::flex(1.))
             .height(Size::fill())
@@ -608,5 +768,6 @@ impl freya::prelude::App for StoreWindow {
             .content(Content::flex())
             .child(sidebar)
             .child(content)
+            .maybe_child(shown_sheet)
     }
 }

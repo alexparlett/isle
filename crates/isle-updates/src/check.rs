@@ -44,15 +44,42 @@ pub enum Part {
     Both,
     Flathub(Option<String>),
     Aur(Option<String>),
+    /// Get: an app from a catalogue (`cachyos`, `flathub`, `aur`), the repositories' with
+    /// their updates when any are waiting, since installing against a stale system is a
+    /// partial upgrade.
+    Install {
+        catalogue: String,
+        id: String,
+        with_updates: bool,
+    },
+    /// Remove: a package with what only it needed, or a Flatpak app.
+    Remove { catalogue: String, id: String },
 }
 
 impl Part {
-    /// `system`, `isle`, `both`, `flathub`, `flathub:<app id>`, `aur` or `aur:<package>`.
+    /// `system`, `isle`, `both`, `flathub[:<app id>]`, `aur[:<package>]`,
+    /// `install:<catalogue>[+updates]:<id>` or `remove:<catalogue>:<id>`.
     pub fn parse(word: &str) -> Option<Part> {
         let (kind, one) = match word.split_once(':') {
             Some((k, one)) if !one.is_empty() => (k, Some(one.to_string())),
             _ => (word, None),
         };
+        if kind == "remove" {
+            let one = one?;
+            let (catalogue, id) = one.split_once(':')?;
+            return (!id.is_empty()).then(|| Part::Remove {
+                catalogue: catalogue.to_string(),
+                id: id.to_string(),
+            });
+        }
+        if kind == "install" {
+            let (catalogue, id) = one?.split_once(':').map(|(c, i)| (c.to_string(), i.to_string()))?;
+            let (catalogue, with_updates) = match catalogue.strip_suffix("+updates") {
+                Some(c) => (c.to_string(), true),
+                None => (catalogue, false),
+            };
+            return (!id.is_empty()).then_some(Part::Install { catalogue, id, with_updates });
+        }
         match (kind, one) {
             ("system", None) => Some(Part::System),
             ("isle", None) => Some(Part::Isle),
@@ -72,6 +99,11 @@ impl Part {
             Part::Flathub(Some(id)) => format!("flathub:{id}"),
             Part::Aur(None) => "aur".into(),
             Part::Aur(Some(name)) => format!("aur:{name}"),
+            Part::Install { catalogue, id, with_updates } => format!(
+                "install:{catalogue}{}:{id}",
+                if *with_updates { "+updates" } else { "" }
+            ),
+            Part::Remove { catalogue, id } => format!("remove:{catalogue}:{id}"),
         }
     }
 
@@ -233,6 +265,42 @@ impl Tools {
                 .concat(),
             ),
             (_, Part::Aur(None)) => (paru(), [&["-Sua", "--mode=a"][..], &PARU].concat()),
+            (_, Part::Remove { catalogue, id }) => match catalogue.as_str() {
+                "flathub" => (
+                    flatpak(),
+                    vec!["uninstall", "-y", "--noninteractive", id.as_str()],
+                ),
+                _ => match &self.pacman {
+                    Some(pacman) => (
+                        pacman.clone().into_os_string(),
+                        vec!["-Rns", "--noconfirm", "--noprogressbar", id.as_str()],
+                    ),
+                    None => (
+                        "pkexec".into(),
+                        vec!["pacman", "-Rns", "--noconfirm", "--noprogressbar", id.as_str()],
+                    ),
+                },
+            },
+            (_, Part::Install { catalogue, id, with_updates }) => match catalogue.as_str() {
+                "flathub" => (
+                    flatpak(),
+                    vec!["install", "-y", "--noninteractive", "flathub", id.as_str()],
+                ),
+                "aur" => (paru(), [&["-S", "--mode=a"][..], &PARU, &[id.as_str()]].concat()),
+                _ => {
+                    let sync = if *with_updates { "-Syu" } else { "-S" };
+                    match &self.pacman {
+                        Some(pacman) => (
+                            pacman.clone().into_os_string(),
+                            vec![sync, "--needed", "--noconfirm", "--noprogressbar", id.as_str()],
+                        ),
+                        None => (
+                            "pkexec".into(),
+                            vec!["pacman", sync, "--needed", "--noconfirm", "--noprogressbar", id.as_str()],
+                        ),
+                    }
+                }
+            },
             (_, Part::Aur(Some(name))) => (
                 paru(),
                 [&["-S", "--mode=a"][..], &PARU, &[name.as_str()]].concat(),
@@ -480,6 +548,12 @@ mod tests {
             "flathub:com.spotify.Client",
             "aur",
             "aur:xremap-hypr-bin",
+            "install:cachyos:krita",
+            "install:cachyos+updates:krita",
+            "install:flathub:com.obsproject.Studio",
+            "install:aur:obs-vkcapture",
+            "remove:cachyos:krita",
+            "remove:flathub:com.obsproject.Studio",
         ] {
             assert_eq!(Part::parse(w).unwrap().word(), w);
         }

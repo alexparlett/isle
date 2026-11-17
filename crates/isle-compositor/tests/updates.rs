@@ -358,3 +358,26 @@ async fn a_restart_owed_shows_in_the_island_the_menu_and_the_note() {
     );
     assert!(labels.iter().any(|r| r.contains("Restart…")), "{labels:?}");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn get_installs_with_the_waiting_updates_and_the_aur_waits_for_them() {
+    let isle = start("updates-get", false).await;
+    std::fs::write(isle.dir.join("bin/mode"), "ok").unwrap();
+    let updates = UpdatesProxy::new(&isle.bus).await.unwrap();
+    updates.check().await.unwrap();
+    assert_eq!(
+        updates.install("install:aur:obs-vkcapture").await.unwrap(),
+        "Update CachyOS first, in Software Update."
+    );
+    assert_eq!(updates.install("install:cachyos:krita").await.unwrap(), "");
+    wait_until(|| async { state(&isle).await == "Done" }).await;
+    assert_eq!(
+        status(&isle).await["progress"]["part"],
+        "install:cachyos+updates:krita"
+    );
+    let ran = std::fs::read_to_string(isle.dir.join("bin/ran")).unwrap();
+    assert_eq!(
+        ran.trim(),
+        "pacman -Syu --needed --noconfirm --noprogressbar krita"
+    );
+}

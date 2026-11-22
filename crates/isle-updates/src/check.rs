@@ -350,17 +350,52 @@ impl Tools {
     }
 }
 
-/// paru's config for a run: the user's own, or the system's, with Isle's PKGBUILD as a
+/// The PKGBUILD on the branch Isle is built from, so a build follows the recipe of the code it
+/// builds rather than that of the Isle already installed. `None` when it cannot be fetched.
+pub fn fetch_pkgbuild(dir: &Path, url: &str, branch: Option<&str>) -> Option<String> {
+    let work = dir.join("fetch");
+    let _ = std::fs::remove_dir_all(&work);
+    std::fs::create_dir_all(&work).ok()?;
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .args(args)
+            .current_dir(&work)
+            .env("GIT_TERMINAL_PROMPT", "0")
+            .stdin(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .output()
+            .ok()
+            .filter(|o| o.status.success())
+    };
+    git(&["init", "-q"])?;
+    // One commit, and only the blobs asked for.
+    git(&[
+        "fetch",
+        "-q",
+        "--depth",
+        "1",
+        "--filter=blob:none",
+        url,
+        branch.unwrap_or("HEAD"),
+    ])?;
+    let shown = git(&["show", "FETCH_HEAD:pkg/arch/PKGBUILD"])?;
+    let _ = std::fs::remove_dir_all(&work);
+    let text = String::from_utf8(shown.stdout).ok()?;
+    (text.contains(&format!("pkgname={ISLE_PACKAGE}")) && pkgbuild_source(&text).is_some())
+        .then_some(text)
+}
+
+/// paru's config for a run: the user's own, or the system's, with `pkgbuild` as Isle's
 /// repository of its own in `dir`, where the build keeps its target between updates.
-pub fn paru_config(dir: &Path, config_home: &Path) -> std::io::Result<PathBuf> {
+pub fn paru_config(dir: &Path, config_home: &Path, recipe: &str) -> std::io::Result<PathBuf> {
     let pkgbuild = dir.join("pkgbuild");
     std::fs::create_dir_all(&pkgbuild)?;
     if std::fs::read_to_string(pkgbuild.join("PKGBUILD"))
         .ok()
         .as_deref()
-        != Some(PKGBUILD)
+        != Some(recipe)
     {
-        std::fs::write(pkgbuild.join("PKGBUILD"), PKGBUILD)?;
+        std::fs::write(pkgbuild.join("PKGBUILD"), recipe)?;
     }
     let users = config_home.join("paru/paru.conf");
     let include = if users.is_file() {
@@ -517,6 +552,15 @@ pub fn version_commit(version: &str) -> Option<&str> {
     Some(hash.split('-').next().unwrap_or(hash)).filter(|h| !h.is_empty())
 }
 
+/// The git URL and branch Isle is built from: this Isle's PKGBUILD's, or
+/// `ISLE_UPDATES_SOURCE` (`url#branch=name`) in its place for tests.
+pub fn isle_source() -> Option<(String, Option<String>)> {
+    let pkgbuild = std::env::var("ISLE_UPDATES_SOURCE")
+        .map(|s| format!("source=(\"git+{s}\")"))
+        .unwrap_or_else(|_| PKGBUILD.to_string());
+    pkgbuild_source(&pkgbuild)
+}
+
 async fn isle_update(root: &Path) -> Result<Option<Pending>, CheckError> {
     let Some(installed) = installed_version(root, ISLE_PACKAGE) else {
         return Ok(None);
@@ -524,11 +568,7 @@ async fn isle_update(root: &Path) -> Result<Option<Pending>, CheckError> {
     let Some(built) = version_commit(&installed) else {
         return Ok(None);
     };
-    // `ISLE_UPDATES_SOURCE`, `url#branch=name`, stands in for the PKGBUILD's in tests.
-    let pkgbuild = std::env::var("ISLE_UPDATES_SOURCE")
-        .map(|s| format!("source=(\"git+{s}\")"))
-        .unwrap_or_else(|_| PKGBUILD.to_string());
-    let Some((url, branch)) = pkgbuild_source(&pkgbuild) else {
+    let Some((url, branch)) = isle_source() else {
         return Ok(None);
     };
     let refspec = branch
@@ -555,6 +595,45 @@ async fn isle_update(root: &Path) -> Result<Option<Pending>, CheckError> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_build_takes_the_branch_s_pkgbuild() {
+        let dir = std::env::temp_dir().join(format!("isle-updates-recipe-{}", std::process::id()));
+        let src = dir.join("src");
+        std::fs::create_dir_all(src.join("pkg/arch")).unwrap();
+        let git = |args: &[&str]| {
+            assert!(
+                std::process::Command::new("git")
+                    .args(args)
+                    .current_dir(&src)
+                    .env("GIT_AUTHOR_NAME", "t")
+                    .env("GIT_AUTHOR_EMAIL", "t@t")
+                    .env("GIT_COMMITTER_NAME", "t")
+                    .env("GIT_COMMITTER_EMAIL", "t@t")
+                    .status()
+                    .unwrap()
+                    .success()
+            )
+        };
+        let recipe = "pkgname=isle-git\nsource=(\"isle::git+https://example.org/isle.git#branch=next\")\n# builds isle-store\n";
+        std::fs::write(src.join("pkg/arch/PKGBUILD"), recipe).unwrap();
+        git(&["init", "-q", "-b", "next"]);
+        git(&["add", "."]);
+        git(&["commit", "-qm", "one"]);
+        let url = format!("file://{}", src.display());
+        let work = dir.join("updates");
+        assert_eq!(fetch_pkgbuild(&work, &url, Some("next")).as_deref(), Some(recipe));
+        assert_eq!(fetch_pkgbuild(&work, &url, Some("gone")), None);
+        // A file there that is not Isle's recipe is not taken.
+        std::fs::write(src.join("pkg/arch/PKGBUILD"), "pkgname=other\n").unwrap();
+        git(&["commit", "-qam", "two"]);
+        assert_eq!(fetch_pkgbuild(&work, &url, Some("next")), None);
+
+        let config = paru_config(&work, &dir.join("config"), recipe).unwrap();
+        assert_eq!(std::fs::read_to_string(work.join("pkgbuild/PKGBUILD")).unwrap(), recipe);
+        assert!(std::fs::read_to_string(config).unwrap().contains("[isle]"));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     use super::*;
 
     const DATA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data");

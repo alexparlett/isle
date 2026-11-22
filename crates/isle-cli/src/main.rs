@@ -638,7 +638,17 @@ fn update_run(part: &str) -> ExitCode {
     let mut envs = Vec::new();
     if tools.paru.is_some() && (part.builds_isle() || matches!(part, isle_updates::Part::Aur(_))) {
         let dir = home("XDG_CACHE_HOME", ".cache").join("isle/updates");
-        match isle_updates::paru_config(&dir, &home("XDG_CONFIG_HOME", ".config")) {
+        // The branch's own PKGBUILD, so an app added since this Isle was built is built too;
+        // this Isle's copy when the branch cannot be reached.
+        let recipe = part
+            .builds_isle()
+            .then(|| {
+                let (url, branch) = isle_updates::isle_source()?;
+                isle_updates::fetch_pkgbuild(&dir, &url, branch.as_deref())
+            })
+            .flatten()
+            .unwrap_or_else(|| isle_updates::PKGBUILD.to_string());
+        match isle_updates::paru_config(&dir, &home("XDG_CONFIG_HOME", ".config"), &recipe) {
             Ok(path) => envs.push(("PARU_CONF".into(), path.into_os_string())),
             Err(err) => eprintln!("isle: paru's config for Isle: {err}"),
         }

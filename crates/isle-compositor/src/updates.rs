@@ -139,7 +139,7 @@ impl State {
     /// is put away first.
     pub fn check_updates(&mut self, by_user: bool) {
         let u = &mut self.isle.updates;
-        if u.checking || u.running() || std::path::Path::new(isle_updates::DB_LOCK).exists() {
+        if u.checking || u.running() || isle_updates::lock() == isle_updates::Lock::Held {
             return;
         }
         if by_user
@@ -338,10 +338,21 @@ impl State {
         if self.isle.updates.running() {
             return Err("An update is already running.".into());
         }
-        if std::path::Path::new(isle_updates::DB_LOCK).exists() {
-            return Err(
-                "Another program is installing packages. Try again when it has finished.".into(),
-            );
+        match isle_updates::lock() {
+            isle_updates::Lock::Free => {}
+            isle_updates::Lock::Held => {
+                return Err(
+                    "Another program is installing packages. Try again when it has finished."
+                        .into(),
+                );
+            }
+            isle_updates::Lock::Left => {
+                return Err(
+                    "An install that didn't finish left pacman locked. With no package manager \
+                     open, run sudo rm /var/lib/pacman/db.lck in Terminal, then try again."
+                        .into(),
+                );
+            }
         }
         let isle = self.isle.updates.count(Source::Isle) > 0;
         let system = self.isle.updates.count(Source::Repositories) > 0;
@@ -380,7 +391,7 @@ impl State {
         else {
             return Some("No update is running.".into());
         };
-        if std::path::Path::new(isle_updates::DB_LOCK).exists() {
+        if isle_updates::lock() == isle_updates::Lock::Held {
             return Some("Can't stop while packages are being installed.".into());
         }
         // The runner leads its own session, in its unit or started directly; the group's
@@ -644,7 +655,7 @@ impl Isle {
             "check_error": u.check_error,
             "progress": u.progress,
             "restart": u.restart.iter().map(|r| r.sentence()).collect::<Vec<_>>(),
-            "can_stop": u.running() && !std::path::Path::new(isle_updates::DB_LOCK).exists(),
+            "can_stop": u.running() && isle_updates::lock() != isle_updates::Lock::Held,
             "auto": self.settings.updates.check,
         })
         .to_string()

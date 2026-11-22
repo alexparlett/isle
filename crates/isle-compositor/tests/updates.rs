@@ -299,10 +299,8 @@ async fn stop_ends_a_run_before_pacman_and_nothing_is_posted() {
     let isle = start("updates-stop", false).await;
     assert_eq!(install(&isle, "slow").await, "");
     wait_until(|| async { status(&isle).await["progress"]["total"] == 2 }).await;
-    assert_eq!(
-        status(&isle).await["can_stop"],
-        !Path::new("/var/lib/pacman/db.lck").exists()
-    );
+    // The test's root has no pacman lock, whatever the host's has.
+    assert_eq!(status(&isle).await["can_stop"], true);
     let why = UpdatesProxy::new(&isle.bus)
         .await
         .unwrap()

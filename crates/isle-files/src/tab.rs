@@ -226,6 +226,10 @@ struct LiveInner {
     watch: Option<Watch>,
     /// The channel to the task applying what is read; closed, the task ends.
     sender: Option<UnboundedSender<Message>>,
+    /// The watches of folders opened in place in List, and the channel to the task applying
+    /// their changes.
+    open_watches: std::collections::HashMap<PathBuf, Watch>,
+    open_sender: Option<UnboundedSender<(PathBuf, Update)>>,
 }
 
 /// Finds and keeps what a batch's rows will draw with: their kinds' words and icons.
@@ -401,6 +405,7 @@ pub fn load(mut tab: State<Tab>, live: &Live, again: bool) {
             t.cursor = None;
             t.expanded.clear();
             t.children.clear();
+            live.0.borrow_mut().open_watches.clear();
             t.sizes.clear();
         }
         t.status = Status::Loading;
@@ -583,7 +588,8 @@ fn watch(live: &Live, dir: &Path, generation: u64) {
 }
 
 /// Opens `folder` in place in List, with every folder under it when `all` (to a few levels).
-pub fn expand(mut tab: State<Tab>, folder: PathBuf, all: bool) {
+pub fn expand(mut tab: State<Tab>, live: &Live, folder: PathBuf, all: bool) {
+    let live = live.clone();
     let (order, hidden) = {
         let t = tab.peek();
         (t.folder.order(), t.folder.shows_hidden())
@@ -613,23 +619,124 @@ pub fn expand(mut tab: State<Tab>, folder: PathBuf, all: bool) {
             found
         });
         let Some(found) = read.await else { return };
-        let mut t = tab.write();
-        for (dir, entries) in found {
-            if !t.expanded.contains(&dir) {
-                t.expanded.push(dir.clone());
+        let dirs: Vec<PathBuf> = found.iter().map(|(dir, _)| dir.clone()).collect();
+        {
+            let mut t = tab.write();
+            for (dir, entries) in found {
+                if !t.expanded.contains(&dir) {
+                    t.expanded.push(dir.clone());
+                }
+                t.children.insert(dir, entries);
             }
-            t.children.insert(dir, entries);
+            t.rev += 1;
         }
-        t.rev += 1;
+        for dir in dirs {
+            watch_open(tab, &live, dir);
+        }
     });
 }
 
 /// Closes `folder` in List, and every folder open under it.
-pub fn collapse(mut tab: State<Tab>, folder: &Path) {
+pub fn collapse(mut tab: State<Tab>, live: &Live, folder: &Path) {
+    live.0.borrow_mut().open_watches.retain(|p, _| !p.starts_with(folder));
     let mut t = tab.write();
     t.expanded.retain(|p| !p.starts_with(folder));
     t.children.retain(|p, _| !p.starts_with(folder));
     t.rev += 1;
+}
+
+/// Keeps a folder opened in place up to date while it stays open, as the folder shown is.
+fn watch_open(tab: State<Tab>, live: &Live, dir: PathBuf) {
+    if live.0.borrow().open_watches.contains_key(&dir) {
+        return;
+    }
+    let table = mounts::read();
+    if mounts::of(&table, &dir).is_some_and(|m| m.class == Class::Remote) {
+        return;
+    }
+    let Some(watcher) = Watcher::get() else { return };
+    let open_sender = live.0.borrow().open_sender.clone();
+    let tx = match open_sender {
+        Some(tx) => tx,
+        None => {
+            let (tx, rx) = unbounded();
+            let scope = {
+                let mut inner = live.0.borrow_mut();
+                inner.open_sender = Some(tx.clone());
+                inner.scope
+            };
+            spawn_in_scope(apply_open(tab, live.clone(), rx), scope);
+            tx
+        }
+    };
+    let owned = dir.clone();
+    let watch = watcher.watch(&dir, move |change| {
+        let (dir, tx) = (owned.clone(), tx.clone());
+        std::thread::spawn(move || {
+            let update = reread(&dir, change);
+            let _ = tx.unbounded_send((dir, update));
+        });
+    });
+    if let Some(watch) = watch {
+        live.0.borrow_mut().open_watches.insert(dir, watch);
+    }
+}
+
+/// Applies the changes in folders opened in place to their listed children.
+async fn apply_open(mut tab: State<Tab>, live: Live, mut rx: futures_channel::mpsc::UnboundedReceiver<(PathBuf, Update)>) {
+    while let Some((dir, update)) = rx.next().await {
+        if !live.0.borrow().open_watches.contains_key(&dir) {
+            continue;
+        }
+        match update {
+            Update::Entries { upserts, removed } => {
+                let mut t = tab.write();
+                let (order, hidden) = (t.folder.order(), t.folder.shows_hidden());
+                let Some(children) = t.children.get_mut(&dir) else { continue };
+                children.retain(|e| !removed.contains(&e.path) && !upserts.iter().any(|u| u.path == e.path));
+                children.extend(upserts.into_iter().filter(|e| hidden || !e.hidden()));
+                children.sort_by(|a, b| order.compare(a, b));
+                let gone: Vec<PathBuf> = removed.into_iter().filter(|p| t.expanded.contains(p)).collect();
+                for path in &gone {
+                    t.expanded.retain(|p| !p.starts_with(path));
+                    t.children.retain(|p, _| !p.starts_with(path));
+                }
+                t.selection.retain(|p| !gone.iter().any(|g| p.starts_with(g)));
+                t.rev += 1;
+                drop(t);
+                live.0.borrow_mut().open_watches.retain(|p, _| !gone.iter().any(|g| p.starts_with(g)));
+            }
+            Update::Reread => {
+                let (order, hidden) = {
+                    let t = tab.peek();
+                    (t.folder.order(), t.folder.shows_hidden())
+                };
+                let read_dir = dir.clone();
+                let read = crate::window::off_thread(move || {
+                    let mut entries: Vec<Entry> = std::fs::read_dir(&read_dir)
+                        .into_iter()
+                        .flatten()
+                        .flatten()
+                        .filter_map(|e| Entry::at(&e.path()).ok())
+                        .filter(|e| hidden || !e.hidden())
+                        .collect();
+                    entries.sort_by(|a, b| order.compare(a, b));
+                    warm(&entries);
+                    entries
+                });
+                if let Some(entries) = read.await {
+                    let mut t = tab.write();
+                    if t.children.contains_key(&dir) {
+                        t.children.insert(dir, entries);
+                        t.rev += 1;
+                    }
+                }
+            }
+            Update::Gone => {
+                collapse(tab, &live, &dir);
+            }
+        }
+    }
 }
 
 /// Counts the size of each folder `tab` lists that has none yet, one after another on a

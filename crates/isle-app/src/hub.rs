@@ -354,6 +354,9 @@ impl AppHandle {
             warn!("no data device: no clipboard of files and no drags");
             return;
         };
+        if !self.0.spec.drops.is_empty() {
+            data.accept(self.0.spec.drops.iter().map(|t| t.to_string()).collect());
+        }
         *self.0.data.borrow_mut() = Some(data.clone());
         GlobalContexts::get().insert_context(freya::clipboard::Clipboard::create(Some(Box::new(
             crate::data::Clipboard(data),

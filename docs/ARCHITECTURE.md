@@ -703,7 +703,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
 
 - **On `isle-app`** (B94). An app gives a `Spec` (its reverse-DNS id, which
   is also its desktop file id, Wayland app id and bus name, its window's
-  size, the lights' inset, its backdrop) and its root component;
+  size, the lights' inset, its backdrop, the types it takes in a drop) and
+  its root component;
   `isle_app::run` does the rest. A launch first claims the bus name with
   `org.freedesktop.Application`: when another instance holds it, the
   launch's URIs and activation token are handed over and the process ends.
@@ -718,6 +719,14 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   compositor, `isle_titlebar_v1` to ask for the lights over the content at
   the app's inset (B95), and `ext_background_effect_v1` for the blur
   behind the backdrop, the rest of the window declared opaque (B98).
+- **Drags go through the app's own `wl_data_device`** on that queue. An app
+  refuses drops unless its `Spec` names the types it takes; a target states
+  whether a drop where the pointer is would move or copy, and the compositor
+  settles it with ⌥ and ⌘ and shows Bibata's `copy` while it copies. A drag
+  out carries an image: an element drawn once by `isle_ui::snapshot` (a
+  Freya runner of its own, off any window) and put on the drag's icon
+  surface with the point the pointer holds. A cancelled or refused drop's
+  image is the compositor's to send back to where the drag began.
 - **The desktop is read from the compositor and followed:** the theme from
   `Shell1.Theme()` and `ThemeChanged`, every setting from `Settings1.Values()`
   and `Changed`, and whether `settings.kdl` and `tokens.kdl` are in force.

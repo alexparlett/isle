@@ -11,6 +11,7 @@ pub mod menu;
 pub mod search;
 pub mod sheet;
 pub mod slider;
+pub mod snapshot;
 pub mod table;
 pub mod text;
 mod text_field;

@@ -170,6 +170,9 @@ impl State {
         if host_draws {
             return;
         }
+        if self.isle.dnd_icon.is_some() {
+            self.dnd_moved(location);
+        }
         // A grab or a drag moves more than the pointer.
         if self.isle.seat.get_pointer().is_some_and(|p| p.is_grabbed()) || self.isle.dnd_icon.is_some() {
             self.isle.queue_redraw_all();

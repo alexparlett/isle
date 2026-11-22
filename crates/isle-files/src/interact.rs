@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use freya::prelude::*;
 use isle_ui::{TextField, colour};
 
+use crate::list_view::Pick;
+
 /// The drop target the sidebar's Trash stands for; no folder has this name.
 pub const TRASH: &str = "\0trash";
 
@@ -47,6 +49,9 @@ pub struct Interact {
     pub cursor_at: State<Option<(f32, f32)>>,
     /// A menu a view draws itself is open, a divider's: the window's keys stand aside.
     pub view_menu: State<bool>,
+    /// A plain press on one of several selected items, its click held until the release;
+    /// `None` where nothing is dragged, so every click acts at once.
+    pub release: Option<State<Option<(Pick, EventHandler<Pick>)>>>,
 }
 
 impl Interact {
@@ -112,6 +117,16 @@ impl Interact {
                 let mut target = target;
                 target.set(None);
             }
+        }
+    }
+
+    /// A press's click: at the release when it is a plain press on one of several selected
+    /// items, so a drag from it carries them all; at once otherwise.
+    pub fn click(&self, pick: Pick, among_selected: bool, on_pick: EventHandler<Pick>) {
+        let plain = matches!(&pick, Pick::Click(_, held) if !held.cmd && !held.shift);
+        match self.release {
+            Some(mut release) if plain && among_selected => release.set(Some((pick, on_pick))),
+            _ => on_pick.call(pick),
         }
     }
 

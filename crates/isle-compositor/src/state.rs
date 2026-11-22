@@ -290,6 +290,14 @@ pub struct Isle {
     pub processes: crate::processes::Processes,
     /// The icon of the drag in progress, drawn at the pointer over everything.
     pub dnd_icon: Option<smithay::reexports::wayland_server::protocol::wl_surface::WlSurface>,
+    /// The icon's top-left from the pointer, as its commits offset it.
+    pub dnd_icon_offset: smithay::utils::Point<i32, smithay::utils::Logical>,
+    /// Where the drag in progress began.
+    pub dnd_start: smithay::utils::Point<f64, smithay::utils::Logical>,
+    /// A cancelled or refused drag's icon going back to its start.
+    pub dnd_return: Option<crate::dnd::Return>,
+    /// The surface the drag's action was last chosen over.
+    pub dnd_over: Option<crate::focus::Focus>,
     /// Cmd+Tab's switcher while its chord is held.
     pub switcher: Option<crate::switcher::SwitcherState>,
     pub mission: Option<crate::mission::MissionState>,
@@ -670,6 +678,10 @@ impl Isle {
             quitting: Vec::new(),
             processes: Default::default(),
             dnd_icon: None,
+            dnd_icon_offset: Default::default(),
+            dnd_start: Default::default(),
+            dnd_return: None,
+            dnd_over: None,
             switcher: None,
             switcher_surface,
             switcher_dirty: Default::default(),

@@ -30,6 +30,7 @@ const SPEC: Spec = Spec {
     traffic_light_inset: (0.0, 10.0),
     preferences: true,
     backdrop: None,
+    drops: &[],
 };
 
 /// What the app keeps above its windows: the copy waiting to be withdrawn, and the windows.

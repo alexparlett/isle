@@ -13,6 +13,7 @@ mod crashes;
 mod cursor;
 mod desktop_notes;
 mod displays;
+mod dnd;
 mod dbus;
 mod files;
 mod focus;

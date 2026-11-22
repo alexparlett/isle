@@ -331,3 +331,71 @@ all one tick away).
 The Freya fork's `2cf6468f` is pinned: an app's event loop ends quietly at
 a session's end, where every Isle app panicked. Still to come: the user's
 day on the host.
+
+### The host day: first findings (2026-11-22)
+
+On the host the user found five faults. Each was fixed and walked in the VM by real input
+unless noted.
+
+- **Several archives would not expand.** The context menu offered Expand for one archive and
+  the command took only the first. `Work::Expand` takes every archive selected and runs them
+  as one job, with one undo and Try Again over the failures; the menus read
+  "Expand {n} Items", and File ▸ Expand is enabled only when everything selected is an
+  archive. Opening several archives with no default app is one job too.
+- **Dragging several selected items carried one.** A press on an item selected it alone
+  before a drag could start. A plain press on one of several selected items now waits for
+  the release (`Interact::click`): a drag carries the whole selection, a click without one
+  selects that item alone. In Columns the same press no longer opens the folder until
+  release. Panels act at once, as nothing drags from them.
+- **A drop on another tab copied.** Not reproduced: in the VM a drop on a tab on the same
+  volume moves. Between home and `/media/d` it copies by design, as across any two volumes.
+  Each drop now logs its destination, whether the drag was Files' own, the volume check, ⌥
+  and ⌘, and whether it landed on a tab, so the next case shows its cause.
+- **Folders opened in place in List went stale.** Their contents were read once. Each folder
+  opened by its disclosure is watched while it stays open, through the process's watcher,
+  and changes, removals and the folder going away apply to its rows.
+- **Sorting by Date Created crashed** (`Option::unwrap` in Freya's `Runner::run_scope`). The
+  fork's reconciler placed moved children one at a time in order of destination, which
+  shifts an unmoved sibling standing between moved ones not yet placed; rows of different
+  shapes (a folder's disclosure glyph, a file's none) then paired a component's path with an
+  element. It also placed rows added beside moved ones at the wrong index. The fix
+  (`alexparlett/freya`, `freya-core` runner and tree) lifts the children outside the
+  longest run already in order and puts them back in order of destination, taking added
+  children's indices from the diff, and resolves the move of a component added in the same
+  update once its scope has run. `tests/nested_rows.rs` replays every reorder of five rows
+  and every change between layouts of up to four, with and without additions, and checks
+  each component keeps its own row; it fails on the pinned fork and passes with the fix. In
+  the VM, in a copy of the folder it happened in, the user's way of doing it (Date Created's
+  header clicked several times in a row) crashed the pinned build at `runner.rs:839` on the
+  first run; the fixed build took ten runs of up to fifteen clicks without a panic.
+
+### The drag image (planned 2026-11-22)
+
+A drag from Files carried nothing under the pointer: `isle-app` started every drag with no
+icon surface. Planned with the user, who took the recommendation:
+
+- The image is a Freya element built from the views' own parts (`AppIcon`, the text styles,
+  the badge), rendered offscreen to pixels and given to the compositor as the drag's icon
+  surface, so it leaves the window and matches the views. Freya's `DragZone` stays inside
+  one window and cannot reach other windows, apps or panels; a hand-drawn image would copy
+  the design system outside it.
+- `isle-app`: a drag takes an optional image (pixels, size, scale, the point the pointer
+  holds), put on a `wl_surface` at the window's scale with that point as its offset.
+- The compositor honours the icon's offset, and on a cancelled or refused drop keeps its
+  last frame and returns it to the drag's start on `motion-move` (a fade under Reduce
+  Motion), as `conventions.md` § Drag and drop asks.
+- Files' image: each item at its view's size (Icons: icon and name under it; List and
+  Columns: leading icon and title), up to three as laid out around the pressed item, the
+  preview's stack past three, the count badge for two or more, at 70%.
+- Move or copy is negotiated during the drag through Wayland's drag actions, with ⌥ and ⌘
+  read by the compositor and Bibata's `copy` cursor while the drop copies, instead of
+  modifiers Files last saw.
+
+Built and walked in the VM (dev compositor and Files on the patched fork): one file, three
+rows and seven items (the stack) carried under the pointer with the badge on the first icon
+or the corner; Icons' cells with their names; a plain drag into a folder on the same volume
+moves, the same with ⌥ held copies; a drop on the wallpaper springs the image back to the
+row; a drop on the Store is refused (apps now take drops only where their `Spec` says, Files
+and the Cleaner `text/uri-list`), and nothing moves. The Freya fork also restores the outer
+runner's context after a nested one, which the snapshot needs. Not seen in the shots: the
+`copy` cursor, as QMP's screen dump leaves the cursor out.

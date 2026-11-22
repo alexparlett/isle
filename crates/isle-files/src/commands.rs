@@ -81,6 +81,10 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
             .flatten();
         (t.selection.len(), name)
     };
+    let all_archives = {
+        let t = tab.read();
+        !t.selection.is_empty() && t.selection.iter().all(|p| crate::menus::is_archive(&p.to_string_lossy()))
+    };
     let undo_label = history.read().undo.last().map(|(l, _)| format!("Undo {l}"));
     let redo_label = history.read().redo.last().map(|(l, _)| format!("Redo {l}"));
     let can_make = place.folder().is_some() && !in_trash;
@@ -143,7 +147,8 @@ pub(crate) fn table(win: Win, shared: &Shared) -> Vec<Command> {
             .chord(Chord::cmd('a').ctrl())
             .enabled(has_selection && !in_trash),
         Command::new("compress", compress_label, Menu::File, 3).enabled(has_selection && !in_trash),
-        Command::new("expand", "Expand", Menu::File, 3).enabled(has_selection && !in_trash),
+        Command::new("expand", if selected_count > 1 { format!("Expand {selected_count} Items") } else { "Expand".into() }, Menu::File, 3)
+            .enabled(all_archives && !in_trash),
         Command::new(
             if in_trash { "put-back" } else { "move-to-trash" },
             if in_trash { "Put Back" } else { "Move to Trash" },
@@ -716,7 +721,10 @@ pub(crate) fn chosen(win: Win, shared: &Rc<Shared>) {
                         }),
                         "duplicate" => Some(Work::Duplicate { items: selection.clone() }),
                         "compress" => Some(Work::Compress { items: selection.clone() }),
-                        "expand" => selection.first().cloned().map(|archive| Work::Expand { archive }),
+                        "expand" => {
+                            let archives: Vec<PathBuf> = selection.iter().filter(|p| crate::menus::is_archive(&p.to_string_lossy())).cloned().collect();
+                            (!archives.is_empty()).then_some(Work::Expand { archives })
+                        }
                         "move-to-trash" => Some(Work::Trash { items: selection.clone() }),
                         "put-back" => Some(Work::PutBack { items: trashed.clone() }),
                         "make-alias" => {

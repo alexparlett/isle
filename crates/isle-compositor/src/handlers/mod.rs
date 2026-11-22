@@ -124,23 +124,45 @@ impl DataDeviceHandler for State {
     fn data_device_state(&mut self) -> &mut DataDeviceState {
         &mut self.isle.data_device_state
     }
+
+    /// ⌥ copies and ⌘ moves where the source allows; otherwise the target's choice. The pointer
+    /// carries `copy` while a drop would copy.
+    fn action_choice(
+        &mut self,
+        available: smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction,
+        preferred: smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction,
+    ) -> smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction {
+        use smithay::reexports::wayland_server::protocol::wl_data_device_manager::DndAction;
+        let mods = self.held_mods();
+        let chosen = if mods.option && available.contains(DndAction::Copy) {
+            DndAction::Copy
+        } else if mods.cmd && available.contains(DndAction::Move) {
+            DndAction::Move
+        } else {
+            smithay::wayland::selection::data_device::default_action_chooser(available, preferred)
+        };
+        if self.isle.dnd_icon.is_some() || self.isle.seat.get_pointer().is_some_and(|p| p.is_grabbed()) {
+            let at = self.isle.seat.get_pointer().map(|p| p.current_location()).unwrap_or_default();
+            self.isle.dnd_over = self.isle.surface_under(at).map(|(focus, _)| focus);
+            self.set_dnd_cursor(chosen == DndAction::Copy);
+        }
+        chosen
+    }
 }
 
 impl DndGrabHandler for State {
     fn dropped(
         &mut self,
         _target: Option<smithay::input::dnd::DndTarget<'_, Self>>,
-        _validated: bool,
+        validated: bool,
         _seat: Seat<Self>,
-        _location: smithay::utils::Point<f64, smithay::utils::Logical>,
+        location: smithay::utils::Point<f64, smithay::utils::Logical>,
     ) {
-        self.isle.dnd_icon = None;
-        self.isle.queue_redraw_all();
+        self.end_dnd_icon(location, !validated);
     }
 
-    fn cancelled(&mut self, _seat: Seat<Self>, _location: smithay::utils::Point<f64, smithay::utils::Logical>) {
-        self.isle.dnd_icon = None;
-        self.isle.queue_redraw_all();
+    fn cancelled(&mut self, _seat: Seat<Self>, location: smithay::utils::Point<f64, smithay::utils::Logical>) {
+        self.end_dnd_icon(location, true);
     }
 }
 
@@ -157,7 +179,10 @@ impl WaylandDndGrabHandler for State {
             GrabType::Pointer => {
                 let pointer = seat.get_pointer().unwrap();
                 let start = pointer.grab_start_data().unwrap();
+                self.isle.dnd_start = start.location;
                 let grab = DnDGrab::new_pointer(&self.isle.display_handle, start, source, seat);
+                self.isle.dnd_return = None;
+                self.isle.dnd_icon_offset = icon.as_ref().map(crate::dnd::take_offset).unwrap_or_default();
                 pointer.set_grab(self, grab, serial, Focus::Keep);
                 self.isle.dnd_icon = icon;
                 self.isle.queue_redraw_all();

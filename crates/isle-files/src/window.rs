@@ -157,6 +157,7 @@ impl App for FilesWindow {
         let mut spring_turn = use_state(|| 0u64);
         let mut press = use_state(|| None::<(PathBuf, f64, f64)>);
         let mut drag_started = use_state(|| false);
+        let mut release = use_state(|| None::<(Pick, EventHandler<Pick>)>);
         // The Return that commits a name is the field's alone.
         let mut committed = use_state(|| false);
         let open_with = use_state(|| None::<crate::open::Offer>);
@@ -385,8 +386,10 @@ impl App for FilesWindow {
         // A drag from this window ended, dropped or not.
         use_side_effect(move || {
             let _ = *drag.ended.read();
+            crate::drag_image::set_dragged(Vec::new());
             drag_started.set(false);
             press.set(None);
+            release.set(None);
         });
         // Calculate all sizes: once the folder is listed, each folder's size is counted.
         let counting = {
@@ -444,6 +447,26 @@ impl App for FilesWindow {
             });
         });
 
+        // What a drop where the pointer is would do: Files' own items move within one volume,
+        // as Finder's do, and anything else copies.
+        use_side_effect({
+            let shared = shared.clone();
+            move || {
+                let over = drag.over.read().is_some();
+                let target = drop_target.read().clone();
+                let _ = *tab_over.read();
+                let Some(data) = shared.app().data().filter(|_| over) else { return };
+                let here = tabs.peek().get(*current.peek()).and_then(|h| h.tab.peek().place.folder().map(PathBuf::from));
+                let dragged = crate::drag_image::dragged();
+                let moves = match (dragged.first(), target.or(here)) {
+                    (Some(_), Some(into)) if into.as_os_str() == TRASH => true,
+                    (Some(item), Some(into)) => same_volume(item, &into),
+                    _ => false,
+                };
+                data.prefer(if moves { isle_app::data::Action::Move } else { isle_app::data::Action::Copy });
+            }
+        });
+
         // Drops on the window: into the folder under the pointer, or the one shown.
         use_side_effect({
             let shared = shared.clone();
@@ -454,12 +477,12 @@ impl App for FilesWindow {
                 let mut dropped = drag.dropped;
                 let drops = std::mem::take(&mut *dropped.write());
                 let target = drop_target.peek().clone();
+                let tab_hit = *tab_over.peek();
                 drop_target.set(None);
                 tab_over.set(None);
                 let new_favourite = bookmark_at.write().take();
                 let Some(handle) = tabs.peek().get(*current.peek()).cloned() else { return };
                 let here = handle.tab.peek().place.folder().map(PathBuf::from);
-                let mods = *held.peek();
                 for drop in drops {
                     let (paths, _) = crate::transfer::read(crate::transfer::URIS, &drop.data);
                     // Between two Favourites: the folders become bookmarks there.
@@ -493,15 +516,17 @@ impl App for FilesWindow {
                         if items.is_empty() {
                             continue;
                         }
-                        // Within one volume an item moves, as Finder's do, across volumes it copies;
-                        // ⌥ forces a copy and ⌘ a move.
-                        let moves = if mods.contains(Modifiers::ALT) {
-                            false
-                        } else if mods.contains(Modifiers::META) {
-                            true
-                        } else {
-                            drop.own && same_volume(&items[0], &into)
-                        };
+                        // Settled during the drag: the preference below, or ⌥ and ⌘ at the compositor.
+                        let moves = drop.action == isle_app::data::Action::Move;
+                        tracing::info!(
+                            into = %into.display(),
+                            items = items.len(),
+                            own = drop.own,
+                            same_volume = same_volume(&items[0], &into),
+                            on_tab = tab_hit.is_some(),
+                            moves,
+                            "drop"
+                        );
                         if moves { Work::Move { items, into } } else { Work::Copy { items, into } }
                     };
                     start_job(&shared, key, work, &mut alert);
@@ -644,9 +669,9 @@ impl App for FilesWindow {
                         Pick::Shown(next) => set_shown(&shared, tab, next),
                         Pick::Disclose(folder, all) => {
                             if tab.peek().expanded.contains(&folder) {
-                                tab::collapse(tab, &folder);
+                                tab::collapse(tab, &handle.live, &folder);
                             } else {
-                                tab::expand(tab, folder, all);
+                                tab::expand(tab, &handle.live, folder, all);
                             }
                         }
                         Pick::Header(at) => {
@@ -660,6 +685,7 @@ impl App for FilesWindow {
         });
         let shared_keys = shared.clone();
         let menu_fallback = (t.size_sidebar + t.space_l, t.size_toolbar + t.space_l);
+        let keys_live = live.clone();
         let on_key = move |e: Event<KeyboardEventData>| {
             held.set_if_modified(e.modifiers);
             // Space over a folder during a drag opens it at once.
@@ -751,11 +777,11 @@ impl App for FilesWindow {
                     };
                     match &e.key {
                         Key::Named(NamedKey::ArrowRight) if dir && !open => {
-                            tab::expand(tab, cursor, m.contains(Modifiers::ALT));
+                            tab::expand(tab, &keys_live, cursor, m.contains(Modifiers::ALT));
                             return;
                         }
                         Key::Named(NamedKey::ArrowLeft) if open => {
-                            tab::collapse(tab, &cursor);
+                            tab::collapse(tab, &keys_live, &cursor);
                             return;
                         }
                         Key::Named(NamedKey::ArrowLeft) => {
@@ -851,6 +877,7 @@ impl App for FilesWindow {
                 if total == 0 { 0. } else { done as f32 / total as f32 }
             },
             ringed: context.read().as_ref().and_then(|o| o.items.clone()).filter(|items| *items != tab.peek().selection).unwrap_or_default(),
+            release: Some(release),
         };
         let body = content(&theme, &handle, rev, focused, on_pick, interact.clone(), preview_shown);
         // A question goes to the window that started its job, or to the front one when that
@@ -1059,17 +1086,32 @@ impl App for FilesWindow {
                     }
                     let (Some(data), Some(surface)) = (data.clone(), surface) else { return };
                     // A drag carries the selection it starts in, or the item alone.
-                    let items = {
+                    let (items, entries, shown) = {
                         let t = tab.peek();
-                        if t.is_selected(&path) { t.selection.clone() } else { vec![path.clone()] }
+                        let items = if t.is_selected(&path) { t.selection.clone() } else { vec![path.clone()] };
+                        // The pressed item leads the image.
+                        let entries: Vec<_> = std::iter::once(&path)
+                            .chain(items.iter().filter(|p| **p != path))
+                            .filter_map(|p| t.entry(p).cloned())
+                            .collect();
+                        (items, entries, t.shown)
                     };
-                    data.start_drag(surface, crate::transfer::contents(&items, false));
+                    let dark = isle_ui::theme().appearance.mode == isle_tokens::Mode::Dark;
+                    let scale = *Platform::get().scale_factor.peek();
+                    let image = crate::drag_image::drag_image(entries, shown.view, shown.icon_size as f32, dark, scale);
+                    crate::drag_image::set_dragged(items.clone());
+                    data.start_drag(surface, crate::transfer::contents(&items, false), image);
                     drag_started.set(true);
+                    release.set(None);
                 }
             })
             .on_global_pointer_up(move |_: Event<PointerEventData>| {
                 if !*drag_started.peek() {
                     press.set(None);
+                    let held = release.write().take();
+                    if let Some((pick, on_pick)) = held {
+                        on_pick.call(pick);
+                    }
                 }
             })
             .on_mouse_down({

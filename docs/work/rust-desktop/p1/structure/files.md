@@ -224,8 +224,8 @@ Commands are in File and Edit and the item's context menu
   Files 8; D71).
 - **Duplicate** ⌘D, **Make Alias** ⌃⌘A (a symbolic link, "{name} alias"),
   **Show Original** ⌘R, **Compress** ("Archive.zip" for several, as
-  Finder), **Expand** (into a folder beside it; also a double-click on an
-  archive with no default app set), **Copy “{name}” as Pathname** ⌥⌘C.
+  Finder), **Expand** (each archive selected into a folder beside it, as
+  one job; also a double-click on archives with no default app set), **Copy “{name}” as Pathname** ⌥⌘C.
 - **Cut, Copy, Paste**: ⌘C then ⌘V copies; ⌘C then ⌥⌘V moves, as Finder;
   ⌘X then ⌘V moves too, as Linux file managers and v1 did. Finder leaves
   ⌘X disabled for files, so taking it costs a Mac user nothing.
@@ -694,7 +694,7 @@ in sentence case.
 | Where | String |
 |---|---|
 | Sidebar | "Recents", "Favourites", "Locations", "Tags", "Trash", "Home", "Applications" |
-| File | "New Window", "New Tab", "New Folder", "New Folder with Items", "New file", "Open", "Open With", "Other…", "Open in terminal", "Close Window", "Close Tab", "Get Info", "Get Summary Info", "Rename", "Rename {n} Items…", "Compress “{name}”", "Compress {n} Items", "Expand", "Duplicate", "Make Alias", "Show Original", "Quick Look", "Add to Sidebar", "Move to Trash", "Put Back", "Delete Immediately…", "Empty Trash…", "Eject “{volume}”", "Set as wallpaper" |
+| File | "New Window", "New Tab", "New Folder", "New Folder with Items", "New file", "Open", "Open With", "Other…", "Open in terminal", "Close Window", "Close Tab", "Get Info", "Get Summary Info", "Rename", "Rename {n} Items…", "Compress “{name}”", "Compress {n} Items", "Expand", "Expand {n} Items", "Duplicate", "Make Alias", "Show Original", "Quick Look", "Add to Sidebar", "Move to Trash", "Put Back", "Delete Immediately…", "Empty Trash…", "Eject “{volume}”", "Set as wallpaper" |
 | Edit | "Copy “{name}” as Pathname", "Move Item Here", "Deselect All", "Undo Move to Trash", "Undo Copy of {n} Items", "Undo Rename", "Can't Undo" |
 | View | "as Icons", "as List", "as Columns", "Use Groups", "Group By", "Sort By", "Show View Options", "Show Preview", "Show Path Bar", "Show Status Bar", "Show Hidden Files", "Calculate all sizes", "Use as Defaults" |
 | Go | "Back", "Forward", "Enclosing Folder", "Recents", "Documents", "Desktop", "Downloads", "Home", "Computer", "Applications", "Recent Folders", "Go to Folder…" |

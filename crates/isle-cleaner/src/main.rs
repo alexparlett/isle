@@ -28,6 +28,7 @@ const SPEC: Spec = Spec {
     traffic_light_inset: (0.0, 10.0),
     preferences: false,
     backdrop: None,
+    drops: &["text/uri-list"],
 };
 
 fn main() {

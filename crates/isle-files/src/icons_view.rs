@@ -228,6 +228,7 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
         return rect().into_element();
     };
     let selected = tab.is_selected(&entry.path);
+    let among_selected = selected && tab.selection.len() > 1;
     let capsule = if grid.focused { t.colour_accent } else { t.colour_selection_unfocused };
     let ink = if selected && grid.focused { t.colour_on_accent } else { t.colour_text };
     let path = entry.path.clone();
@@ -275,7 +276,8 @@ fn cell(theme: &isle_tokens::Theme, grid: &Grid, index: usize) -> Element {
             interact.press(&path, e.global_location.x, e.global_location.y);
             let held = Held::of(e.modifiers);
             let double = EventsCombos::<CellClick>::pressed(e.global_location).is_double();
-            on_pick.call(if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) });
+            let pick = if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) };
+            interact.click(pick, among_selected, on_pick.clone());
         })
         .child(
             rect()

@@ -10,10 +10,14 @@ build = "build.rs"
 accesskit.workspace = true
 bytes = "1"
 freya.workspace = true
+freya-core = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
+freya-engine = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
+futures-channel = "0.3"
+ragnarok = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
 isle-search.workspace = true
 isle-tokens.workspace = true
 zeroize.workspace = true
 
 [dev-dependencies]
 png.workspace = true
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }

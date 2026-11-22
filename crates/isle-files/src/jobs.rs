@@ -124,10 +124,20 @@ pub fn retry_of(work: &Work, failed: &[(PathBuf, String)]) -> Option<Work> {
         Work::Trash { items } => Work::Trash { items: pick(items) },
         Work::Delete { items } => Work::Delete { items: pick(items) },
         Work::Duplicate { items } => Work::Duplicate { items: pick(items) },
+        Work::Expand { archives } => Work::Expand { archives: pick(archives) },
         _ => return None,
     };
     match &again {
-        Work::Copy { items, .. } | Work::Move { items, .. } | Work::Trash { items } | Work::Delete { items } | Work::Duplicate { items } if !items.is_empty() => Some(again),
+        Work::Copy { items, .. }
+        | Work::Move { items, .. }
+        | Work::Trash { items }
+        | Work::Delete { items }
+        | Work::Duplicate { items }
+        | Work::Expand { archives: items }
+            if !items.is_empty() =>
+        {
+            Some(again)
+        }
         _ => None,
     }
 }
@@ -387,7 +397,13 @@ pub fn title(work: &Work) -> (String, String) {
         Work::Rename { item, .. } => (format!("Renaming “{}”", crate::sheets::name(item)), "Rename".into()),
         Work::RenameMany { items, .. } => (format!("Renaming {}", n(items)), "Rename".into()),
         Work::Compress { items } => (format!("Compressing {}", n(items)), "Compress".into()),
-        Work::Expand { archive } => (format!("Expanding “{}”", crate::sheets::name(archive)), "Expand".into()),
+        Work::Expand { archives } => (
+            match archives.as_slice() {
+                [one] => format!("Expanding “{}”", crate::sheets::name(one)),
+                _ => format!("Expanding {}", n(archives)),
+            },
+            "Expand".into(),
+        ),
         Work::Undo { .. } => ("Undoing".into(), String::new()),
     }
 }

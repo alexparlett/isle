@@ -227,8 +227,8 @@ pub fn items(tab: &Tab, items: Vec<PathBuf>, apps: &Apps, at: (f32, f32), keyboa
     if count == 1 && entries.first().map(mime).is_some_and(|m| m.starts_with("image/")) {
         rows.command("Set as wallpaper", "set-wallpaper");
     }
-    if count == 1 && one.as_deref().is_some_and(is_archive) {
-        rows.command("Expand", "expand");
+    if count > 0 && entries.len() == count && entries.iter().all(|e| is_archive(&e.name)) {
+        rows.command(if count == 1 { "Expand".to_owned() } else { format!("Expand {count} Items") }, "expand");
     }
     rows.done(at, Some(items), keyboard)
 }

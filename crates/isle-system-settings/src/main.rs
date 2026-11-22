@@ -27,6 +27,7 @@ const SPEC: Spec = Spec {
     preferences: false,
     // The sidebar's width and more than any window's height; the compositor cuts it to the window.
     backdrop: Some((0.0, 0.0, 220.0, 8192.0)),
+    drops: &[],
 };
 
 #[derive(Clone)]

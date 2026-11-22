@@ -436,6 +436,7 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
             .is_some_and(|e| tab.is_selected(&e.path)),
     };
     let selected = tab.is_selected(&entry.path);
+    let among_selected = selected && tab.selection.len() > 1;
     let joined_above = selected_line(item.index.checked_sub(1));
     let joined_below = selected_line(Some(item.index + 1));
     let fill = if selected {
@@ -503,11 +504,8 @@ fn row(item: VirtualItem, rows: &Rows) -> Element {
                     interact.press(&path, e.global_location.x, e.global_location.y);
                     let held = Held::of(e.modifiers);
                     let double = EventsCombos::<RowClick>::pressed(e.global_location).is_double();
-                    on_pick.call(if double {
-                        Pick::Open(path.clone(), held)
-                    } else {
-                        Pick::Click(path.clone(), held)
-                    });
+                    let pick = if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) };
+                    interact.click(pick, among_selected, on_pick.clone());
                 })
                 .child(
                     rect()

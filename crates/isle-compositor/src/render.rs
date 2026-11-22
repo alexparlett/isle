@@ -269,7 +269,7 @@ impl Isle {
         }
         // The drag's icon, under the cursor and over every surface.
         if let (Some(icon), Some(at)) = (&self.dnd_icon, pointer.filter(|_| from <= Stage::Cursor)) {
-            let location = at - geometry.loc.to_f64();
+            let location = at - geometry.loc.to_f64() + self.dnd_icon_offset.to_f64();
             for element in render_elements_from_surface_tree(
                 renderer,
                 icon,
@@ -279,6 +279,21 @@ impl Isle {
                 Kind::Unspecified,
             ) {
                 push(IsleElement::Surface(element));
+            }
+        }
+        if let Some(back) = self.dnd_return.as_ref().filter(|_| from <= Stage::Cursor) {
+            let (at, alpha) = back.at();
+            let location = (at - geometry.loc.to_f64() + back.offset.to_f64()).to_physical(scale).to_i32_round::<i32>().to_f64();
+            if let Ok(element) = MemoryRenderBufferRenderElement::from_buffer(
+                renderer,
+                location,
+                &back.buffer,
+                Some(alpha),
+                None,
+                None,
+                Kind::Unspecified,
+            ) {
+                push(IsleElement::Memory(element));
             }
         }
 

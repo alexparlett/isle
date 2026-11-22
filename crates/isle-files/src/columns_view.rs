@@ -291,6 +291,7 @@ fn column(
         .iter()
         .map(|entry| {
             let selected = snapshot.is_selected(&entry.path);
+            let among_selected = selected && snapshot.selection.len() > 1;
             let fill = selected.then(|| if active { t.colour_accent } else { t.colour_selection_unfocused });
             let ink = if selected && active { t.colour_on_accent } else { t.colour_text };
             let path = entry.path.clone();
@@ -339,7 +340,8 @@ fn column(
                             pressing.press(&path, e.global_location.x, e.global_location.y);
                             let double = EventsCombos::<ColumnClick>::pressed(e.global_location).is_double();
                             let held = Held::of(e.modifiers);
-                            on_pick(if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) });
+                            let pick = if double { Pick::Open(path.clone(), held) } else { Pick::Click(path.clone(), held) };
+                            pressing.click(pick, among_selected, EventHandler::new(on_pick.clone()));
                         })
                         .child(list_view::icon(entry, dark, t.size_app_icon_small, t.colour_text_2))
                         .child(rect().width(Size::flex(1.)).child(match interact.renaming(&entry.path) {

@@ -14,8 +14,8 @@ gpu = ["freya/gpu"]
 [dependencies]
 freya = { workspace = true, features = ["winit", "accessibility"] }
 # For the pointer events a drag over a window is turned into.
-freya-core = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
-freya-winit = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
+freya-core = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
+freya-winit = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
 futures-channel = "0.3"
 zeroize.workspace = true
 futures-util.workspace = true
@@ -26,7 +26,7 @@ isle-tokens.workspace = true
 isle-ui.workspace = true
 raw-window-handle = "0.6"
 smithay-client-toolkit = { version = "0.20", default-features = false }
-rustix = { version = "1.1", features = ["event", "pipe"] }
+rustix = { version = "1.1", features = ["event", "fs", "pipe"] }
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
@@ -39,4 +39,4 @@ zbus.workspace = true
 zvariant.workspace = true
 
 [dev-dependencies]
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "2cf6468f62dde93bf427e55a93c523c72a8d0465" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }

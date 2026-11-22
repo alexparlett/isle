@@ -38,7 +38,8 @@ pub enum Work {
     /// `#` in the pattern is each item's number from `start`.
     RenameMany { items: Vec<PathBuf>, pattern: String, start: u64 },
     Compress { items: Vec<PathBuf> },
-    Expand { archive: PathBuf },
+    /// Each archive into a folder of its own beside it.
+    Expand { archives: Vec<PathBuf> },
     Undo { steps: Vec<Step> },
 }
 
@@ -620,23 +621,31 @@ pub fn run(work: Work, control: &dyn Control) -> Report {
                 }
             }
         }
-        Work::Expand { archive } => {
-            let Some(dir) = archive.parent() else { return run.report };
-            let name = archive.file_name().unwrap().to_string_lossy().into_owned();
-            let dest = free_name(dir, split_ext(&name).0, false);
-            let part = part_for(&dest);
-            let made = fs::create_dir(&part)
-                .and_then(|_| bsdtar(&["-xf".as_ref(), archive.as_os_str(), "-C".as_ref(), part.as_os_str()]))
-                .and_then(|_| rename(&part, &dest, RenameFlags::NOREPLACE));
-            match made {
-                Ok(()) => {
-                    run.steps.push(Step::Made(dest.clone()));
-                    run.report.made.push(dest);
+        Work::Expand { archives } => {
+            run.progress.total_items = archives.len() as u64;
+            for archive in &archives {
+                if run.control.stopped() {
+                    run.report.stopped = true;
+                    break;
                 }
-                Err(e) => {
-                    let _ = trash::remove_tree(&part);
-                    run.fail(&archive, why(&e, &archive));
+                let Some(dir) = archive.parent() else { continue };
+                let name = archive.file_name().unwrap().to_string_lossy().into_owned();
+                let dest = free_name(dir, split_ext(&name).0, false);
+                let part = part_for(&dest);
+                let made = fs::create_dir(&part)
+                    .and_then(|_| bsdtar(&["-xf".as_ref(), archive.as_os_str(), "-C".as_ref(), part.as_os_str()]))
+                    .and_then(|_| rename(&part, &dest, RenameFlags::NOREPLACE));
+                match made {
+                    Ok(()) => {
+                        run.steps.push(Step::Made(dest.clone()));
+                        run.report.made.push(dest);
+                    }
+                    Err(e) => {
+                        let _ = trash::remove_tree(&part);
+                        run.fail(archive, why(&e, archive));
+                    }
                 }
+                run.item_done();
             }
         }
         // Each step undone records its inverse, so undoing the undo redoes it.
@@ -899,8 +908,24 @@ mod tests {
         let made = run(Work::Compress { items: vec![src.join("folder")] }, &Fixed::new(Choice::Stop));
         let archive = made.made[0].clone();
         assert_eq!(archive.file_name().unwrap(), "folder.zip");
-        let out = run(Work::Expand { archive }, &Fixed::new(Choice::Stop));
+        let out = run(Work::Expand { archives: vec![archive] }, &Fixed::new(Choice::Stop));
         assert!(out.failed.is_empty(), "{:?}", out.failed);
         assert!(out.made[0].join("folder/inner/b.txt").exists(), "{:?}", out.made);
+    }
+
+    #[test]
+    fn expand_several_each_beside_itself() {
+        if Command::new("bsdtar").arg("--version").output().is_err() {
+            return;
+        }
+        let base = tempfile::tempdir().unwrap();
+        let (src, _) = tree(base.path());
+        let first = run(Work::Compress { items: vec![src.join("folder")] }, &Fixed::new(Choice::Stop)).made[0].clone();
+        let second = run(Work::Compress { items: vec![src.join("a.txt")] }, &Fixed::new(Choice::Stop)).made[0].clone();
+        let out = run(Work::Expand { archives: vec![first, second] }, &Fixed::new(Choice::Stop));
+        assert!(out.failed.is_empty(), "{:?}", out.failed);
+        assert_eq!(out.made.len(), 2, "{:?}", out.made);
+        assert!(out.made[0].join("folder/inner/b.txt").exists(), "{:?}", out.made);
+        assert!(out.made[1].join("a.txt").exists(), "{:?}", out.made);
     }
 }

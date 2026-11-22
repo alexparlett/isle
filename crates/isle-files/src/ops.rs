@@ -377,8 +377,8 @@ pub(crate) fn open_files(shared: &Shared, key: isle_app::WindowKey, files: Vec<P
             }
         }
         let (archives, ask): (Vec<_>, Vec<_>) = ask.into_iter().partition(|p| crate::menus::is_archive(&p.to_string_lossy()));
-        for archive in archives {
-            let work = Work::Expand { archive };
+        if !archives.is_empty() {
+            let work = Work::Expand { archives };
             let (title, undo_label) = crate::jobs::title(&work);
             jobs.start(&app, key, work, title, undo_label);
         }

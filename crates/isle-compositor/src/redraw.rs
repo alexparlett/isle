@@ -270,6 +270,7 @@ impl State {
         self.pass_commit_timers(target);
         self.isle.step_windows(std::time::Instant::now());
         self.step_mission(std::time::Instant::now());
+        self.isle.step_dnd_return(std::time::Instant::now());
         self.step_dashboard(std::time::Instant::now());
         if let Some(renderer) = self.backend.renderer_opt() {
             self.isle.prepare_wallpaper(renderer, output);
@@ -343,6 +344,7 @@ impl State {
                 || self.isle.windows_moving(output)
                 || self.isle.mission_moving(output)
                 || self.isle.dashboard_moving()
+                || self.isle.dnd_return_moving()
                 || self.isle.wallpapers.fading(&Isle::output_identity(output))
                 || self.isle.island_moving(output)
                 || self.bar_moving()

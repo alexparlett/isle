@@ -320,9 +320,9 @@ impl App for PanelWindow {
                 Pick::Menu(..) | Pick::Header(_) => {}
                 Pick::Disclose(folder, all) => {
                     if tab.peek().expanded.contains(&folder) {
-                        tab::collapse(tab, &folder);
+                        tab::collapse(tab, &live, &folder);
                     } else {
-                        tab::expand(tab, folder, all);
+                        tab::expand(tab, &live, folder, all);
                     }
                 }
                 Pick::Shown(next) => {
@@ -391,6 +391,7 @@ impl App for PanelWindow {
             writing: 0.,
             cursor_at,
             view_menu,
+            release: None,
         };
         let focused = *Platform::get().is_app_focused.read();
         let rev = tab.read().rev;

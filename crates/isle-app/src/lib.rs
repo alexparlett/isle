@@ -56,6 +56,8 @@ pub struct Spec {
     /// The window's box the compositor blurs behind, from its top leading corner, in points:
     /// a sidebar drawn in the glass material.
     pub backdrop: Option<(f64, f64, f64, f64)>,
+    /// The types it takes in a drop, in order of preference; with none it refuses every drop.
+    pub drops: &'static [&'static str],
 }
 
 /// The desktop's state as the app last heard it, read by any component.
@@ -245,6 +247,7 @@ pub fn provide_for_tests(desktop_values: BTreeMap<String, Value>) -> Desktop {
             traffic_light_inset: (0.0, 0.0),
             preferences: false,
             backdrop: None,
+            drops: &[],
         };
         AppHandle::new(spec, worker.clone(), None, unbounded().0, desktop, theme).0
     });

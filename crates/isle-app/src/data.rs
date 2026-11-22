@@ -37,18 +37,33 @@ use wayland_client::{
     Connection, Dispatch, EventQueue, Proxy, QueueHandle,
     globals::registry_queue_init,
     protocol::{
+        wl_buffer::WlBuffer,
+        wl_compositor::WlCompositor,
         wl_data_device::WlDataDevice,
         wl_data_device_manager::DndAction,
         wl_data_source::WlDataSource,
         wl_keyboard::{self, WlKeyboard},
         wl_pointer::WlPointer,
         wl_seat::WlSeat,
+        wl_shm::{self, WlShm},
+        wl_shm_pool::WlShmPool,
         wl_surface::WlSurface,
     },
 };
 
 /// What one item of the selection or a drag holds, in each type it is offered as.
 pub type Contents = Vec<(String, Vec<u8>)>;
+
+/// What a drag carries under the pointer: premultiplied ARGB8888 pixels (B, G, R, A in
+/// memory), `scale` buffer pixels to a logical one, and the logical point the pointer holds.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DragImage {
+    pub width: u32,
+    pub height: u32,
+    pub scale: i32,
+    pub hold: (i32, i32),
+    pub pixels: Vec<u8>,
+}
 
 /// A drag over one of the app's windows, by its surface's protocol id.
 #[derive(Clone, Debug, PartialEq)]
@@ -84,9 +99,11 @@ enum Ask {
     /// Ends the secret selection, if it is still the selection.
     WithdrawSecret,
     ReadSelection(Vec<String>, mpsc::Sender<Option<(String, Vec<u8>)>>),
-    StartDrag { surface: u32, contents: Contents },
+    StartDrag { surface: u32, contents: Contents, image: Option<DragImage> },
     /// The drop target's type of choice for drags onto the app.
     Accept(Vec<String>),
+    /// What a drop where the pointer is now would do, as the app sees it.
+    Prefer(Action),
     /// Tells the app whether the window of this surface is shown.
     WatchShown(WlSurface),
 }
@@ -119,8 +136,13 @@ impl Data {
         let (events, rx) = unbounded();
         let (shown, shown_rx) = unbounded();
         let titlebars = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 4..=4, ()).ok();
+        let compositor = globals.bind::<WlCompositor, _, _>(&qh, 1..=6, ()).ok();
+        let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ()).ok();
         let state = State {
             titlebars,
+            compositor,
+            shm,
+            icon: None,
             shown,
             registry: RegistryState::new(&globals),
             seats: SeatState::new(&globals, &qh),
@@ -133,7 +155,8 @@ impl Data {
             selection: None,
             secret: None,
             drag: None,
-            accepts: vec!["text/uri-list".into()],
+            accepts: Vec::new(),
+            prefer: DndAction::Copy,
             events,
             dragging_own: false,
         };
@@ -182,20 +205,32 @@ impl Data {
         rx.recv_timeout(Duration::from_secs(1)).ok().flatten()
     }
 
-    /// Starts a drag of `contents` from the surface the button was pressed in.
-    pub fn start_drag(&self, surface: u32, contents: Contents) {
-        self.ask(Ask::StartDrag { surface, contents });
+    /// Starts a drag of `contents` from the surface the button was pressed in, with `image`
+    /// under the pointer.
+    pub fn start_drag(&self, surface: u32, contents: Contents, image: Option<DragImage>) {
+        self.ask(Ask::StartDrag { surface, contents, image });
     }
 
-    /// The types the app takes in a drop, in order of preference.
+    /// The types the app takes in a drop, in order of preference; none until it says.
     pub fn accept(&self, types: Vec<String>) {
         self.ask(Ask::Accept(types));
+    }
+
+    /// Whether a drop where the pointer is now would copy or move; the compositor has the
+    /// last word, with ⌥ and ⌘.
+    pub fn prefer(&self, action: Action) {
+        self.ask(Ask::Prefer(action));
     }
 }
 
 struct State {
     /// The compositor's manager, at the version with visibility; none on another compositor.
     titlebars: Option<IsleTitlebarManagerV1>,
+    /// For a drag's image.
+    compositor: Option<WlCompositor>,
+    shm: Option<WlShm>,
+    /// The drag's image while it is dragged.
+    icon: Option<(WlSurface, WlBuffer)>,
     shown: UnboundedSender<ShownEvent>,
     registry: RegistryState,
     seats: SeatState,
@@ -212,6 +247,8 @@ struct State {
     secret: Option<futures_channel::oneshot::Sender<SecretEnd>>,
     drag: Option<(DragSource, Contents)>,
     accepts: Vec<String>,
+    /// The action a drop on the app would take now.
+    prefer: DndAction,
     events: UnboundedSender<DragEvent>,
     /// The drag over the app is its own.
     dragging_own: bool,
@@ -277,6 +314,19 @@ impl State {
             }
             return;
         }
+        // Kept whether or not the device is there yet: it comes with the seat.
+        match ask {
+            Ask::Accept(types) => {
+                self.accepts = types;
+                return;
+            }
+            Ask::Prefer(action) => {
+                self.prefer = if action == Action::Move { DndAction::Move } else { DndAction::Copy };
+                self.offer_actions();
+                return;
+            }
+            _ => {}
+        }
         if let Ask::WithdrawSecret = ask {
             self.end_secret(SecretEnd::Withdrawn);
             let _ = conn.flush();
@@ -326,17 +376,23 @@ impl State {
                     }
                 }
             }
-            Ask::StartDrag { surface, contents } => {
+            Ask::StartDrag { surface, contents, image } => {
                 // A drag starts from the surface its button went down in.
                 let Some((serial, origin)) = self.press.clone().filter(|(_, s)| s.id().protocol_id() == surface) else {
                     return;
                 };
                 let source = self.manager.create_drag_and_drop_source(qh, contents.iter().map(|(t, _)| t.clone()), DndAction::Copy | DndAction::Move);
-                source.start_drag(device, &origin, None, serial);
+                if let Some((surface, buffer)) = self.icon.take() {
+                    surface.destroy();
+                    buffer.destroy();
+                }
+                let icon = image.and_then(|image| self.icon_surface(qh, image));
+                source.start_drag(device, &origin, icon.as_ref().map(|(s, _)| s), serial);
+                self.icon = icon;
                 self.dragging_own = true;
                 self.drag = Some((source, contents));
             }
-            Ask::Accept(types) => self.accepts = types,
+            Ask::Accept(_) | Ask::Prefer(_) => {}
             Ask::WatchShown(_) => {}
         }
     }
@@ -352,8 +408,54 @@ impl State {
         let _ = ended.send(end);
     }
 
+    /// A surface showing `image`, offset so the pointer holds it at `image.hold`.
+    fn icon_surface(&self, qh: &QueueHandle<Self>, image: DragImage) -> Option<(WlSurface, WlBuffer)> {
+        let (compositor, shm) = (self.compositor.as_ref()?, self.shm.as_ref()?);
+        let (width, height) = (i32::try_from(image.width).ok()?, i32::try_from(image.height).ok()?);
+        let stride = width.checked_mul(4)?;
+        let len = stride.checked_mul(height)?;
+        if width == 0 || height == 0 || image.pixels.len() != len as usize {
+            return None;
+        }
+        let fd = rustix::fs::memfd_create("isle-drag-image", rustix::fs::MemfdFlags::CLOEXEC).ok()?;
+        let mut file = std::fs::File::from(fd);
+        file.write_all(&image.pixels).ok()?;
+        let pool = shm.create_pool(std::os::fd::AsFd::as_fd(&file), len, qh, ());
+        let buffer = pool.create_buffer(0, width, height, stride, wl_shm::Format::Argb8888, qh, ());
+        pool.destroy();
+        let surface = compositor.create_surface(qh, ());
+        surface.set_buffer_scale(image.scale.max(1));
+        let (x, y) = (-image.hold.0, -image.hold.1);
+        // From version 5 an offset is its own request; before it, attach carries it.
+        if surface.version() >= 5 {
+            surface.attach(Some(&buffer), 0, 0);
+            surface.offset(x, y);
+        } else {
+            surface.attach(Some(&buffer), x, y);
+        }
+        surface.damage_buffer(0, 0, width, height);
+        surface.commit();
+        Some((surface, buffer))
+    }
+
+    fn end_icon(&mut self) {
+        if let Some((surface, buffer)) = self.icon.take() {
+            surface.destroy();
+            buffer.destroy();
+        }
+    }
+
     fn send(&self, event: DragEvent) {
         let _ = self.events.unbounded_send(event);
+    }
+
+    /// The current drag's actions, when the app takes what it carries.
+    fn offer_actions(&self) {
+        if let Some(offer) = self.device.as_ref().and_then(|d| d.data().drag_offer())
+            && self.offer_type(&offer).is_some()
+        {
+            offer.set_actions(DndAction::Copy | DndAction::Move, self.prefer);
+        }
     }
 
     fn offer_type(&self, offer: &DragOffer) -> Option<String> {
@@ -370,7 +472,7 @@ impl DataDeviceHandler for State {
         let kind = self.offer_type(&offer);
         offer.accept_mime_type(offer.serial, kind.clone());
         if kind.is_some() {
-            offer.set_actions(DndAction::Copy | DndAction::Move, DndAction::Copy);
+            offer.set_actions(DndAction::Copy | DndAction::Move, self.prefer);
         }
         self.send(DragEvent::Enter {
             surface: surface.id().protocol_id(),
@@ -388,10 +490,13 @@ impl DataDeviceHandler for State {
             .and_then(|d| d.data().drag_offer())
             .map(|o| o.surface.id().protocol_id())
             .unwrap_or(0);
+        self.prefer = DndAction::Copy;
         self.send(DragEvent::Leave { surface });
     }
 
     fn motion(&mut self, _: &Connection, _: &QueueHandle<Self>, device: &WlDataDevice, x: f64, y: f64) {
+        // Offered again on each move, so ⌥ or ⌘ pressed during the drag counts.
+        self.offer_actions();
         if let Some(offer) = self.device.as_ref().filter(|d| d.inner() == device).and_then(|d| d.data().drag_offer()) {
             self.send(DragEvent::Motion { surface: offer.surface.id().protocol_id(), x, y });
         }
@@ -466,6 +571,7 @@ impl DataSourceHandler for State {
         if self.drag.as_ref().is_some_and(|(s, _)| s.inner() == source) {
             self.drag = None;
             self.dragging_own = false;
+            self.end_icon();
             self.send(DragEvent::Ended { dropped: false });
         }
     }
@@ -476,6 +582,7 @@ impl DataSourceHandler for State {
         if self.drag.as_ref().is_some_and(|(s, _)| s.inner() == source) {
             self.drag = None;
             self.dragging_own = false;
+            self.end_icon();
             self.send(DragEvent::Ended { dropped: true });
         }
     }
@@ -552,6 +659,11 @@ impl Dispatch<IsleVisibilityV1, u32> for State {
 }
 
 wayland_client::delegate_noop!(State: ignore IsleTitlebarManagerV1);
+wayland_client::delegate_noop!(State: WlCompositor);
+wayland_client::delegate_noop!(State: ignore WlShm);
+wayland_client::delegate_noop!(State: WlShmPool);
+wayland_client::delegate_noop!(State: ignore WlBuffer);
+wayland_client::delegate_noop!(State: ignore WlSurface);
 
 delegate_registry!(State);
 delegate_seat!(State);

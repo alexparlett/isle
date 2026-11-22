@@ -5,6 +5,7 @@ mod bars;
 mod chooser;
 mod columns_view;
 mod copy_window;
+mod drag_image;
 mod commands;
 mod files1;
 mod fm1;
@@ -74,6 +75,7 @@ const SPEC: Spec = Spec {
     traffic_light_inset: (0.0, 10.0),
     preferences: true,
     backdrop: None,
+    drops: &["text/uri-list"],
 };
 
 /// How a window reaches its own state from the app.

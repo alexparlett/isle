@@ -42,6 +42,6 @@ zbus.workspace = true
 zvariant.workspace = true
 
 [dev-dependencies]
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "178d9fd1547d073af5209354f0ec45a4ab6736ee" }
 isle-app = { workspace = true, features = ["testing"] }
 isle-settings.workspace = true

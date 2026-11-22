@@ -14,8 +14,8 @@ gpu = ["freya/gpu"]
 [dependencies]
 freya = { workspace = true, features = ["winit", "accessibility"] }
 # For the pointer events a drag over a window is turned into.
-freya-core = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
-freya-winit = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
+freya-core = { git = "https://github.com/alexparlett/freya", rev = "178d9fd1547d073af5209354f0ec45a4ab6736ee" }
+freya-winit = { git = "https://github.com/alexparlett/freya", rev = "178d9fd1547d073af5209354f0ec45a4ab6736ee" }
 futures-channel = "0.3"
 zeroize.workspace = true
 futures-util.workspace = true
@@ -39,4 +39,4 @@ zbus.workspace = true
 zvariant.workspace = true
 
 [dev-dependencies]
-freya-testing = { git = "https://github.com/alexparlett/freya", rev = "4ba3a34bc20edf6f81adfbcb5021ede6c36d50ce" }
+freya-testing = { git = "https://github.com/alexparlett/freya", rev = "178d9fd1547d073af5209354f0ec45a4ab6736ee" }

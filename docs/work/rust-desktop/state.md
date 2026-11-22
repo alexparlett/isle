@@ -822,4 +822,9 @@
   an AppImage update (its tool is downloaded in the guest, set aside in
   ~/held; running it waits on the user). Next: 14e.8 (the host, the
   acceptance bars).
+- 2026-11-22: Isle's own update builds with its branch's PKGBUILD (the
+  installed one's had left Store unbuilt on the host); a pacman lock left by
+  an unfinished install is said, not waited on. Store kept beside CachyOS's
+  Package Installer 2.0 (B147), with its review of AUR scripts before a
+  build.
 

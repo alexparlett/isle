@@ -1618,3 +1618,15 @@ broken keyboard; the lock, which has its own field, shows none. macOS's
 `keyboard.sticky-keys-beep`, off by default, which plays the alert sound
 for each latch and lock. Rejected: macOS's plates in the top trailing
 corner, where Isle's banners stand.
+
+**B147 · Store stays beside CachyOS's Package Installer, and reads AUR scripts
+first.** Chosen 2026-11-22 with Package Installer 2.0 installed beside it. The
+two cover the same catalogues; Store is kept for Isle's look and for the split
+it makes with Software Update (one password, the menu's counts, Update
+Everything, its own notes), where CachyOS's is a Qt window with its own system
+update. From CachyOS's it takes the review before an AUR build: Get's sheet
+shows the PKGBUILD and the install script it names, fetched from the AUR, with
+the lines that deserve a look marked and why (fetched or decoded code run, root
+asked for, downloads outside the checked sources, setuid or world-writable
+files, home folders, services started, plain http). A sheet with marked lines
+says Install Anyway. Rejected: pointing "Store…" at CachyOS's installer.

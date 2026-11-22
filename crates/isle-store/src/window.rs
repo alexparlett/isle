@@ -219,6 +219,7 @@ impl freya::prelude::App for StoreWindow {
         let narrowing = use_state(|| false);
         let mut query = use_state(String::new);
         let opened_from = use_state(|| None::<String>);
+        let reviewing = use_state(|| None::<String>);
         let asked = use_hook(|| Rc::new(RefCell::new(HashSet::<String>::new())));
         let requested = use_hook(|| Rc::new(RefCell::new(HashSet::<PathBuf>::new())));
         let shots_requested = use_hook(|| Rc::new(RefCell::new(HashSet::<String>::new())));
@@ -417,6 +418,7 @@ impl freya::prelude::App for StoreWindow {
             narrow,
             narrowing,
             opened_from,
+            reviewing,
             query: typed.clone(),
             system_waiting,
         };

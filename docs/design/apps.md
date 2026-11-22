@@ -454,6 +454,8 @@ updated, with the catalogue each comes from always named.
    starts at once. With CachyOS updates waiting, Get from CachyOS is Update and Install, and the
    AUR waits until they are done, since pacman never does a partial upgrade.
 6. Remove takes what only the app needed; an app another package needs is refused, naming it.
+   Before an AUR build, Get's sheet shows the PKGBUILD and its install script with the lines that
+   deserve a look marked and why (B147).
 7. Updates covers Flathub, the AUR and AppImages by catalogue, each with Update All, and Update
    Everything; apps from CachyOS update with the system in Settings › Software Update and are
    listed there "With the system".

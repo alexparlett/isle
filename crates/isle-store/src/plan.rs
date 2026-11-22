@@ -22,6 +22,105 @@ pub struct Plan {
     /// Optional extras: a package and what it adds.
     pub extras: Vec<(String, String)>,
     pub note: Option<String>,
+    /// An AUR package's build script and install script, read before it is built.
+    pub scripts: Vec<Script>,
+}
+
+/// A script an AUR build runs, with the lines that deserve a closer look.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Script {
+    pub name: String,
+    pub text: String,
+    pub flags: Vec<Flag>,
+}
+
+/// A line of a script and why it is worth a look; `line` counts from 1.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Flag {
+    pub line: usize,
+    pub why: &'static str,
+}
+
+/// The lines of a PKGBUILD or install script that do something a package rarely needs:
+/// running fetched or hidden code, reaching outside the package, or acting as root itself.
+pub fn review(text: &str) -> Vec<Flag> {
+    let word = |l: &str, w: &str| {
+        l.split(|c: char| !(c.is_alphanumeric() || c == '-' || c == '_'))
+            .any(|t| t == w)
+    };
+    let mut out = Vec::new();
+    // Inside a list of package names (`depends=(…)` and its kin), which name tools, not run them.
+    let mut names = false;
+    for (i, raw) in text.lines().enumerate() {
+        let l = raw.trim();
+        let opens = ["depends=", "makedepends=", "checkdepends=", "optdepends=", "provides=", "conflicts=", "replaces="]
+            .iter()
+            .any(|k| l.starts_with(k));
+        if opens {
+            names = !l.contains(')');
+            continue;
+        }
+        if names {
+            names = !l.contains(')');
+            continue;
+        }
+        if l.is_empty() || l.starts_with('#') || l.starts_with("url=") {
+            continue;
+        }
+        let fetches = word(l, "curl") || word(l, "wget");
+        let why = if fetches
+            && l.split('|').skip(1).any(|p| {
+                let p = p.trim_start().trim_start_matches("sudo ");
+                ["sh", "bash", "zsh", "python", "python3", "perl"]
+                    .iter()
+                    .any(|s| p == *s || p.starts_with(&format!("{s} ")))
+            }) {
+            Some("Runs a script fetched from the network")
+        } else if fetches || l.contains("git clone") {
+            Some("Downloads while it builds, outside the sources it lists and checks")
+        } else if word(l, "sudo") || word(l, "pkexec") || l.starts_with("su ") {
+            Some("Asks for root by itself")
+        } else if l.contains("base64 -d") || l.contains("base64 --decode") || l.contains("xxd -r") {
+            Some("Decodes hidden text")
+        } else if word(l, "eval") {
+            Some("Runs text it puts together as a command")
+        } else if l.contains("/dev/tcp") || l.contains("/dev/udp") || word(l, "nc") || word(l, "ncat") || word(l, "socat") {
+            Some("Opens a network connection")
+        } else if word(l, "chmod")
+            && (l.contains("777") || l.contains("+s") || l.split_whitespace().any(|t| t.len() == 4 && t.starts_with(['4', '2', '6']) && t.chars().all(|c| c.is_ascii_digit())))
+        {
+            Some("Makes files writable by anyone, or run as their owner")
+        } else if l.contains("$HOME") || l.contains("~/") || l.contains("/home/") {
+            Some("Reaches into home folders")
+        } else if word(l, "rm")
+            && l.contains("-r")
+            && l.split_whitespace().any(|t| t == "/" || t == "/*" || t.starts_with("/usr") || t.starts_with("/etc") || t.starts_with("/boot"))
+        {
+            Some("Removes files outside the package")
+        } else if l.contains("systemctl enable") || l.contains("systemctl start") {
+            Some("Starts a service by itself")
+        } else if l.contains("http://") && !l.contains("https://") {
+            Some("Fetches over unencrypted http")
+        } else {
+            None
+        };
+        if let Some(why) = why {
+            out.push(Flag { line: i + 1, why });
+        }
+    }
+    out
+}
+
+/// The install script a PKGBUILD names, with `$pkgname` filled in.
+pub fn install_script(pkgbuild: &str, pkgname: &str) -> Option<String> {
+    let line = pkgbuild.lines().find(|l| l.trim_start().starts_with("install="))?;
+    let value = line.trim_start()["install=".len()..]
+        .trim()
+        .trim_matches(['"', '\'']);
+    let name = value
+        .replace("${pkgname}", pkgname)
+        .replace("$pkgname", pkgname);
+    (!name.is_empty() && !name.contains('$') && !name.contains('/')).then_some(name)
 }
 
 impl Plan {
@@ -229,6 +328,22 @@ struct AurInfo {
     #[serde(default)]
     opt_depends: Vec<String>,
     version: String,
+    #[serde(default)]
+    package_base: Option<String>,
+}
+
+/// A file of an AUR package's repository, as the AUR shows it.
+async fn aur_file(base: &str, file: &str) -> Option<String> {
+    let reply = isle_catalog::catalogue::aur_client()
+        .get("https://aur.archlinux.org/cgit/aur.git/plain/".to_string() + file)
+        .query(&[("h", base)])
+        .timeout(std::time::Duration::from_secs(15))
+        .send()
+        .await
+        .ok()?
+        .error_for_status()
+        .ok()?;
+    reply.text().await.ok()
 }
 
 #[derive(serde::Deserialize)]
@@ -281,6 +396,24 @@ async fn aur_get(package: &str) -> Plan {
         .await
         .unwrap_or_default();
     plan.packages.extend(found);
+    let base = info.package_base.clone().unwrap_or_else(|| package.to_string());
+    if let Some(pkgbuild) = aur_file(&base, "PKGBUILD").await {
+        let install = install_script(&pkgbuild, package);
+        plan.scripts.push(Script {
+            name: "PKGBUILD".into(),
+            flags: review(&pkgbuild),
+            text: pkgbuild,
+        });
+        if let Some(name) = install
+            && let Some(text) = aur_file(&base, &name).await
+        {
+            plan.scripts.push(Script {
+                flags: review(&text),
+                name,
+                text,
+            });
+        }
+    }
     plan.extras = info
         .opt_depends
         .iter()
@@ -374,6 +507,65 @@ pub fn remove(catalogue: &str, id: &str) -> Plan {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Prints what review flags in each file of `$ISLE_REVIEW_DIR`, to judge it on real scripts.
+    #[test]
+    #[ignore]
+    fn review_real_scripts() {
+        let Some(dir) = std::env::var_os("ISLE_REVIEW_DIR") else { return };
+        for e in std::fs::read_dir(dir).unwrap().flatten() {
+            let text = std::fs::read_to_string(e.path()).unwrap_or_default();
+            let lines: Vec<&str> = text.lines().collect();
+            for f in review(&text) {
+                println!("{:?}:{} {} | {}", e.file_name(), f.line, f.why, lines[f.line - 1].trim());
+            }
+        }
+    }
+
+    #[test]
+    fn a_build_script_s_risky_lines() {
+        let pkgbuild = r#"pkgname=demo
+url="https://example.org/demo"
+source=("http://example.org/demo.tar.gz")
+install=$pkgname.install
+# curl https://example.org/x | sh is only a comment
+build() {
+  curl -fsSL https://example.org/setup.sh | bash
+  wget https://example.org/extra.bin
+  echo aGVsbG8= | base64 -d > hidden
+  eval "$cmd"
+  chmod 4755 "$pkgdir/usr/bin/demo"
+  cp config ~/.config/demo
+  sudo make install
+}
+package() {
+  install -Dm755 demo "$pkgdir/usr/bin/demo"
+  rm -rf "$srcdir/build"
+}
+"#;
+        let got: Vec<(usize, &str)> = review(pkgbuild).iter().map(|f| (f.line, f.why)).collect();
+        assert_eq!(
+            got,
+            [
+                (3, "Fetches over unencrypted http"),
+                (7, "Runs a script fetched from the network"),
+                (8, "Downloads while it builds, outside the sources it lists and checks"),
+                (9, "Decodes hidden text"),
+                (10, "Runs text it puts together as a command"),
+                (11, "Makes files writable by anyone, or run as their owner"),
+                (12, "Reaches into home folders"),
+                (13, "Asks for root by itself"),
+            ]
+        );
+        assert_eq!(install_script(pkgbuild, "demo").as_deref(), Some("demo.install"));
+        // Names of tools in dependency lists, and the homepage, are not what the build runs.
+        let lists = "url=\"http://example.org\"\noptdepends=('sudo: privilege elevation'\n  'wget: downloads'\n  'socat: sandbox')\ndepends=('curl')\n";
+        assert!(review(lists).is_empty(), "{:?}", review(lists));
+        assert_eq!(install_script("pkgname=x\n", "x"), None);
+        let install = "post_install() {\n  systemctl enable --now demo.service\n  rm -rf /etc/demo-old\n}\n";
+        let got: Vec<usize> = review(install).iter().map(|f| f.line).collect();
+        assert_eq!(got, [2, 3]);
+    }
 
     #[test]
     fn get_s_list() {

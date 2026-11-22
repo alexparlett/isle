@@ -175,6 +175,8 @@ pub struct Ctx {
     pub narrow: State<Option<Kind>>,
     /// The search an app's page was opened from: a new one shows results again.
     pub opened_from: State<Option<String>>,
+    /// The AUR script Get's sheet shows open.
+    pub reviewing: State<Option<String>>,
     pub query: String,
     pub narrowing: State<bool>,
     pub system_waiting: bool,
@@ -1300,6 +1302,12 @@ impl Ctx {
                 ],
             );
         }
+        let flagged: usize = plan.scripts.iter().map(|s| s.flags.len()).sum();
+        if !removing && !plan.scripts.is_empty() {
+            body.push(self.scripts(&plan.scripts));
+        } else if !removing && o.kind == Kind::Aur {
+            body.push(note(theme, "Its build script could not be read from the AUR."));
+        }
         let ctx = self.clone();
         let part = if removing {
             format!("remove:{}:{}", word(o.kind), o.install)
@@ -1309,23 +1317,119 @@ impl Ctx {
         let label = match (removing, with_updates) {
             (true, _) => "Remove",
             (false, true) => "Update and Install",
+            (false, false) if flagged > 0 => "Install Anyway",
             (false, false) => "Install",
         };
+        let mut reviewing = self.reviewing;
+        let cancel = (
+            cancel.0,
+            EventHandler::new(move |_| {
+                reviewing.set(None);
+                let mut close = close;
+                close.set(None);
+            }),
+        );
         isle_ui::sheet(
-            500.,
+            if plan.scripts.is_empty() { 500. } else { 640. },
             body,
             vec![
                 cancel,
                 (
                     label.into(),
                     EventHandler::new(move |_| {
-                        let mut s = ctx.sheet;
+                        let (mut s, mut r) = (ctx.sheet, ctx.reviewing);
                         s.set(None);
+                        r.set(None);
                         ctx.ask(Ask::Install(part.clone()));
                     }),
                 ),
             ],
         )
+    }
+
+    /// An AUR package's scripts in Get's sheet: each with what was flagged in it and Show,
+    /// which opens it with those lines marked and why.
+    fn scripts(&self, scripts: &[plan::Script]) -> Element {
+        let theme = &self.theme;
+        let t = &theme.tokens;
+        let open = self.reviewing.read().clone();
+        let mut out = rect().width(Size::fill()).spacing(t.space_xs);
+        for script in scripts {
+            let shown = open.as_deref() == Some(script.name.as_str());
+            let flagged = script.flags.len();
+            let mut reviewing = self.reviewing;
+            let name = script.name.clone();
+            out = out.child(
+                rect()
+                    .width(Size::fill())
+                    .horizontal()
+                    .content(Content::flex())
+                    .cross_align(Alignment::Center)
+                    .spacing(t.space_s)
+                    .child(Glyph::new(
+                        if flagged > 0 { "warning" } else { "check-circle" },
+                        t.size_glyph_small,
+                        colour(if flagged > 0 { t.colour_warn } else { t.colour_ok }),
+                    ))
+                    .child(rect().width(Size::flex(1.)).child(text::line(
+                        theme,
+                        text::Style::Callout,
+                        colour(t.colour_text),
+                        match flagged {
+                            0 => format!("{} · nothing unusual", script.name),
+                            1 => format!("{} · 1 line to look at", script.name),
+                            n => format!("{} · {n} lines to look at", script.name),
+                        },
+                    )))
+                    .child(
+                        Button::new(if shown { "Hide" } else { "Show" })
+                            .small()
+                            .on_press(move |_| {
+                                reviewing.set(if shown { None } else { Some(name.clone()) })
+                            }),
+                    ),
+            );
+            if shown {
+                let lines: Vec<Element> = script
+                    .text
+                    .lines()
+                    .enumerate()
+                    .map(|(i, l)| {
+                        let flag = script.flags.iter().find(|f| f.line == i + 1);
+                        let code = label()
+                            .font_family("JetBrains Mono")
+                            .font_size(text::metrics(theme, text::Style::Footnote).0)
+                            .color(colour(t.colour_text))
+                            .max_lines(1)
+                            .text(format!("{:>4}  {l}", i + 1));
+                        rect()
+                            .width(Size::fill())
+                            .padding((0., t.space_xs))
+                            .maybe(flag.is_some(), |el| el.background(colour(t.colour_warn).with_a(48)))
+                            .child(code)
+                            .maybe_child(flag.map(|f| {
+                                text::line(theme, text::Style::Footnote, colour(t.colour_warn_text), format!("      {}", f.why))
+                                    .into_element()
+                            }))
+                            .into_element()
+                    })
+                    .collect();
+                out = out.child(
+                    isle_ui::scroll_area(theme)
+                        .width(Size::fill())
+                        .max_height(Size::px(280.))
+                        .child(
+                            rect()
+                                .width(Size::fill())
+                                .padding((t.space_xs, t.space_l, t.space_xs, 0.))
+                                .background(colour(t.colour_window_sunken))
+                                .corner_radius(t.radius_small)
+                                .children(lines),
+                        ),
+                );
+            }
+        }
+        out.into_element()
     }
 }
 

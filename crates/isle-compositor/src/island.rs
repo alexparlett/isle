@@ -688,6 +688,10 @@ impl State {
                     self.open_centre_on(&output);
                 }
             }
+            // Updates has no page: its glyph opens where the updates are (B150).
+            IslandAction::Glyph(isle_shell::island::model::GlyphKind::Updates) => {
+                self.open_updates();
+            }
             IslandAction::Glyph(kind) => {
                 if let Some(output) = focus.as_ref().and_then(|f| self.isle.shell.output_of(f)) {
                     let page = match kind {

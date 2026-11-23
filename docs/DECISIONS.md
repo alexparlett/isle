@@ -1629,4 +1629,21 @@ shows the PKGBUILD and the install script it names, fetched from the AUR, with
 the lines that deserve a look marked and why (fetched or decoded code run, root
 asked for, downloads outside the checked sources, setuid or world-writable
 files, home folders, services started, plain http). A sheet with marked lines
-says Install Anyway. Rejected: pointing "Store…" at CachyOS's installer.
+says Install Anyway. Rejected: pointing "Store…" at CachyOS's installer. The
+installer itself leaves the platform under B148.
+
+**B148 · The platform is Arch with CachyOS's repositories; Isle owns what the
+user sees.** Chosen 2026-11-23. CachyOS supplies packages and tuning: its
+kernel with the prebuilt NVIDIA modules, the CPU-optimised repositories (mesa
+moves with their LLVM, updates §For the plan), Proton-CachyOS and Wine-CachyOS,
+the gaming meta package, `cachyos-settings` (sysctl, zram, udev, modprobe,
+`game-performance`), the ananicy rules, hooks, snapper support, keyring and
+mirrors. Isle owns every window and setting the user meets, so CachyOS's own
+front ends leave: `cachyos-hello`, `cachyos-packageinstaller`,
+`cachyos-kernel-manager`, the fish and zsh configs, the Plymouth animation,
+the wallpapers and `cachyos-micro-settings`. Nothing installed depends on
+them. Where Isle wants a tuning value of its own it adds to CachyOS's, as
+B134's ananicy rule does, or overrides it with a drop-in; it does not take the
+job over. Rejected: plain Arch with only CachyOS's kernel (DKMS NVIDIA builds,
+and mesa and the rest no longer built together), and keeping the full install
+with its front ends beside Isle's (two stores, two welcome and update windows).

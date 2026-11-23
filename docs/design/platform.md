@@ -50,6 +50,8 @@ cited to `docs/research/rust-desktop/`; `Dn` is an entry in
 - B29: a PKGBUILD in this repository, built from git, installed with paru,
   updated through pacman.
 - B30: Focus modes as on macOS, with an automatic Gaming Focus.
+- B148: Arch with CachyOS's repositories and tuning; CachyOS's own front
+  ends are removed and Isle's windows replace them.
 
 ## Features
 

@@ -827,4 +827,6 @@
   an unfinished install is said, not waited on. Store kept beside CachyOS's
   Package Installer 2.0 (B147), with its review of AUR scripts before a
   build.
+- 2026-11-23: the platform is Arch with CachyOS's repositories and tuning,
+  CachyOS's own front ends removed (B148); Store is the only store.
 

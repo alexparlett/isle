@@ -16,7 +16,7 @@ pub enum Catalogue {
 impl Catalogue {
     pub fn name(self) -> &'static str {
         match self {
-            Catalogue::Cachyos => "CachyOS",
+            Catalogue::Cachyos => "System",
             Catalogue::Flathub => "Flathub",
             Catalogue::Aur => "AUR",
             Catalogue::AppImages => "AppImages",

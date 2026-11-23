@@ -21,6 +21,8 @@ pub struct Plan {
     pub refused: Option<String>,
     /// Optional extras: a package and what it adds.
     pub extras: Vec<(String, String)>,
+    /// The extras no repository has, which only the AUR builds.
+    pub extras_from_aur: HashSet<String>,
     pub note: Option<String>,
     /// An AUR package's build script and install script, read before it is built.
     pub scripts: Vec<Script>,
@@ -265,11 +267,12 @@ fn bare_name(dep: &str) -> &str {
 
 /// What installing `lacking` brings: the repositories' packages with what they need and their
 /// sizes, then those only the AUR has, which paru builds.
+fn in_repos(name: &str) -> bool {
+    run("pacman", &["-Sp", "--print-format", "%n", name]).is_some_and(|(ok, _, _)| ok)
+}
+
 fn resolve(lacking: &[String]) -> Vec<Package> {
     let names: Vec<&str> = lacking.iter().map(|d| bare_name(d)).collect();
-    let in_repos = |name: &str| {
-        run("pacman", &["-Sp", "--print-format", "%n", name]).is_some_and(|(ok, _, _)| ok)
-    };
     let (repo, aur): (Vec<&str>, Vec<&str>) = names.iter().partition(|n| in_repos(n));
     let mut out = Vec::new();
     if !repo.is_empty() {
@@ -414,13 +417,25 @@ async fn aur_get(package: &str) -> Plan {
             });
         }
     }
-    plan.extras = info
+    let extras: Vec<(String, String)> = info
         .opt_depends
         .iter()
         .map(|o| {
             let (n, why) = o.split_once(": ").unwrap_or((o, ""));
-            (n.to_string(), why.to_string())
+            (bare_name(n).to_string(), why.to_string())
         })
+        .collect();
+    let names: Vec<String> = extras.iter().map(|(n, _)| n.clone()).collect();
+    let wanted: HashSet<String> = missing(&names).into_iter().collect();
+    plan.extras = extras
+        .into_iter()
+        .filter(|(n, _)| wanted.contains(n))
+        .collect();
+    plan.extras_from_aur = plan
+        .extras
+        .iter()
+        .map(|(n, _)| n.clone())
+        .filter(|n| !in_repos(n))
         .collect();
     plan
 }
@@ -428,7 +443,7 @@ async fn aur_get(package: &str) -> Plan {
 fn flathub_get(app: &str) -> Plan {
     let mut plan = Plan::default();
     let Some((ok, out, err)) = run("flatpak", &["remote-info", isle_updates::flathub_installation(), "flathub", app]) else {
-        plan.refused = Some("Flatpak is not installed. Install the flatpak package from CachyOS first.".into());
+        plan.refused = Some("Flatpak is not installed. Install the flatpak package from System first.".into());
         return plan;
     };
     if !ok {

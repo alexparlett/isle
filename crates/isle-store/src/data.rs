@@ -19,6 +19,8 @@ pub enum Event {
     Installed(Vec<App>),
     /// Every package installed, by name.
     Packages(HashSet<String>),
+    /// The packages no repository has, as `pacman -Qm` gives them: name and version.
+    Foreign(Vec<(String, String)>),
     /// CachyOS's and Flathub's apps.
     Offers(Vec<Offer>),
     /// Catalogue icons made drawable: the catalogue's file and the drawable one.
@@ -145,6 +147,20 @@ fn packages() -> HashSet<String> {
             parts.next().map(str::to_owned)
         })
         .collect()
+}
+
+fn foreign() -> Vec<(String, String)> {
+    std::process::Command::new("pacman")
+        .arg("-Qm")
+        .output()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter_map(|l| l.split_once(' '))
+                .map(|(n, v)| (n.to_owned(), v.to_owned()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn cache(kind: &str) -> PathBuf {
@@ -313,6 +329,7 @@ async fn run(
     let installed = tokio::task::spawn_blocking(scan).await.unwrap_or_default();
     let _ = events.unbounded_send(Event::Installed(installed));
     let _ = events.unbounded_send(Event::Packages(packages()));
+    let _ = events.unbounded_send(Event::Foreign(foreign()));
     {
         let events = events.clone();
         tokio::task::spawn_blocking(move || {
@@ -351,6 +368,7 @@ async fn run(
             let installed = tokio::task::spawn_blocking(scan).await.unwrap_or_default();
             let _ = events.unbounded_send(Event::Installed(installed));
             let _ = events.unbounded_send(Event::Packages(packages()));
+            let _ = events.unbounded_send(Event::Foreign(foreign()));
             let events = events.clone();
             tokio::task::spawn_blocking(move || {
                 let _ = events.unbounded_send(Event::Images(images()));

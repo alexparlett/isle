@@ -480,6 +480,15 @@ pub struct Synced {
     pub removed: Vec<String>,
 }
 
+/// An image Isle registers: named `*.AppImage`, so a copy kept beside it (`.bak`, or the
+/// `.zs-old` appimageupdatetool leaves) is not a second app.
+fn is_image(path: &Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("appimage"))
+        && path.is_file()
+        && kind_of(path).is_some()
+}
+
 /// Registers what is in `apps` and forgets what is gone, writing entries under `entries` and
 /// icons under `icons`. Blocking, so never on the main loop.
 pub fn sync(apps: &Path, entries: &Path, icons: &Path) -> Synced {
@@ -489,7 +498,7 @@ pub fn sync(apps: &Path, entries: &Path, icons: &Path) -> Synced {
         .flatten()
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.is_file() && kind_of(p).is_some())
+        .filter(|p| is_image(p))
         .collect();
     here.sort();
     let mut synced = Synced::default();
@@ -639,6 +648,9 @@ mod tests {
         assert!(made.success());
         let image_path = apps.join("Tool-1.0.AppImage");
         fs::write(&image_path, image(&fs::read(&squash).unwrap())).unwrap();
+        // A copy kept beside it is not a second app.
+        fs::copy(&image_path, apps.join("Tool-1.0.AppImage.bak")).unwrap();
+        fs::copy(&image_path, apps.join("Tool-1.0.AppImage.zs-old")).unwrap();
 
         let synced = sync(&apps, &entries, &icons);
         assert_eq!(synced.added, ["isle-appimage-tool"]);

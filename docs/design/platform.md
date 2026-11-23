@@ -258,9 +258,10 @@ restore.
    when an application directory changes.
 2. It maps Wayland app ids and X11 classes to entries, `steam_app_<id>` to
    the library game, and gamescope windows to the first word of their title.
-3. An AppImage in `~/Applications` becomes an entry by reading its embedded
-   desktop entry and icon without running it; removing the file removes the
-   entry.
+3. An AppImage in `~/Applications` named `*.AppImage` becomes an entry by
+   reading its embedded desktop entry and icon without running it; removing
+   the file removes the entry. A copy kept beside it under another name
+   (`.bak`, appimageupdatetool's `.zs-old`) is not a second app.
 4. Apps are launched as children of the compositor, inside the session
    scope, with an activation token (`compositor.md`). `DBusActivatable`
    entries are activated over D-Bus.

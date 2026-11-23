@@ -135,6 +135,7 @@ fn draw(scene: Scene) -> TestingRunner {
                 shots_wanted: Rc::default(),
                 apps: Rc::default(),
                 packages: Rc::default(),
+                foreign: Rc::default(),
                 status: Rc::new(serde_json::Value::Null),
                 plans: Rc::new(scene.plans.clone()),
                 shots: Rc::default(),
@@ -214,7 +215,7 @@ fn search_groups_every_catalogue() {
     for wanted in [
         "Results for “krita”",
         "All catalogues ⌄",
-        "CachyOS · 1",
+        "System · 1",
         "Flathub · 1",
         "AUR · 1",
         "Built on this computer from community scripts nobody checks.",
@@ -258,7 +259,7 @@ fn get_lists_the_packages_and_takes_the_waiting_updates() {
     let l = labels(&test);
     for wanted in [
         "Install Krita?",
-        "From CachyOS. It also installs 2 packages it needs, 79 MB in all.",
+        "From the system's repositories. It also installs 2 packages it needs, 79 MB in all.",
         "exiv2",
         "gsl",
     ] {

@@ -227,6 +227,7 @@ impl freya::prelude::App for StoreWindow {
         let mut failed = use_state(|| None::<String>);
         let mut offers = use_state(|| Rc::new(Vec::<Offer>::new()));
         let mut packages = use_state(|| Rc::new(HashSet::<String>::new()));
+        let mut foreign = use_state(|| Rc::new(Vec::<(String, String)>::new()));
         let mut icons = use_state(|| Rc::new(HashMap::<PathBuf, Option<PathBuf>>::new()));
         let mut shots = use_state(|| Rc::new(HashMap::<String, Option<PathBuf>>::new()));
         let mut aur_found = use_state(|| Rc::new(None::<(String, Result<Vec<Offer>, String>)>));
@@ -282,6 +283,7 @@ impl freya::prelude::App for StoreWindow {
                             }
                             Event::Installed(list) => apps.set(list),
                             Event::Packages(set) => packages.set(Rc::new(set)),
+                            Event::Foreign(list) => foreign.set(Rc::new(list)),
                             Event::Images(found) => images.set(found),
                             Event::Offers(list) => offers.set(Rc::new(list)),
                             Event::Icons(made) => {
@@ -449,6 +451,7 @@ impl freya::prelude::App for StoreWindow {
             shots_wanted: Rc::new(RefCell::new(Vec::new())),
             apps: Rc::new(installed.clone()),
             packages: packages.read().clone(),
+            foreign: foreign.read().clone(),
             status: Rc::new(s.clone()),
             plans: plans.read().clone(),
             shots: shots.read().clone(),
@@ -710,34 +713,27 @@ impl freya::prelude::App for StoreWindow {
                     }
                 }
 
-                let images: Vec<App> = installed
+                // Only images with a newer build; the rest have nothing to do here.
+                let images: Vec<(App, String)> = installed
                     .iter()
                     .filter(|a| a.catalogue == Catalogue::AppImages)
-                    .cloned()
+                    .filter_map(|a| {
+                        newer_images
+                            .iter()
+                            .find(|(id, _)| *id == a.id)
+                            .map(|(_, part)| (a.clone(), part.clone()))
+                    })
                     .collect();
                 if !images.is_empty() {
                     out.push(section(&theme, "AppImages", None));
-                    for a in &images {
-                        let trailing = match image_states.get(&a.id) {
-                            Some(i) if i.newer == Some(true) => update_button(
-                                "Update",
-                                format!("appimage:{}", i.path.display()),
-                                true,
-                                true,
-                            ),
-                            Some(i) if i.newer == Some(false) => note(&theme, "Up to date"),
-                            Some(i) if i.info.is_some() => {
-                                note(&theme, "Put appimageupdatetool's AppImage in Applications to update it here")
-                            }
-                            _ => note(&theme, "Updates from its developer"),
-                        };
+                    for (a, part) in &images {
                         out.push(update_row(
                             &theme,
                             icon(&theme, Some(a), 48.),
                             &a.name,
                             Catalogue::AppImages,
                             a.summary.clone(),
-                            trailing,
+                            update_button("Update", part.clone(), true, true),
                         ));
                     }
                 }
@@ -750,12 +746,20 @@ impl freya::prelude::App for StoreWindow {
                             .padding((t.space_xxl, 0.))
                             .cross_align(Alignment::Center)
                             .spacing(t.space_s)
-                            .child(Glyph::new("check", 40., colour(t.colour_ok)))
+                            .child(if s["checked_at"].is_u64() {
+                                Glyph::new("check", 40., colour(t.colour_ok))
+                            } else {
+                                Glyph::new("arrow-circle-up", 40., colour(t.colour_text_2))
+                            })
                             .child(text::line(
                                 &theme,
                                 text::Style::Title2,
                                 colour(t.colour_text),
-                                "Everything is up to date",
+                                if s["checked_at"].is_u64() {
+                                    "Everything is up to date"
+                                } else {
+                                    "Updates haven't been checked yet"
+                                },
                             ))
                             .child(Button::new("Check Now").on_press(move |_| ask_c(Ask::Check)))
                             .into_element(),
@@ -868,7 +872,7 @@ impl freya::prelude::App for StoreWindow {
             .child(heading("Catalogues"))
             .child(side_row(
                 Page::Catalogue(Catalogue::Cachyos),
-                "CachyOS",
+                "System",
                 "package",
                 0,
             ))

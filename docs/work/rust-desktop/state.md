@@ -835,3 +835,11 @@
   `isle-store://updates` link opens Updates, the System Update ran 53
   packages and left Restart… and the AUR's update unblocked, Settings
   shows Isle and the restart, and no mention of Store.
+- 2026-11-23: an AppImage is registered only as `*.AppImage` (a `.bak` beside
+  Cairn showed it twice); Store's Updates lists an AppImage only when a
+  newer build is found, and says when nothing has been checked yet.
+- 2026-11-23: Store's CachyOS catalogue and badge are called System, as its
+  Updates section is (B149).
+- 2026-11-23: the AUR page lists every AUR package installed (tools too, not
+  isle-git); an app page has Remove… beside Open and no Installed label; an
+  AUR package's optional extras are badged System when a repository has them.

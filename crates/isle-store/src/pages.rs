@@ -159,6 +159,8 @@ pub struct Ctx {
     pub shots_wanted: Rc<RefCell<Vec<String>>>,
     pub apps: Rc<Vec<App>>,
     pub packages: Rc<HashSet<String>>,
+    /// The AUR's packages installed, with their versions.
+    pub foreign: Rc<Vec<(String, String)>>,
     pub status: Rc<Value>,
     pub plans: Rc<HashMap<String, Plan>>,
     /// Screenshots fetched, or `None` for one that could not be.
@@ -301,7 +303,7 @@ impl Ctx {
                     let (ctx, id) = (self.clone(), app.id.clone());
                     Button::new("Open").on_press(move |_| ctx.ask(Ask::Launch(id.clone())))
                 }
-                None => Button::new("Installed").enabled(false),
+                None => return note(&self.theme, "Installed"),
             }
         } else {
             let (ctx, offer) = (self.clone(), o.clone());
@@ -550,7 +552,7 @@ impl Ctx {
         let t = &theme.tokens;
         let mut out = vec![
             title(theme, "Browse"),
-            note(theme, "Apps from CachyOS and Flathub by what they are for. The AUR has no categories: search it."),
+            note(theme, "Apps from the system and Flathub by what they are for. The AUR has no categories: search it."),
         ];
         let tiles: Vec<Element> = CATEGORIES
             .iter()
@@ -632,7 +634,7 @@ impl Ctx {
         let list = self.in_category(cats);
         let mut out = vec![
             title(theme, name),
-            note(theme, format!("{} apps from CachyOS and Flathub", list.len())),
+            note(theme, format!("{} apps from the system and Flathub", list.len())),
         ];
         self.listed(list, &mut out);
         out
@@ -643,7 +645,7 @@ impl Ctx {
         let t = &theme.tokens;
         let (what, glyph) = match c {
             Catalogue::Cachyos => (
-                "CachyOS's own repositories: Arch Linux's packages rebuilt for this computer's processor and signed by CachyOS. Apps from here update together with the system, on the Updates page.",
+                "The system's own repositories: Arch Linux's packages, many rebuilt by CachyOS for this computer's processor, all signed. Apps from here are part of the system and update with it, on the Updates page.",
                 "package",
             ),
             Catalogue::Flathub => (
@@ -706,7 +708,7 @@ impl Ctx {
                     .collect();
                 if list.is_empty() && c == Catalogue::Flathub {
                     out.push(section(theme, "Flathub isn't set up", None));
-                    out.push(para(theme, "Install flatpak from CachyOS, then add Flathub in Terminal: flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo", t.colour_text_2));
+                    out.push(para(theme, "Install flatpak from System, then add Flathub in Terminal: flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo", t.colour_text_2));
                 } else if list.is_empty() {
                     out.push(note(theme, "Reading the catalogue…"));
                 } else {
@@ -749,7 +751,7 @@ impl Ctx {
             title(theme, "Installed"),
             note(
                 theme,
-                format!("{} apps · the system's packages are not listed here", self.apps.len()),
+                format!("{} apps", self.apps.len()),
             ),
         ];
         let mut shown: Vec<Offer> = self.apps.iter().map(|a| self.offer_of(a)).collect();
@@ -763,12 +765,26 @@ impl Ctx {
     fn installed_from(&self, c: Catalogue, out: &mut Vec<Element>) {
         let theme = &self.theme;
         let mine: Vec<&App> = self.apps.iter().filter(|a| a.catalogue == c).collect();
+        // The AUR's tools and plugins too: everything there was installed by hand. Isle's own
+        // package is not Store's to remove.
+        let tools: Vec<&(String, String)> = if c == Catalogue::Aur {
+            self.foreign
+                .iter()
+                .filter(|(name, _)| name != isle_updates::ISLE_PACKAGE)
+                .filter(|(name, _)| !mine.iter().any(|a| &a.source == name))
+                .collect()
+        } else {
+            Vec::new()
+        };
         out.push(section(theme, "Installed", None));
-        if mine.is_empty() {
+        if mine.is_empty() && tools.is_empty() {
             out.push(note(theme, "None installed."));
         }
         for a in mine {
             out.push(self.row(&self.offer_of(a)));
+        }
+        for (name, version) in tools {
+            out.push(self.row(&bare(Kind::Aur, name, &format!("Version {version}"))));
         }
     }
 
@@ -915,7 +931,7 @@ impl Ctx {
         let plan = self.plans.get(&get_key(o));
         let installed = self.is_installed(o);
         let size_line = match plan {
-            _ if installed => "Installed".to_owned(),
+            _ if installed => String::new(),
             None => "Working out its size…".to_owned(),
             Some(p) if p.refused.is_some() => p.refused.clone().unwrap_or_default(),
             Some(p) => {
@@ -941,8 +957,6 @@ impl Ctx {
         let offer = o.clone();
         let remove = installed.then(|| {
             Button::new("Remove…")
-                .kind(ButtonKind::Plain)
-                .small()
                 .enabled(!self.running())
                 .on_press(move |_| {
                     let mut sheet = ctx.sheet;
@@ -976,14 +990,23 @@ impl Ctx {
                         .maybe_child(o.developer.clone().map(|d| note(theme, d)))
                         .child(badge(theme, catalogue_of(o.kind))),
                 )
-                .child(
-                    rect()
+                // Installed: Remove… beside Open. Otherwise Get, with what it brings under it.
+                .child(match remove {
+                    Some(remove) => rect()
+                        .horizontal()
+                        .cross_align(Alignment::Center)
+                        .spacing(t.space_s)
+                        .child(remove)
+                        .maybe_child(
+                            (self.installed_app(o).is_some() || self.busy(o).is_some())
+                                .then(|| self.get_button(o, false)),
+                        ),
+                    None => rect()
                         .cross_align(Alignment::End)
                         .spacing(t.space_xs)
                         .child(self.get_button(o, false))
-                        .child(note(theme, size_line))
-                        .maybe_child(remove),
-                )
+                        .child(note(theme, size_line)),
+                })
                 .into_element(),
         ];
 
@@ -1068,7 +1091,7 @@ impl Ctx {
             out.push(section(theme, "Works better with", None));
             out.push(note(theme, "Optional extras; none is installed unless you get it."));
             for (name, why) in &p.extras {
-                let kind = if o.kind == Kind::Aur && self.find(Kind::Cachyos, name).is_none() {
+                let kind = if p.extras_from_aur.contains(name) {
                     Kind::Aur
                 } else {
                     Kind::Cachyos
@@ -1214,6 +1237,7 @@ impl Ctx {
                     "From {}. {}{}",
                     match o.kind {
                         Kind::Aur => "the AUR",
+                        Kind::Cachyos => "the system's repositories",
                         k => catalogue_of(k).name(),
                     },
                     if others > 0 {

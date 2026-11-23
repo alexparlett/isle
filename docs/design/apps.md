@@ -439,10 +439,11 @@ The user gets a store like the Mac's App Store over the catalogues CachyOS offer
 CachyOS's Package Installer 2.0 (`p14e-store.md`): apps found, read about, got, removed and
 updated, with the catalogue each comes from always named.
 
-1. Four catalogues: CachyOS's repositories, Flathub, the AUR and AppImages. A sidebar of Discover,
+1. Four catalogues: System (Arch's and CachyOS's repositories; B149), Flathub, the AUR and
+   AppImages. A sidebar of Discover,
    Browse, Installed and Updates, then Catalogues with a page each saying what it is and who stands
    behind it; every app wears its catalogue's badge.
-2. CachyOS and Flathub are read from AppStream; an app is a component with a desktop entry, and a
+2. System and Flathub are read from AppStream; an app is a component with a desktop entry, and a
    library or tool is never listed. The AUR is searched through its RPC and shows its own facts
    (votes, popularity, maintainer, last updated, out of date). AppImages are those Isle registered
    from `~/Applications`.
@@ -453,13 +454,14 @@ updated, with the catalogue each comes from always named.
 5. What Get installs and Remove takes is listed before the password. Get with nothing else to bring
    starts at once. With system updates waiting, Get from CachyOS is Update and Install, and the
    AUR waits until they are done, since pacman never does a partial upgrade.
-6. Remove takes what only the app needed; an app another package needs is refused, naming it.
+6. An installed app's page has Remove… beside Open; the AUR's page lists every package installed
+   from it, tools included, save Isle's own. Remove takes what only the app needed; an app another package needs is refused, naming it.
    Before an AUR build, Get's sheet shows the PKGBUILD and its install script with the lines that
    deserve a look marked and why (B147).
 7. Updates leads with System: everything from Arch's and CachyOS's repositories, the kernel,
    drivers and libraries in one row and each app from them "With the system", under one Update
-   (B149). Then Flathub, the AUR and AppImages by catalogue, each with Update All, and Update
-   Everything, which runs the system first and the AUR last. A restart owed is said with
+   (B149). Then Flathub, the AUR and AppImages by catalogue, each with Update All (an AppImage
+   only when a newer build is found), and Update Everything, which runs the system first and the AUR last. A restart owed is said with
    Restart….
 8. Every run is the same machinery as Software Update's: a transient unit, one password, it
    outlives the window, Stop only outside a transaction, failures said in words.

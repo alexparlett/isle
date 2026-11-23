@@ -34,6 +34,18 @@ struct Manager {
     inhibitors: Inhibitors,
     ended: Arc<Mutex<Vec<String>>>,
     refuse_sleep: Arc<Mutex<bool>>,
+    stall_end: Arc<Mutex<bool>>,
+}
+
+impl Manager {
+    /// Recorded, then answered at once or, while the test says so, not for a minute.
+    async fn end(&self, call: &str) {
+        self.ended.lock().unwrap().push(call.into());
+        let stall = *self.stall_end.lock().unwrap();
+        if stall {
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+    }
 }
 
 #[zbus::interface(name = "org.freedesktop.login1.Manager")]
@@ -81,12 +93,12 @@ impl Manager {
             .collect()
     }
 
-    fn reboot(&self, _interactive: bool) {
-        self.ended.lock().unwrap().push("Reboot".into());
+    async fn reboot(&self, _interactive: bool) {
+        self.end("Reboot").await;
     }
 
-    fn power_off(&self, _interactive: bool) {
-        self.ended.lock().unwrap().push("PowerOff".into());
+    async fn power_off(&self, _interactive: bool) {
+        self.end("PowerOff").await;
     }
 
     /// Recorded as `Suspend` or `Suspend(interactive)`; refused while the test says so.
@@ -168,6 +180,7 @@ pub struct Logind {
     inhibitors: Inhibitors,
     ended: Arc<Mutex<Vec<String>>>,
     refuse_sleep: Arc<Mutex<bool>>,
+    stall_end: Arc<Mutex<bool>>,
     /// Block inhibitors taken for a test, as another program holds them.
     held: Vec<zvariant::OwnedFd>,
 }
@@ -181,6 +194,7 @@ impl Logind {
             inhibitors: Default::default(),
             ended: Default::default(),
             refuse_sleep: Default::default(),
+            stall_end: Default::default(),
             held: Vec::new(),
         };
         fake.restore().await?;
@@ -205,6 +219,7 @@ impl Logind {
                     inhibitors: self.inhibitors.clone(),
                     ended: self.ended.clone(),
                     refuse_sleep: self.refuse_sleep.clone(),
+                    stall_end: self.stall_end.clone(),
                 },
             )?
             .serve_at(
@@ -244,6 +259,11 @@ impl Logind {
     /// Whether `Suspend` is refused, as with a block inhibitor or polkit's no.
     pub fn refuse_sleep(&self, refuse: bool) {
         *self.refuse_sleep.lock().unwrap() = refuse;
+    }
+
+    /// Whether `Reboot` and `PowerOff` go unanswered, as a logind that never replies.
+    pub fn stall_end(&self, stall: bool) {
+        *self.stall_end.lock().unwrap() = stall;
     }
 
     /// `Reboot`, `PowerOff` and `Suspend`, as they were called.

@@ -106,7 +106,12 @@ pub async fn suspend() -> Result<(), isle_bus::Error> {
 /// refusal rather than left to logind's.
 pub async fn end(restart: bool) -> Result<(), String> {
     let verb = if restart { "restart" } else { "shut down" };
-    let bus = isle_bus::system().await.map_err(|e| e.to_string())?;
+    // A connection of its own: a stream left unread on the shared one holds back its replies.
+    let bus = zbus::connection::Builder::system()
+        .map_err(|e| e.to_string())?
+        .build()
+        .await
+        .map_err(|e| e.to_string())?;
     let manager = ManagerProxy::new(&bus).await.map_err(|e| e.to_string())?;
     let blocker = manager
         .list_inhibitors()

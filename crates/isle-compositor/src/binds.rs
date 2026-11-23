@@ -339,6 +339,18 @@ impl State {
 
     pub fn run_action(&mut self, action: Action) {
         info!(?action, "bind");
+        let opens_overlay = matches!(
+            action,
+            Action::Switcher(_)
+                | Action::Mission { .. }
+                | Action::Spotlight(_)
+                | Action::Dashboard
+                | Action::ForceQuit
+        );
+        if opens_overlay && self.isle.session.ending.is_some() && self.isle.session.dialog.is_some()
+        {
+            return;
+        }
         match action {
             Action::Terminal => spawn(&self.isle.settings.shortcuts.terminal_command),
             Action::Files => {

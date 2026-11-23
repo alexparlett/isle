@@ -31,6 +31,12 @@ const COUNTDOWN: u32 = 60;
 /// How long an app that answers its pings has to quit before it counts as asking to save.
 const QUIT_WAIT: Duration = Duration::from_secs(5);
 const CHECK_EVERY: Duration = Duration::from_millis(250);
+/// How long logind has to answer and the computer to go down before the dialog says it
+/// didn't.
+#[cfg(not(feature = "test-hooks"))]
+const END_WAIT: Duration = Duration::from_secs(20);
+#[cfg(feature = "test-hooks")]
+const END_WAIT: Duration = Duration::from_secs(2);
 
 /// The dialog on screen.
 pub struct Dialog {
@@ -65,6 +71,7 @@ pub struct SessionState {
     tick: Option<RegistrationToken>,
     arm: Option<RegistrationToken>,
     check: Option<RegistrationToken>,
+    end_wait: Option<RegistrationToken>,
 }
 
 impl SessionState {
@@ -77,6 +84,7 @@ impl SessionState {
             tick: None,
             arm: None,
             check: None,
+            end_wait: None,
         }
     }
 }
@@ -273,7 +281,17 @@ impl State {
         info!("the session's end called off");
         self.isle.session.ending = None;
         self.thaw_restore();
-        if let Some(token) = self.isle.session.check.take() {
+        self.stop_end_timers();
+    }
+
+    fn stop_end_timers(&mut self) {
+        for token in [
+            self.isle.session.check.take(),
+            self.isle.session.end_wait.take(),
+        ]
+        .into_iter()
+        .flatten()
+        {
             self.isle.loop_handle.remove(token);
         }
     }
@@ -351,7 +369,23 @@ impl State {
     pub fn session_action(&mut self, action: SessionAction) {
         let armed = self.isle.session.dialog.as_ref().is_some_and(|d| d.armed);
         let ending = self.isle.session.ending.is_some();
+        let refused = self
+            .isle
+            .session
+            .ending
+            .as_ref()
+            .filter(|e| matches!(e.stop, Some(Stop::Refused(_))))
+            .map(|e| e.choice);
         match action {
+            // Refused: the action is tried again from the start.
+            SessionAction::Choose(choice) if armed && refused.is_some() => {
+                self.call_off_ending();
+                self.session_choose(choice);
+            }
+            SessionAction::Default if armed && refused.is_some() => {
+                self.call_off_ending();
+                self.session_choose(refused.unwrap_or(Choice::ShutDown));
+            }
             // Keys still held from the chord that opened it are not the user's answer.
             SessionAction::Hold if armed => self.stop_countdown(),
             SessionAction::Hold => {}
@@ -588,6 +622,8 @@ impl State {
             return;
         };
         ending.stop = Some(stop);
+        // The dialog is back over any question, so the wait for it ends here.
+        ending.asking = None;
         let (choice, from_lock) = (ending.choice, ending.from_lock);
         if from_lock {
             self.isle.session.lock_power = Power::Row;
@@ -620,18 +656,41 @@ impl State {
                     },
                     |state, result| {
                         let refused = match result {
-                            Ok(Ok(())) => return,
+                            Ok(Ok(())) => {
+                                info!("logind is ending the session");
+                                return;
+                            }
                             Ok(Err(why)) | Err(why) => why,
                         };
-                        if let Some(ending) = &mut state.isle.session.ending {
-                            ending.finishing = false;
-                        }
-                        state.session_stopped(Stop::Refused(refused));
+                        state.session_end_failed(refused);
                     },
                 );
+                let verb = if restart { "restart" } else { "shut down" };
+                self.isle.session.end_wait = self
+                    .isle
+                    .loop_handle
+                    .insert_source(Timer::from_duration(END_WAIT), move |_, _, state| {
+                        state.isle.session.end_wait = None;
+                        info!("logind did not end the session in time");
+                        state.session_end_failed(format!("Couldn't {verb}. Try again."));
+                        TimeoutAction::Drop
+                    })
+                    .ok();
             }
             Choice::Lock | Choice::Sleep => {}
         }
+    }
+
+    /// logind refused, or neither answered nor ended the session in time.
+    fn session_end_failed(&mut self, why: String) {
+        match &mut self.isle.session.ending {
+            Some(ending) if ending.finishing => ending.finishing = false,
+            _ => return,
+        }
+        if let Some(token) = self.isle.session.end_wait.take() {
+            self.isle.loop_handle.remove(token);
+        }
+        self.session_stopped(Stop::Refused(why));
     }
 
     /// The lock's power row: Restart and Shut Down ask once in place.
@@ -669,9 +728,7 @@ impl State {
             return;
         };
         self.thaw_restore();
-        if let Some(token) = self.isle.session.check.take() {
-            self.isle.loop_handle.remove(token);
-        }
+        self.stop_end_timers();
         if let Some(Stop::Open(app) | Stop::NotResponding(app)) = ending.stop {
             self.activate_app(&app.app);
         }

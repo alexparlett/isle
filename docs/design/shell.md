@@ -53,7 +53,7 @@ desktop with it.
 7. A surface redraws only when its state changes. A closed surface draws nothing and runs no timers; a service that samples (CPU, storage, sensors) samples only while a visible surface shows it (inventory §6 Polling).
 8. A surface never waits on a service. Data arrives over channels from the worker; a slow or dead service shows as stale or absent, never as a stalled frame (B9).
 9. A change to `tokens.kdl` re-renders every surface with the new tokens; a parse error keeps the last good tokens and is shown by the shell (B10). Text scale, high contrast and reduced motion are token overrides (D50); reduced motion and Game Mode set every shell transition to none.
-10. Spotlight, Mission Control, the capture tool, the session dialog and Force Quit close each other: one is open at a time, and Escape closes it. System prompts and Files' Open and Save panels close nothing (D67, B26).
+10. Spotlight, Mission Control, the capture tool, the session dialog and Force Quit close each other: one is open at a time, and Escape closes it. Once the session dialog's apps are quitting, the others stay shut until it ends or is called off. System prompts and Files' Open and Save panels close nothing (D67, B26).
 11. When a surface closes, keyboard focus returns to the window that had it before any action the surface started (raise, paste, type) is delivered to that window (D63).
 12. Every surface is fully usable from the keyboard; the focus ring shows for keyboard input only. No surface takes controller input (B22). Every surface exposes an accessibility tree through Freya's AccessKit integration.
 13. No client surface, layer-shell overlays included, stacks above the lock screen, a system prompt or the capture tool (B28).

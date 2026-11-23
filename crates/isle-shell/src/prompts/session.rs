@@ -428,7 +428,16 @@ impl Component for SessionView {
                 SessionAction::ForceQuit(app.app.clone()),
                 Kind::Destructive,
             )),
-            Some(Stop::Refused(_)) => None,
+            // Refused: the action again, to try once more.
+            Some(Stop::Refused(_)) => Some((
+                choice.label().to_owned(),
+                SessionAction::Choose(choice),
+                if frame.armed {
+                    Kind::Default
+                } else {
+                    Kind::Regular
+                },
+            )),
             None => match frame.form {
                 Form::Confirm(choice) => Some((
                     choice.label().to_owned(),

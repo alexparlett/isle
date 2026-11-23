@@ -23,7 +23,8 @@ impl State {
         if keep != Overlay::Mission {
             self.finish_mission();
         }
-        if keep != Overlay::SessionDialog {
+        // Once apps are quitting the dialog is the only way to see or stop the end.
+        if keep != Overlay::SessionDialog && self.isle.session.ending.is_none() {
             self.close_session_dialog();
         }
         if keep != Overlay::ForceQuit {

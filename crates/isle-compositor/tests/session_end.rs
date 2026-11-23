@@ -249,6 +249,52 @@ async fn a_program_holding_shutdown_is_named() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_logind_that_never_answers_lets_the_restart_be_cancelled_or_tried_again() {
+    let isle = Isle::start("session-unanswered").await;
+    let logind = Logind::start(&isle.system_address()).await.unwrap();
+    logind.stall_end(true);
+    press(&isle, POWER).await;
+    armed(&isle).await;
+    press(&isle, R).await;
+    wait_until(|| async { logind.ended() == ["Reboot"] }).await;
+    wait_until(|| async { session(&isle).await["stop"] == "refused Couldn't restart. Try again." })
+        .await;
+    assert_eq!(session(&isle).await["open"], true);
+
+    logind.stall_end(false);
+    armed(&isle).await;
+    press(&isle, RETURN).await;
+    wait_until(|| async { logind.ended() == ["Reboot", "Reboot"] }).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn the_switcher_leaves_the_dialog_while_apps_quit() {
+    const TAB: u32 = 15;
+    let mut isle = Isle::start("session-switcher").await;
+    let logind = Logind::start(&isle.system_address()).await.unwrap();
+    let keeper = isle.client("isle.test.Keeper", "3366ff");
+    keeper.wait_for("keyboard-enter").await;
+    keeper.send("keep-open");
+
+    press(&isle, POWER).await;
+    armed(&isle).await;
+    press(&isle, R).await;
+    wait_until(|| async { session(&isle).await["ending"] == "Restart" }).await;
+    isle.chord(&[CMD, TAB]).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(isle.test().await.switcher().await.unwrap(), "null");
+    let s = session(&isle).await;
+    assert_eq!(s["open"], true);
+    assert_eq!(s["ending"], "Restart");
+
+    wait_until(|| async { session(&isle).await["stop"] == "open isle.test.Keeper" }).await;
+    press(&isle, ESC).await;
+    wait_until(|| async { session(&isle).await["open"] == false }).await;
+    assert!(session(&isle).await["ending"].is_null(), "called off");
+    assert!(logind.ended().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn log_out_quits_the_apps_and_ends_the_compositor_cleanly() {
     let mut isle = Isle::start("session-log-out").await;
     let client = isle.client("isle.test.Open", "3366ff");

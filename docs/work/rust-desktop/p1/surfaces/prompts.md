@@ -92,7 +92,13 @@ app's icon takes the switcher's `hourglass-medium` tag (`switcher.md`), the
 slot says "Not responding" with that glyph, and the buttons are Cancel and
 "Force Quit {app}": destructive, never default, and on glass drawn as a
 well (fill `material-solid`, label `colour-danger-text`) so its colour sits
-on a solid ground, as the island's wells do.
+on a solid ground, as the island's wells do. Refused, or logind neither
+answers nor ends the session within 20 seconds of every app quitting: the
+slot gives the reason ("Couldn't restart. Try again.") with
+`warning-circle`, and the buttons are Cancel and the action again, which
+starts it over. From the first app asked to quit until the session ends or
+is called off, the other one-at-a-time surfaces neither open nor close the
+dialog.
 
 ### Force Quit
 

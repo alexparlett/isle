@@ -66,6 +66,7 @@ pub fn catalogue_of(kind: Kind) -> Catalogue {
         Kind::Cachyos => Catalogue::Cachyos,
         Kind::Flathub => Catalogue::Flathub,
         Kind::Aur => Catalogue::Aur,
+        Kind::AppImage => Catalogue::AppImages,
     }
 }
 
@@ -74,6 +75,7 @@ pub fn word(kind: Kind) -> &'static str {
         Kind::Cachyos => "cachyos",
         Kind::Flathub => "flathub",
         Kind::Aur => "aur",
+        Kind::AppImage => "appimage",
     }
 }
 
@@ -120,6 +122,7 @@ pub fn offer_for(app: &App) -> Offer {
     let kind = match app.catalogue {
         Catalogue::Flathub => Kind::Flathub,
         Catalogue::Aur => Kind::Aur,
+        Catalogue::AppImages => Kind::AppImage,
         _ => Kind::Cachyos,
     };
     let mut o = bare(kind, &app.source, &app.summary);
@@ -234,7 +237,7 @@ impl Ctx {
 
     pub fn is_installed(&self, o: &Offer) -> bool {
         match o.kind {
-            Kind::Flathub => self.installed_app(o).is_some(),
+            Kind::Flathub | Kind::AppImage => self.installed_app(o).is_some(),
             _ => self.packages.contains(&o.install),
         }
     }
@@ -800,7 +803,8 @@ impl Ctx {
             self.listed(list.iter().collect(), &mut out);
             return out;
         }
-        out.push(note(theme, format!("{} apps", self.apps.len())));
+        let n = self.apps.len();
+        out.push(note(theme, if n == 1 { "1 app".to_owned() } else { format!("{n} apps") }));
         let mut shown: Vec<Offer> = self.apps.iter().map(|a| self.offer_of(a)).collect();
         shown.sort_by_key(|o| o.name.to_lowercase());
         for o in &shown {
@@ -1003,6 +1007,13 @@ impl Ctx {
         let ctx = self.clone();
         let offer = o.clone();
         let remove = (installed && !self.core.contains(&o.install)).then(|| {
+            // An AppImage goes to the Trash, from where it can be put back.
+            if o.kind == Kind::AppImage {
+                let (ctx, id) = (self.clone(), o.install.clone());
+                return Button::new("Move to Trash")
+                    .on_press(move |_| ctx.ask(Ask::Trash(id.clone())))
+                    .into_element();
+            }
             Button::new("Remove…")
                 .enabled(!self.running())
                 .on_press(move |_| {

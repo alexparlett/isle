@@ -52,6 +52,18 @@ fn obs_capture() -> Offer {
     }
 }
 
+/// An AppImage Isle registered.
+fn cairn() -> crate::installed::App {
+    crate::installed::App {
+        id: "isle-appimage-cairn".into(),
+        name: "Cairn".into(),
+        summary: "A native git client".into(),
+        icon: None,
+        catalogue: crate::installed::Catalogue::AppImages,
+        source: "isle-appimage-cairn".into(),
+    }
+}
+
 fn package(name: &str, size: u64) -> Package {
     Package {
         name: name.into(),
@@ -134,7 +146,7 @@ fn draw(scene: Scene) -> TestingRunner {
                 icons: Rc::default(),
                 wanted: Rc::default(),
                 shots_wanted: Rc::default(),
-                apps: Rc::default(),
+                apps: Rc::new(vec![cairn()]),
                 packages: Rc::new(["base".to_string()].into()),
                 foreign: Rc::default(),
                 explicit: Rc::new(vec![
@@ -378,7 +390,7 @@ fn an_aur_build_shows_its_scripts_and_what_deserves_a_look() {
 fn installed_shows_the_packages_installed_on_purpose_when_asked() {
     let apps = draw(scene(Page::Installed));
     let l = labels(&apps);
-    assert!(l.iter().any(|x| x == "0 apps"), "{l:?}");
+    assert!(l.iter().any(|x| x == "1 app"), "{l:?}");
     assert!(!l.iter().any(|x| x == "krita"), "{l:?}");
 
     let packages = draw(Scene {
@@ -401,4 +413,17 @@ fn the_system_s_core_has_no_remove() {
     let l = labels(&page);
     assert!(l.iter().any(|x| x == "Installed"), "{l:?}");
     assert!(!l.iter().any(|x| x == "Remove…"), "{l:?}");
+}
+
+#[test]
+fn an_installed_appimage_opens_and_goes_to_the_trash() {
+    let mut page = draw(scene(Page::App(Box::new(pages::offer_for(&cairn())))));
+    let l = labels(&page);
+    assert!(l.iter().any(|x| x == "Open"), "{l:?}");
+    assert!(l.iter().any(|x| x == "AppImages"), "{l:?}");
+    assert!(!l.iter().any(|x| x == "Get"), "{l:?}");
+    asked();
+    click(&mut page, "Move to Trash");
+    let a = asked();
+    assert!(a.iter().any(|x| x.contains("Trash(\"isle-appimage-cairn\")")), "{a:?}");
 }

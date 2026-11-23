@@ -50,6 +50,8 @@ pub enum Ask {
     Launch(String),
     /// The restart a system update owes, through the session's confirmation.
     Restart,
+    /// An AppImage to the Trash, by its entry id.
+    Trash(String),
     Rescan,
     Icons(Vec<PathBuf>),
     Shots(Vec<String>),
@@ -98,6 +100,16 @@ pub struct Image {
     pub info: Option<String>,
     /// From `appimageupdatetool -j`: `None` when the tool is not installed or could not tell.
     pub newer: Option<bool>,
+}
+
+/// Moves the image registered as `id` to its trash; why not, when it could not.
+fn trash_image(id: &str) -> Option<String> {
+    let home = isle_apps::appimage::data_home()?;
+    let image = isle_apps::appimage::registered(&home.join("applications"))
+        .into_values()
+        .find(|r| r.id == id)?
+        .image;
+    isle_fs::trash::trash(&image).err().map(|e| format!("Couldn't move it to the Trash: {e}"))
 }
 
 fn images() -> std::collections::HashMap<String, Image> {
@@ -370,6 +382,20 @@ async fn run(
         });
     }
     while let Some(ask) = asked.next().await {
+        let ask = match ask {
+            Ask::Trash(id) => {
+                let why = tokio::task::spawn_blocking(move || trash_image(&id))
+                    .await
+                    .unwrap_or_else(|e| Some(e.to_string()));
+                if let Some(why) = why {
+                    let _ = events.unbounded_send(Event::Failed(why));
+                }
+                // The compositor forgets the entry once it sees the image gone.
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                Ask::Rescan
+            }
+            other => other,
+        };
         let Some(ask) = side(ask, &events) else {
             continue;
         };

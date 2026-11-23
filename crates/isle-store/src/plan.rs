@@ -485,10 +485,10 @@ pub async fn get(offer: Offer) -> Plan {
         Kind::Flathub => tokio::task::spawn_blocking(move || flathub_get(&offer.install))
             .await
             .unwrap_or_default(),
+        Kind::AppImage => Plan::default(),
     }
 }
 
-/// What removing a package takes, or who needs it.
 /// The packages Store never removes: `base` and what it depends on, pacman's `HoldPkg`, the
 /// running kernel, the boot loaders, and Isle's own package. Removing one is Terminal's to do.
 pub fn core(pacman_conf: &str, base_info: &str, running_kernel: Option<&str>) -> HashSet<String> {
@@ -539,6 +539,7 @@ pub fn core_here() -> HashSet<String> {
     core(&conf, &base, kernel.as_deref())
 }
 
+/// What removing a package takes, or who needs it.
 pub fn remove(catalogue: &str, id: &str) -> Plan {
     let mut plan = Plan::default();
     if catalogue == "flathub" {

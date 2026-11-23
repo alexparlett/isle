@@ -852,3 +852,5 @@
   dependencies, HoldPkg, the running kernel, boot loaders, isle-git), or a
   package whose removal would take one; its sidebar is glass, as Settings',
   and Back lines up with the page.
+- 2026-11-23: an installed AppImage's page shows Open and Move to Trash, not
+  Get (AppImages were taken for System packages).

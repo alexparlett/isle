@@ -11,6 +11,8 @@ pub enum Kind {
     Cachyos,
     Flathub,
     Aur,
+    /// An image Isle registered from `~/Applications`; no catalogue lists one.
+    AppImage,
 }
 
 /// One app a catalogue offers.

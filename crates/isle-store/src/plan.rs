@@ -529,7 +529,7 @@ fn info_field(info: &str, name: &str) -> Vec<String> {
 }
 
 /// [`core`] for this computer.
-fn core_here() -> HashSet<String> {
+pub fn core_here() -> HashSet<String> {
     let conf = std::fs::read_to_string("/etc/pacman.conf").unwrap_or_default();
     let base = run("pacman", &["-Qi", "base"]).map(|(_, out, _)| out).unwrap_or_default();
     let release = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();

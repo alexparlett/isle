@@ -227,6 +227,7 @@ impl freya::prelude::App for StoreWindow {
         let mut foreign = use_state(|| Rc::new(Vec::<(String, String)>::new()));
         let mut explicit = use_state(|| Rc::new(Vec::<(String, String)>::new()));
         let show_packages = use_state(|| false);
+        let mut core = use_state(|| Rc::new(HashSet::<String>::new()));
         let mut icons = use_state(|| Rc::new(HashMap::<PathBuf, Option<PathBuf>>::new()));
         let mut shots = use_state(|| Rc::new(HashMap::<String, Option<PathBuf>>::new()));
         let mut aur_found = use_state(|| Rc::new(None::<(String, Result<Vec<Offer>, String>)>));
@@ -284,6 +285,7 @@ impl freya::prelude::App for StoreWindow {
                             Event::Packages(set) => packages.set(Rc::new(set)),
                             Event::Foreign(list) => foreign.set(Rc::new(list)),
                             Event::Explicit(list) => explicit.set(Rc::new(list)),
+                            Event::Core(set) => core.set(Rc::new(set)),
                             Event::Images(found) => images.set(found),
                             Event::Offers(list) => offers.set(Rc::new(list)),
                             Event::Icons(made) => {
@@ -454,6 +456,7 @@ impl freya::prelude::App for StoreWindow {
             foreign: foreign.read().clone(),
             explicit: explicit.read().clone(),
             show_packages,
+            core: core.read().clone(),
             status: Rc::new(s.clone()),
             plans: plans.read().clone(),
             shots: shots.read().clone(),

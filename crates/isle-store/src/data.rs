@@ -23,6 +23,8 @@ pub enum Event {
     Foreign(Vec<(String, String)>),
     /// The packages installed on purpose, not as another's dependency (`pacman -Qe`).
     Explicit(Vec<(String, String)>),
+    /// The packages Store never removes.
+    Core(HashSet<String>),
     /// CachyOS's and Flathub's apps.
     Offers(Vec<Offer>),
     /// Catalogue icons made drawable: the catalogue's file and the drawable one.
@@ -342,6 +344,7 @@ async fn run(
     let _ = events.unbounded_send(Event::Packages(packages()));
     let _ = events.unbounded_send(Event::Foreign(foreign()));
     let _ = events.unbounded_send(Event::Explicit(explicit()));
+    let _ = events.unbounded_send(Event::Core(plan::core_here()));
     {
         let events = events.clone();
         tokio::task::spawn_blocking(move || {

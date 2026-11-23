@@ -165,6 +165,8 @@ pub struct Ctx {
     pub explicit: Rc<Vec<(String, String)>>,
     /// Installed shows packages, not apps.
     pub show_packages: State<bool>,
+    /// The packages Store offers no Remove for.
+    pub core: Rc<HashSet<String>>,
     pub status: Rc<Value>,
     pub plans: Rc<HashMap<String, Plan>>,
     /// Screenshots fetched, or `None` for one that could not be.
@@ -1000,7 +1002,7 @@ impl Ctx {
         };
         let ctx = self.clone();
         let offer = o.clone();
-        let remove = installed.then(|| {
+        let remove = (installed && !self.core.contains(&o.install)).then(|| {
             Button::new("Remove…")
                 .enabled(!self.running())
                 .on_press(move |_| {

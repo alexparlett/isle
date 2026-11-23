@@ -135,7 +135,7 @@ fn draw(scene: Scene) -> TestingRunner {
                 wanted: Rc::default(),
                 shots_wanted: Rc::default(),
                 apps: Rc::default(),
-                packages: Rc::default(),
+                packages: Rc::new(["base".to_string()].into()),
                 foreign: Rc::default(),
                 explicit: Rc::new(vec![
                     ("krita".into(), "5.2-1".into()),
@@ -143,6 +143,7 @@ fn draw(scene: Scene) -> TestingRunner {
                     ("isle-git".into(), "r1-1".into()),
                 ]),
                 show_packages: use_state(|| scene.packages),
+                core: Rc::new(["base".to_string()].into()),
                 status: Rc::new(serde_json::Value::Null),
                 plans: Rc::new(scene.plans.clone()),
                 shots: Rc::default(),
@@ -392,4 +393,12 @@ fn installed_shows_the_packages_installed_on_purpose_when_asked() {
     assert!(l.iter().any(|x| x == "krita"), "{l:?}");
     assert!(l.iter().any(|x| x == "Version 1.5-1"), "{l:?}");
     assert!(!l.iter().any(|x| x == "isle-git"), "{l:?}");
+}
+
+#[test]
+fn the_system_s_core_has_no_remove() {
+    let page = draw(scene(Page::App(Box::new(pages::bare(Kind::Cachyos, "base", "Version 3-3")))));
+    let l = labels(&page);
+    assert!(l.iter().any(|x| x == "Installed"), "{l:?}");
+    assert!(!l.iter().any(|x| x == "Remove…"), "{l:?}");
 }

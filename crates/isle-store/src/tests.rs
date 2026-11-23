@@ -68,6 +68,7 @@ struct Scene {
     sheet: Option<Sheet>,
     plans: HashMap<String, Plan>,
     system_waiting: bool,
+    packages: bool,
 }
 
 thread_local! {
@@ -136,6 +137,12 @@ fn draw(scene: Scene) -> TestingRunner {
                 apps: Rc::default(),
                 packages: Rc::default(),
                 foreign: Rc::default(),
+                explicit: Rc::new(vec![
+                    ("krita".into(), "5.2-1".into()),
+                    ("obs-vkcapture".into(), "1.5-1".into()),
+                    ("isle-git".into(), "r1-1".into()),
+                ]),
+                show_packages: use_state(|| scene.packages),
                 status: Rc::new(serde_json::Value::Null),
                 plans: Rc::new(scene.plans.clone()),
                 shots: Rc::default(),
@@ -162,6 +169,7 @@ fn draw(scene: Scene) -> TestingRunner {
                 _ if !scene.query.is_empty() => ctx.search(&scene.query),
                 Page::App(o) => ctx.app(&o, &asked_plans),
                 Page::Discover => ctx.discover(),
+                Page::Installed => ctx.installed(),
                 _ => Vec::new(),
             };
             let shown = sheet.read().clone().map(|s| ctx.sheet(&s));
@@ -186,6 +194,7 @@ fn scene(page: Page) -> Scene {
         sheet: None,
         plans: HashMap::new(),
         system_waiting: false,
+        packages: false,
     }
 }
 
@@ -362,4 +371,25 @@ fn an_aur_build_shows_its_scripts_and_what_deserves_a_look() {
         l.iter().any(|x| x.trim() == "Runs a script fetched from the network"),
         "{l:?}"
     );
+}
+
+#[test]
+fn installed_shows_the_packages_installed_on_purpose_when_asked() {
+    let apps = draw(scene(Page::Installed));
+    let l = labels(&apps);
+    assert!(l.iter().any(|x| x == "0 apps"), "{l:?}");
+    assert!(!l.iter().any(|x| x == "krita"), "{l:?}");
+
+    let packages = draw(Scene {
+        packages: true,
+        ..scene(Page::Installed)
+    });
+    let l = labels(&packages);
+    assert!(
+        l.iter().any(|x| x.starts_with("2 packages installed on purpose")),
+        "{l:?}"
+    );
+    assert!(l.iter().any(|x| x == "krita"), "{l:?}");
+    assert!(l.iter().any(|x| x == "Version 1.5-1"), "{l:?}");
+    assert!(!l.iter().any(|x| x == "isle-git"), "{l:?}");
 }

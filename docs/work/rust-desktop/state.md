@@ -846,3 +846,9 @@
 - 2026-11-23: the island shows a glyph while updates wait, and Control
   Centre's Updates opens Store's Updates (or Software Update for Isle) on
   a click, with no page (B150).
+- 2026-11-23: Installed switches between Apps and Packages, the packages
+  installed on purpose (`pacman -Qe`), save isle-git.
+- 2026-11-23: Store refuses to remove the system's core (base and its
+  dependencies, HoldPkg, the running kernel, boot loaders, isle-git), or a
+  package whose removal would take one; its sidebar is glass, as Settings',
+  and Back lines up with the page.

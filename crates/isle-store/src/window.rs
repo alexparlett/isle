@@ -22,9 +22,6 @@ use crate::{
     plan::Plan,
 };
 
-/// The compositor's lights over the toolbar's leading end.
-const LIGHTS: f32 = 68.;
-
 #[derive(Clone, PartialEq)]
 pub enum Page {
     Discover,
@@ -228,6 +225,8 @@ impl freya::prelude::App for StoreWindow {
         let mut offers = use_state(|| Rc::new(Vec::<Offer>::new()));
         let mut packages = use_state(|| Rc::new(HashSet::<String>::new()));
         let mut foreign = use_state(|| Rc::new(Vec::<(String, String)>::new()));
+        let mut explicit = use_state(|| Rc::new(Vec::<(String, String)>::new()));
+        let show_packages = use_state(|| false);
         let mut icons = use_state(|| Rc::new(HashMap::<PathBuf, Option<PathBuf>>::new()));
         let mut shots = use_state(|| Rc::new(HashMap::<String, Option<PathBuf>>::new()));
         let mut aur_found = use_state(|| Rc::new(None::<(String, Result<Vec<Offer>, String>)>));
@@ -284,6 +283,7 @@ impl freya::prelude::App for StoreWindow {
                             Event::Installed(list) => apps.set(list),
                             Event::Packages(set) => packages.set(Rc::new(set)),
                             Event::Foreign(list) => foreign.set(Rc::new(list)),
+                            Event::Explicit(list) => explicit.set(Rc::new(list)),
                             Event::Images(found) => images.set(found),
                             Event::Offers(list) => offers.set(Rc::new(list)),
                             Event::Icons(made) => {
@@ -452,6 +452,8 @@ impl freya::prelude::App for StoreWindow {
             apps: Rc::new(installed.clone()),
             packages: packages.read().clone(),
             foreign: foreign.read().clone(),
+            explicit: explicit.read().clone(),
+            show_packages,
             status: Rc::new(s.clone()),
             plans: plans.read().clone(),
             shots: shots.read().clone(),
@@ -853,10 +855,12 @@ impl freya::prelude::App for StoreWindow {
                 ))
                 .into_element()
         };
+        // Glass on the compositor's blur; solid without it or under Reduce Transparency.
+        let glass = isle_app::blurs() && !theme.appearance.reduce_transparency;
         let sidebar = rect()
             .width(Size::px(t.size_sidebar))
             .height(Size::fill())
-            .background(colour(t.colour_sidebar))
+            .background(colour(if glass { t.material_glass } else { t.colour_sidebar }))
             .padding((t.size_toolbar, t.space_s, t.space_s, t.space_s))
             .spacing(t.space_xxs)
             .a11y_role(AccessibilityRole::List)
@@ -893,7 +897,8 @@ impl freya::prelude::App for StoreWindow {
         let toolbar = rect()
             .width(Size::fill())
             .height(Size::px(t.size_toolbar))
-            .padding((0., t.space_l, 0., LIGHTS))
+            // The lights are over the sidebar; Back lines up with the page's own edge.
+            .padding((0., t.space_l, 0., t.space_xxl))
             .horizontal()
             .content(Content::flex())
             .cross_align(Alignment::Center)

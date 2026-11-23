@@ -489,6 +489,56 @@ pub async fn get(offer: Offer) -> Plan {
 }
 
 /// What removing a package takes, or who needs it.
+/// The packages Store never removes: `base` and what it depends on, pacman's `HoldPkg`, the
+/// running kernel, the boot loaders, and Isle's own package. Removing one is Terminal's to do.
+pub fn core(pacman_conf: &str, base_info: &str, running_kernel: Option<&str>) -> HashSet<String> {
+    let mut out: HashSet<String> = ["base", "grub", "limine", "refind", isle_updates::ISLE_PACKAGE]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    for line in pacman_conf.lines() {
+        if let Some((key, value)) = line.split_once('=')
+            && key.trim() == "HoldPkg"
+        {
+            out.extend(value.split_whitespace().map(str::to_owned));
+        }
+    }
+    out.extend(info_field(base_info, "Depends On").into_iter().map(|d| bare_name(&d).to_owned()));
+    out.extend(running_kernel.map(str::to_owned));
+    out.retain(|n| n != "None");
+    out
+}
+
+/// A field of `pacman -Qi`, its words joined across the lines it wraps onto.
+fn info_field(info: &str, name: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut inside = false;
+    for line in info.lines() {
+        match line.split_once(" : ") {
+            Some((key, value)) if !line.starts_with(' ') => {
+                inside = key.trim() == name;
+                if inside {
+                    words.extend(value.split_whitespace().map(str::to_owned));
+                }
+            }
+            _ if inside => words.extend(line.split_whitespace().map(str::to_owned)),
+            _ => {}
+        }
+    }
+    words
+}
+
+/// [`core`] for this computer.
+fn core_here() -> HashSet<String> {
+    let conf = std::fs::read_to_string("/etc/pacman.conf").unwrap_or_default();
+    let base = run("pacman", &["-Qi", "base"]).map(|(_, out, _)| out).unwrap_or_default();
+    let release = std::fs::read_to_string("/proc/sys/kernel/osrelease").unwrap_or_default();
+    let kernel = std::fs::read_to_string(format!("/usr/lib/modules/{}/pkgbase", release.trim()))
+        .ok()
+        .map(|k| k.trim().to_owned());
+    core(&conf, &base, kernel.as_deref())
+}
+
 pub fn remove(catalogue: &str, id: &str) -> Plan {
     let mut plan = Plan::default();
     if catalogue == "flathub" {
@@ -500,9 +550,28 @@ pub fn remove(catalogue: &str, id: &str) -> Plan {
         plan.note = Some("Its documents and settings stay in your home folder.".into());
         return plan;
     }
+    let core = core_here();
+    if core.contains(id) {
+        plan.refused = Some("It's part of the system, so Store doesn't remove it.".into());
+        return plan;
+    }
     match run("pacman", &["-Rs", "--print", "--print-format", "%n %v", id]) {
         Some((true, out, _)) => {
             plan.packages = parse_print(&out);
+            let taken: Vec<&str> = plan
+                .packages
+                .iter()
+                .map(|p| p.name.as_str())
+                .filter(|n| core.contains(*n))
+                .collect();
+            if !taken.is_empty() {
+                plan.refused = Some(format!(
+                    "It would also remove {}, which the system needs.",
+                    taken.join(", ")
+                ));
+                plan.packages.clear();
+                return plan;
+            }
             plan.note = Some("Settings you changed are kept beside the originals as .pacsave files.".into());
         }
         // pacman prints what a removal would break on stdout, its error on stderr.
@@ -522,6 +591,18 @@ pub fn remove(catalogue: &str, id: &str) -> Plan {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_system_s_core_is_never_removed() {
+        let conf = "[options]\nHoldPkg     = pacman glibc\nArchitecture = auto\n";
+        let base = "Name            : base\nDepends On      : filesystem  gcc-libs  glibc\n                  systemd>=257  pacman\nOptional Deps   : linux: bare metal support\n";
+        let core = core(conf, base, Some("linux-cachyos"));
+        for name in ["base", "pacman", "glibc", "filesystem", "systemd", "linux-cachyos", "isle-git", "grub"] {
+            assert!(core.contains(name), "{name} {core:?}");
+        }
+        assert!(!core.contains("linux"), "{core:?}");
+        assert!(!core.contains("firefox"), "{core:?}");
+    }
 
     /// Prints what review flags in each file of `$ISLE_REVIEW_DIR`, to judge it on real scripts.
     #[test]

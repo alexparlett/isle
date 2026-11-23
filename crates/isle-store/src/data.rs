@@ -21,6 +21,8 @@ pub enum Event {
     Packages(HashSet<String>),
     /// The packages no repository has, as `pacman -Qm` gives them: name and version.
     Foreign(Vec<(String, String)>),
+    /// The packages installed on purpose, not as another's dependency (`pacman -Qe`).
+    Explicit(Vec<(String, String)>),
     /// CachyOS's and Flathub's apps.
     Offers(Vec<Offer>),
     /// Catalogue icons made drawable: the catalogue's file and the drawable one.
@@ -150,8 +152,17 @@ fn packages() -> HashSet<String> {
 }
 
 fn foreign() -> Vec<(String, String)> {
+    listed("-Qm")
+}
+
+fn explicit() -> Vec<(String, String)> {
+    listed("-Qe")
+}
+
+/// `pacman`'s `name version` lines for a query.
+fn listed(query: &str) -> Vec<(String, String)> {
     std::process::Command::new("pacman")
-        .arg("-Qm")
+        .arg(query)
         .output()
         .map(|o| {
             String::from_utf8_lossy(&o.stdout)
@@ -330,6 +341,7 @@ async fn run(
     let _ = events.unbounded_send(Event::Installed(installed));
     let _ = events.unbounded_send(Event::Packages(packages()));
     let _ = events.unbounded_send(Event::Foreign(foreign()));
+    let _ = events.unbounded_send(Event::Explicit(explicit()));
     {
         let events = events.clone();
         tokio::task::spawn_blocking(move || {
@@ -369,6 +381,7 @@ async fn run(
             let _ = events.unbounded_send(Event::Installed(installed));
             let _ = events.unbounded_send(Event::Packages(packages()));
             let _ = events.unbounded_send(Event::Foreign(foreign()));
+            let _ = events.unbounded_send(Event::Explicit(explicit()));
             let events = events.clone();
             tokio::task::spawn_blocking(move || {
                 let _ = events.unbounded_send(Event::Images(images()));

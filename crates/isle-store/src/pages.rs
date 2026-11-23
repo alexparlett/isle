@@ -161,6 +161,10 @@ pub struct Ctx {
     pub packages: Rc<HashSet<String>>,
     /// The AUR's packages installed, with their versions.
     pub foreign: Rc<Vec<(String, String)>>,
+    /// The packages installed on purpose, with their versions.
+    pub explicit: Rc<Vec<(String, String)>>,
+    /// Installed shows packages, not apps.
+    pub show_packages: State<bool>,
     pub status: Rc<Value>,
     pub plans: Rc<HashMap<String, Plan>>,
     /// Screenshots fetched, or `None` for one that could not be.
@@ -747,13 +751,54 @@ impl Ctx {
 
     pub fn installed(&self) -> Vec<Element> {
         let theme = &self.theme;
+        let packages = *self.show_packages.read();
+        let mut show = self.show_packages;
+        let mut limit = self.limit;
+        let toggle = isle_ui::form::Segmented::new(
+            vec!["Apps".into(), "Packages".into()],
+            usize::from(packages),
+            "Show",
+            move |i: usize| {
+                limit.set(PAGE);
+                show.set(i == 1);
+            },
+        );
         let mut out = vec![
-            title(theme, "Installed"),
-            note(
-                theme,
-                format!("{} apps", self.apps.len()),
-            ),
+            rect()
+                .width(Size::fill())
+                .horizontal()
+                .content(Content::flex())
+                .cross_align(Alignment::Center)
+                .child(rect().width(Size::flex(1.)).child(title(theme, "Installed")))
+                .child(toggle)
+                .into_element(),
         ];
+        if packages {
+            // Isle's own package is not Store's to remove.
+            let list: Vec<Offer> = self
+                .explicit
+                .iter()
+                .filter(|(name, _)| name != isle_updates::ISLE_PACKAGE)
+                .map(|(name, version)| {
+                    let kind = if self.foreign.iter().any(|(f, _)| f == name) {
+                        Kind::Aur
+                    } else {
+                        Kind::Cachyos
+                    };
+                    bare(kind, name, &format!("Version {version}"))
+                })
+                .collect();
+            out.push(note(
+                theme,
+                format!(
+                    "{} packages installed on purpose · what they need comes and goes with them",
+                    list.len()
+                ),
+            ));
+            self.listed(list.iter().collect(), &mut out);
+            return out;
+        }
+        out.push(note(theme, format!("{} apps", self.apps.len())));
         let mut shown: Vec<Offer> = self.apps.iter().map(|a| self.offer_of(a)).collect();
         shown.sort_by_key(|o| o.name.to_lowercase());
         for o in &shown {

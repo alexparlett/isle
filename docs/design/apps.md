@@ -454,7 +454,9 @@ updated, with the catalogue each comes from always named.
 5. What Get installs and Remove takes is listed before the password. Get with nothing else to bring
    starts at once. With system updates waiting, Get from CachyOS is Update and Install, and the
    AUR waits until they are done, since pacman never does a partial upgrade.
-6. An installed app's page has Remove… beside Open; the AUR's page lists every package installed
+6. Installed switches between Apps and Packages: every package installed on purpose
+   (`pacman -Qe`), with its version and catalogue, save Isle's own. An installed app's page has
+   Remove… beside Open; the AUR's page lists every package installed
    from it, tools included, save Isle's own. Remove takes what only the app needed; an app another package needs is refused, naming it.
    Before an AUR build, Get's sheet shows the PKGBUILD and its install script with the lines that
    deserve a look marked and why (B147).

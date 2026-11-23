@@ -25,7 +25,8 @@ const SPEC: Spec = Spec {
     max_size: None,
     traffic_light_inset: (0.0, 10.0),
     preferences: false,
-    backdrop: None,
+    // The sidebar, `size-sidebar` wide: glass on the compositor's blur.
+    backdrop: Some((0.0, 0.0, 220.0, 8192.0)),
     drops: &[],
 };
 

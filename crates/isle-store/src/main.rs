@@ -14,6 +14,8 @@ use std::{cell::Cell, rc::Rc};
 use isle_app::{AppHandle, Delegate, Request, Spec, WindowKey, WindowSpec};
 
 pub const APP: &str = "io.github.alexparlett.Isle.Store";
+/// The link that opens Store on its Updates page.
+pub const UPDATES: &str = "isle-store://updates";
 
 const SPEC: Spec = Spec {
     id: APP,
@@ -36,6 +38,11 @@ impl Delegate for Store {
     fn request(&self, app: &AppHandle, request: Request) {
         if matches!(&request, Request::Action { name, .. } if name == isle_app::SERVICE) {
             return;
+        }
+        // Left in `Desktop::requests` for the window: `isle-store://updates` opens its Updates.
+        if matches!(&request, Request::Open { uris, .. } if uris.iter().any(|u| u == UPDATES)) {
+            let mut requests = app.desktop().requests;
+            requests.write().push(request.clone());
         }
         let token = request.token().map(str::to_owned);
         match self.main.get().filter(|k| app.windows().contains(k)) {

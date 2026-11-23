@@ -38,6 +38,10 @@ Stop only outside a transaction, failure said in words).
 
 ### The split
 
+Revised 2026-11-23 by B149: the system's updates moved to Store's Updates,
+as a System section first; Software Update keeps Isle and the restart.
+Choices 1–3 below are the plan as built before it.
+
 1. **Settings › General › Software Update is the system:** a CachyOS
    card and an Isle card (board, Settings 1–4). CachyOS names the
    kernel, the graphics driver, Mesa and CachyOS's tools found among

@@ -1647,3 +1647,20 @@ B134's ananicy rule does, or overrides it with a drop-in; it does not take the
 job over. Rejected: plain Arch with only CachyOS's kernel (DKMS NVIDIA builds,
 and mesa and the rest no longer built together), and keeping the full install
 with its front ends beside Isle's (two stores, two welcome and update windows).
+
+**B149 · Store updates the system; Software Update is Isle's.** Chosen
+2026-11-23, revising P14e's split. With the system in Settings and apps in
+Store, an app from the repositories (Claude Desktop, say) appeared in Software
+Update and not in Store, which installs and removes it. Store's Updates now
+leads with a System section: everything pacman installs from Arch's and
+CachyOS's repositories, the kernel, drivers and libraries in one row and each
+app from them below it, "With the system", under one Update, since pacman
+upgrades all or nothing. It is called System, not CachyOS: on this machine
+more of it comes from Arch's `core`, `extra` and `multilib` than from
+CachyOS's own repositories. Update Everything runs the system first and the
+AUR last. Store says a restart owed and offers Restart…, and its notes name
+the system. Settings › Software Update keeps Isle's build, the restart owed and
+automatic checks, and does not mention Store; its count in the system menu
+is Isle's, Store's is the system's row, its apps and the other catalogues'.
+Rejected: keeping the system in Settings (the store that installs an app
+cannot update it), and an Update per repository app (a partial upgrade).

@@ -72,6 +72,11 @@ impl Updates {
             .is_some_and(|p| p.state == RunState::Running)
     }
 
+    /// Updates waiting that are Store's: anything but Isle's own build.
+    pub fn for_store(&self) -> bool {
+        self.waiting() > self.count(Source::Isle)
+    }
+
     fn waiting(&self) -> usize {
         self.check.as_ref().map_or(0, |c| c.pending.len())
     }
@@ -235,12 +240,29 @@ impl State {
             Some(Part::Flathub(None) | Part::Aur(None)) => {
                 Some(("Apps were updated".into(), "Couldn't update apps".into()))
             }
+            Some(Part::System) => {
+                Some(("The system was updated".into(), "Couldn't update the system".into()))
+            }
             _ => None,
         };
+        // The system's run updated every package the check found waiting in the repositories.
+        if p.state == RunState::Done
+            && matches!(Part::parse(&p.part), Some(Part::System | Part::Both))
+            && let Some(check) = &mut self.isle.updates.check
+        {
+            check.pending.retain(|w| w.source != Source::Repositories);
+            check.system = Default::default();
+        }
         match p.state {
             RunState::Done if store.is_some() => {
                 if let Some((done, _)) = store.filter(|_| !store_in_front) {
-                    self.post_desktop("", "Store", done, packages(p.total), vec![], Note::Update);
+                    let owed = !self.isle.updates.restart.is_empty();
+                    let (body, actions) = if owed {
+                        ("Restart to finish updating.".to_owned(), vec![("restart", "Restart…")])
+                    } else {
+                        (packages(p.total), vec![])
+                    };
+                    self.post_desktop("", "Store", done, body, actions, Note::Store);
                 }
             }
             RunState::Failed | RunState::Refused if store.is_some() => {
@@ -251,7 +273,7 @@ impl State {
                         failed,
                         p.reason.clone().unwrap_or_default(),
                         vec![],
-                        Note::Update,
+                        Note::Store,
                     );
                 }
             }
@@ -364,11 +386,9 @@ impl State {
             other => match Part::parse(other) {
                 // An AUR package is built against the system as it is; one still waiting for
                 // its own update would leave the build behind it.
-                Some(Part::Aur(_)) if system => {
-                    Err("Update CachyOS first, in Software Update.".into())
-                }
+                Some(Part::Aur(_)) if system => Err("Update the system first.".into()),
                 Some(Part::Install { catalogue, .. }) if catalogue == "aur" && system => {
-                    Err("Update CachyOS first, in Software Update.".into())
+                    Err("Update the system first.".into())
                 }
                 Some(Part::Install { catalogue, id, .. }) if catalogue == "cachyos" => {
                     Ok(Part::Install { catalogue, id, with_updates: system })
@@ -413,10 +433,22 @@ impl State {
         self.refresh_bar();
     }
 
+    pub fn open_store_updates(&mut self) {
+        self.launch(crate::launch::Launch::App {
+            app: STORE_APP.into(),
+            action: None,
+            uris: vec!["isle-store://updates".into()],
+        });
+    }
+
     pub fn updates_action(&mut self, action: PanelAction) {
         match action {
             PanelAction::Choose { row, .. } => match row.as_str() {
                 "check" => self.check_updates(true),
+                // Only Isle's build is Software Update's; the rest is Store's.
+                "install" if self.isle.updates.for_store() => {
+                    self.open_store_updates();
+                }
                 "install" | "details" => {
                     self.open_settings(Some("general"), Some(ROW));
                 }
@@ -547,7 +579,7 @@ impl Isle {
             } else if u.waiting() > 0 {
                 let mut page = Vec::new();
                 for (source, name) in [
-                    (Source::Repositories, "CachyOS"),
+                    (Source::Repositories, "System"),
                     (Source::Isle, "Isle"),
                     (Source::Flathub, "Flathub"),
                     (Source::Aur, "AUR"),
@@ -631,17 +663,21 @@ impl Isle {
             .unwrap_or_default()
     }
 
-    /// Store's count in the system menu: Flathub's and the AUR's updates.
+    /// Store's count in the system menu, as its Updates page counts: the system's row and each
+    /// app from CachyOS, then Flathub's and the AUR's updates.
     pub fn store_count(&self) -> Option<usize> {
-        let n = self.updates.count(Source::Flathub) + self.updates.count(Source::Aur);
+        let system = match &self.updates.check {
+            Some(c) if self.updates.count(Source::Repositories) > 0 => 1 + c.system.apps.len(),
+            _ => 0,
+        };
+        let n = system + self.updates.count(Source::Flathub) + self.updates.count(Source::Aur);
         (n > 0 && !self.updates.running()).then_some(n)
     }
 
-    /// System Settings' count in the system menu: the system's parts waiting (CachyOS, Isle),
-    /// none while a run is going.
+    /// System Settings' count in the system menu: Isle's build waiting, none while a run is
+    /// going.
     pub fn updates_count(&self) -> Option<usize> {
-        let n = usize::from(self.updates.count(Source::Repositories) > 0)
-            + usize::from(self.updates.count(Source::Isle) > 0);
+        let n = usize::from(self.updates.count(Source::Isle) > 0);
         (n > 0 && !self.updates.running()).then_some(n)
     }
 

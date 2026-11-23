@@ -24,6 +24,8 @@ pub enum Note {
     Capture,
     /// Software Update's: Restart… and Show Details….
     Update,
+    /// Store's updates and installs: Restart…, or Store's Updates page.
+    Store,
 }
 
 impl Isle {
@@ -121,6 +123,10 @@ impl State {
             (Note::Update, _) => {
                 self.open_settings(Some("general"), Some(crate::updates::ROW));
             }
+            (Note::Store, "restart") => {
+                self.open_session_confirm(isle_shell::prompts::session::Choice::Restart)
+            }
+            (Note::Store, _) => self.open_store_updates(),
         }
     }
 

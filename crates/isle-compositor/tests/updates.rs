@@ -1,4 +1,4 @@
-//! Software Update: the check by source, a run through a fake paru with its progress, its
+//! Updates: the check by source, a run through a fake paru with its progress, its
 //! notes and Stop, and a restart owed in the island, the system menu and the note.
 #![cfg(feature = "test-hooks")]
 
@@ -212,12 +212,14 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
     assert_eq!(isle_update["name"], "isle-git");
     assert_eq!(isle_update["to"].as_str().unwrap().len(), 12);
 
+    // Settings counts Isle's build; Store counts the system's row and the AUR's package.
     let system = system_menu(&isle).await;
     let update = item(&system, "System Settings…").unwrap();
     assert_eq!(
         (update["enabled"].clone(), update["badge"].clone()),
-        (Value::Bool(true), Value::from("2"))
+        (Value::Bool(true), Value::from("1"))
     );
+    assert_eq!(item(&system, "Store…").unwrap()["badge"], "2");
     assert!(item(&system, "Restart to finish updating…").is_none());
 
     isle.open_panel(None).await;
@@ -260,8 +262,8 @@ async fn a_run_counts_its_packages_shows_its_glyph_and_says_when_it_is_done() {
     );
     assert_eq!(install(&isle, "ok").await, "An update is already running.");
     wait_until(|| async { state(&isle).await == "Done" }).await;
-    wait_until(|| async { note(&isle, "Update installed").await.is_some() }).await;
-    let n = note(&isle, "Update installed").await.unwrap();
+    wait_until(|| async { note(&isle, "The system was updated").await.is_some() }).await;
+    let n = note(&isle, "The system was updated").await.unwrap();
     assert_eq!(n["body"], "2 packages were updated.");
     wait_until(|| async { !isle.glyphs().await.contains(&"updates".to_owned()) }).await;
 }
@@ -271,19 +273,11 @@ async fn a_failed_run_says_why_and_a_refused_one_says_permission() {
     let isle = start("updates-fail", false).await;
     assert_eq!(install(&isle, "lock").await, "");
     wait_until(|| async { state(&isle).await == "Failed" }).await;
-    wait_until(|| async { note(&isle, "Couldn't install updates").await.is_some() }).await;
-    let n = note(&isle, "Couldn't install updates").await.unwrap();
+    wait_until(|| async { note(&isle, "Couldn't update the system").await.is_some() }).await;
+    let n = note(&isle, "Couldn't update the system").await.unwrap();
     assert_eq!(
         n["body"],
         "Another program is installing packages. Try again when it has finished."
-    );
-    assert!(
-        n["actions"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|a| a[0] == "details"),
-        "{n}"
     );
 
     assert_eq!(install(&isle, "refuse").await, "");
@@ -310,8 +304,8 @@ async fn stop_ends_a_run_before_pacman_and_nothing_is_posted() {
     assert_eq!(why, "");
     wait_until(|| async { state(&isle).await == "Stopped" }).await;
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    assert!(note(&isle, "Couldn't install updates").await.is_none());
-    assert!(note(&isle, "Update installed").await.is_none());
+    assert!(note(&isle, "Couldn't update the system").await.is_none());
+    assert!(note(&isle, "The system was updated").await.is_none());
     let why = UpdatesProxy::new(&isle.bus)
         .await
         .unwrap()
@@ -336,8 +330,8 @@ async fn a_restart_owed_shows_in_the_island_the_menu_and_the_note() {
     );
 
     assert_eq!(install(&isle, "ok").await, "");
-    wait_until(|| async { note(&isle, "Update installed").await.is_some() }).await;
-    let n = note(&isle, "Update installed").await.unwrap();
+    wait_until(|| async { note(&isle, "The system was updated").await.is_some() }).await;
+    let n = note(&isle, "The system was updated").await.unwrap();
     assert_eq!(n["body"], "Restart to finish updating.");
     assert!(
         n["actions"]
@@ -365,7 +359,7 @@ async fn get_installs_with_the_waiting_updates_and_the_aur_waits_for_them() {
     updates.check().await.unwrap();
     assert_eq!(
         updates.install("install:aur:obs-vkcapture").await.unwrap(),
-        "Update CachyOS first, in Software Update."
+        "Update the system first."
     );
     assert_eq!(updates.install("install:cachyos:krita").await.unwrap(), "");
     wait_until(|| async { state(&isle).await == "Done" }).await;

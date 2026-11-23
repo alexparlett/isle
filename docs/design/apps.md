@@ -182,11 +182,11 @@ forward.
 11. Provider panes (VPN, Phone, and Passwords and Snapshots in General) list the providers present, each
     with a switch, and draw each provider's state sentence and actions without knowing the tool
     (inventory §8; D42, D44, D45, D51).
-12. Software Update runs a full upgrade only (D83) under pkexec, showing pacman's own per-package lines
-    as progress (D47, D81). The run is not a child of Settings (D78): quitting Settings leaves it
-    running and reopening shows where it is. A restart owed after kernel or NVIDIA module skew is
-    stated until the restart (D46). Isle is a package built from git (B29), so its update is part of
-   the same upgrade (inventory §7 IsleUpdate).
+12. Software Update builds Isle (B29, B149); the system updates in Store. Every run is a full
+    upgrade only (D83) under pkexec, showing pacman's own per-package lines as progress (D47, D81).
+    The run is not a child of Settings (D78): quitting Settings leaves it running and reopening shows
+    where it is. A restart owed after kernel or NVIDIA module skew is stated until the restart (D46),
+    here and in Store (inventory §7 IsleUpdate).
 13. Displays: arranging the displays relative to each other; mode, scale, rotation, VRR, tearing and
     enabled per display, VRR and tearing being display settings rather than Game Mode's; the last
     enabled display cannot be turned off; Redetect (inventory §3.7; D56).
@@ -451,16 +451,18 @@ updated, with the catalogue each comes from always named.
    installs; the same app in another catalogue; screenshots; description; optional extras ("Works
    better with"), each with its own Get and never installed for you; information.
 5. What Get installs and Remove takes is listed before the password. Get with nothing else to bring
-   starts at once. With CachyOS updates waiting, Get from CachyOS is Update and Install, and the
+   starts at once. With system updates waiting, Get from CachyOS is Update and Install, and the
    AUR waits until they are done, since pacman never does a partial upgrade.
 6. Remove takes what only the app needed; an app another package needs is refused, naming it.
    Before an AUR build, Get's sheet shows the PKGBUILD and its install script with the lines that
    deserve a look marked and why (B147).
-7. Updates covers Flathub, the AUR and AppImages by catalogue, each with Update All, and Update
-   Everything; apps from CachyOS update with the system in Settings › Software Update and are
-   listed there "With the system".
-8. Every run is Software Update's: a transient unit, one password, it outlives the window, Stop only
-   outside a transaction, failures said in words.
+7. Updates leads with System: everything from Arch's and CachyOS's repositories, the kernel,
+   drivers and libraries in one row and each app from them "With the system", under one Update
+   (B149). Then Flathub, the AUR and AppImages by catalogue, each with Update All, and Update
+   Everything, which runs the system first and the AUR last. A restart owed is said with
+   Restart….
+8. Every run is the same machinery as Software Update's: a transient unit, one password, it
+   outlives the window, Stop only outside a transaction, failures said in words.
 
 ## For the design process
 
@@ -534,7 +536,7 @@ lands. Pane names are P1's (`docs/work/rust-desktop/p1/structure/settings.md`).
 | Settings › Storage (drives, SMART) and Devices (device tree) | Storage in General, with Cleaner's bar by kind and Recommendations (Cleaner 12); About, as a system report |
 | Settings › Users (accounts, fingerprint, PAM switches, autologin) | Users & Groups (Settings 14) |
 | Settings › Calendars (subscriptions) | Calendars pane (D41) |
-| Settings › Updates (system, AUR, Isle, restart owed) | Software Update (Settings 12), without the AUR (P14d) |
+| Settings › Updates (system, AUR, Isle, restart owed) | Store's Updates for the system and the AUR (Store 7); Software Update for Isle (Settings 12; B149) |
 | Settings search, launcher entries, back and forward | Settings 3, 4, 8; the launcher in `shell.md` |
 | Files windows, tabs, sidebar, saved searches | Conventions 3; Files 10–13; the sidebar's layout in P1 (`docs/work/rust-desktop/p1/structure/files.md`) |
 | Files List, Columns, Grid, disclosure, grouping, sorting, widths, preview, Quick Look | Files 14, 15, 21 |

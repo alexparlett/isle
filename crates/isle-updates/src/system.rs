@@ -1,6 +1,5 @@
-//! What a system update holds, named as Software Update's CachyOS card names it: the kernel,
-//! the graphics driver, Mesa, CachyOS's tools, and the apps it also updates
-//! (`p14e-store.md` choice 1).
+//! What a system update holds, as Store's Updates names it: the kernel, the graphics driver,
+//! Mesa, CachyOS's tools, and the apps it also updates (B149).
 
 use std::path::Path;
 

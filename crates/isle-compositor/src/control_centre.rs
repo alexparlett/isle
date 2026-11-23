@@ -517,6 +517,13 @@ impl State {
                     self.copy_stop(id);
                 }
             }
+            PanelAction::Settings(pane)
+                if pane == "Software Update"
+                    && self.isle.updates.for_store()
+                    && self.isle.updates.restart.is_empty() =>
+            {
+                self.open_store_updates();
+            }
             PanelAction::Settings(pane) => {
                 let id = crate::settings_link::pane_id(&pane);
                 let row = (pane == "Software Update").then_some(crate::updates::ROW);

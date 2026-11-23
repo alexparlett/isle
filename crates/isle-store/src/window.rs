@@ -89,10 +89,23 @@ fn icon(theme: &Theme, app: Option<&App>, size: f32) -> Element {
     }
 }
 
+/// The system's own row: a glyph where an app has its icon.
+fn system_icon(theme: &Theme, size: f32) -> Element {
+    let t = &theme.tokens;
+    rect()
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .corner_radius(size / 4.)
+        .background(colour(t.colour_fill_strong))
+        .center()
+        .child(Glyph::new("package", size * 0.5, colour(t.colour_accent)))
+        .into_element()
+}
+
 /// One update: the app's icon, name and catalogue, the versions, and what can be done.
 fn update_row(
     theme: &Theme,
-    app: Option<&App>,
+    icon: Element,
     name: &str,
     catalogue: Catalogue,
     versions: String,
@@ -116,7 +129,7 @@ fn update_row(
                     left: 0.,
                 }),
         )
-        .child(icon(theme, app, 48.))
+        .child(icon)
         .child(
             rect()
                 .width(Size::flex(1.))
@@ -178,12 +191,18 @@ pub fn note(theme: &Theme, line: impl Into<String>) -> Element {
     text::line(theme, text::Style::Callout, colour(t.colour_text_2), line).into_element()
 }
 
-/// The part of a run that is Store's: Flathub's and the AUR's, not the system's.
+/// The part of a run that is Store's: everything but Isle's own build.
 fn store_run(status: &Value) -> Option<&Value> {
     let run = &status["progress"];
     let part = run["part"].as_str().unwrap_or_default();
-    (["flathub", "aur", "install", "remove", "appimage"].iter().any(|p| part.starts_with(p)))
-        .then_some(run)
+    (["system", "flathub", "aur", "install", "remove", "appimage"]
+        .iter()
+        .any(|p| part.starts_with(p)))
+    .then_some(run)
+}
+
+fn plural(n: usize, one: &str, many: &str) -> String {
+    if n == 1 { format!("1 {one}") } else { format!("{n} {many}") }
 }
 
 fn pending<'a>(status: &'a Value, source: &str) -> Vec<&'a Value> {
@@ -350,6 +369,22 @@ impl freya::prelude::App for StoreWindow {
             }
         });
 
+        use_side_effect(move || {
+            if desktop.requests.read().is_empty() {
+                return;
+            }
+            let mut requests = desktop.requests;
+            let taken = std::mem::take(&mut *requests.write());
+            let updates = taken.iter().any(|r| {
+                matches!(r, isle_app::Request::Open { uris, .. } if uris.iter().any(|u| u == crate::UPDATES))
+            });
+            if updates {
+                query.set(String::new());
+                back.set(Vec::new());
+                page.set(Page::Updates);
+            }
+        });
+
         let typed = query.read().trim().to_string();
         use_side_effect_with_deps(&typed, {
             let data = data.clone();
@@ -370,7 +405,15 @@ impl freya::prelude::App for StoreWindow {
         };
         let flathub = pending(&s, "Flathub");
         let aur = pending(&s, "Aur");
-        let system_waiting = !pending(&s, "Repositories").is_empty();
+        let repo = pending(&s, "Repositories");
+        let system_waiting = !repo.is_empty();
+        let system_apps = s["system"]["apps"].as_array().cloned().unwrap_or_default();
+        let restart: Vec<String> = s["restart"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|r| r.as_str().map(str::to_owned))
+            .collect();
         let running = s["progress"]["state"] == "Running";
         let image_states = images.read().clone();
         let newer_images: Vec<(String, String)> = image_states
@@ -378,7 +421,9 @@ impl freya::prelude::App for StoreWindow {
             .filter(|(_, i)| i.newer == Some(true))
             .map(|(id, i)| (id.clone(), format!("appimage:{}", i.path.display())))
             .collect();
-        let store_count = flathub.len() + aur.len() + newer_images.len();
+        // The system's row and each of its apps' count as Store's updates.
+        let system_count = if system_waiting { 1 + system_apps.len() } else { 0 };
+        let store_count = system_count + flathub.len() + aur.len() + newer_images.len();
 
         let ask = {
             let data = data.clone();
@@ -436,13 +481,15 @@ impl freya::prelude::App for StoreWindow {
             Page::Installed => ctx.installed(),
             Page::Updates => {
                 let mut out = Vec::new();
+                // The system first, so the AUR builds against it; the AUR last.
                 let everything: Vec<String> = [
+                    system_waiting.then(|| "system".to_owned()),
                     (!flathub.is_empty()).then(|| "flathub".to_owned()),
-                    (!aur.is_empty() && !system_waiting).then(|| "aur".to_owned()),
                 ]
                 .into_iter()
                 .flatten()
                 .chain(newer_images.iter().map(|(_, part)| part.clone()))
+                .chain((!aur.is_empty()).then(|| "aur".to_owned()))
                 .collect();
                 let queue_e = queue.clone();
                 let ask_e = ask.clone();
@@ -475,7 +522,7 @@ impl freya::prelude::App for StoreWindow {
                     &theme,
                     match s["checked_at"].as_u64() {
                         Some(_) if s["checking"] == true => "Checking…".to_owned(),
-                        Some(_) => "Flathub, the AUR and AppImages".to_owned(),
+                        Some(_) => "The system, Flathub, the AUR and AppImages".to_owned(),
                         None => "Not checked yet".to_owned(),
                     },
                 ));
@@ -536,23 +583,68 @@ impl freya::prelude::App for StoreWindow {
                     );
                 }
 
-                // CachyOS: its apps update with the system, in Software Update.
-                let system_apps = s["system"]["apps"].as_array().cloned().unwrap_or_default();
-                if !system_apps.is_empty() {
-                    let ask_su = ask.clone();
+                if let Some(run) = store_run(&s).filter(|r| {
+                    r["state"] == "Failed" || r["state"] == "Refused" || r["state"] == "Stopped"
+                }) {
+                    let why = match run["state"].as_str() {
+                        Some("Refused") => "Permission was not given. Nothing was changed.".to_owned(),
+                        Some("Stopped") => "The update was stopped. Nothing more was installed.".to_owned(),
+                        _ => run["reason"].as_str().unwrap_or("The update stopped.").to_owned(),
+                    };
+                    out.push(
+                        text::line(&theme, text::Style::Callout, colour(t.colour_warn_text), why)
+                            .into_element(),
+                    );
+                }
+                if !restart.is_empty() && !running {
+                    let ask_r = ask.clone();
                     out.push(section(
                         &theme,
-                        "CachyOS",
+                        "Restart to finish updating",
                         Some(
-                            Button::new("Software Update…")
-                                .kind(Kind::Plain)
-                                .on_press(move |_| ask_su(Ask::SoftwareUpdate))
+                            Button::new("Restart…")
+                                .kind(Kind::Default)
+                                .small()
+                                .on_press(move |_| ask_r(Ask::Restart))
                                 .into_element(),
                         ),
                     ));
+                    for why in &restart {
+                        out.push(note(&theme, why.clone()));
+                    }
+                }
+
+                // The system: everything pacman installs from Arch's and CachyOS's repositories.
+                if system_waiting {
+                    let system = &s["system"];
+                    out.push(section(
+                        &theme,
+                        "System",
+                        Some(update_button("Update", "system".to_owned(), true, true)),
+                    ));
                     out.push(note(
                         &theme,
-                        "Apps from CachyOS update with the system, its kernel and drivers, in Settings › Software Update.",
+                        "Everything installed from Arch's and CachyOS's repositories updates together, apps included, so nothing is left half-updated.",
+                    ));
+                    let mut parts: Vec<String> = [
+                        ("kernel", "Kernel"),
+                        ("driver", "Graphics driver"),
+                        ("mesa", "Graphics libraries"),
+                    ]
+                    .iter()
+                    .filter_map(|(key, label)| {
+                        system[*key]["to"].as_str().map(|to| format!("{label} {to}"))
+                    })
+                    .collect();
+                    parts.push(plural(repo.len(), "package", "packages"));
+                    let owes = system["kernel"].is_object() || system["driver"].is_object();
+                    out.push(update_row(
+                        &theme,
+                        system_icon(&theme, 48.),
+                        "Kernel, drivers and libraries",
+                        Catalogue::Cachyos,
+                        parts.join(" · "),
+                        note(&theme, if owes { "Restart required" } else { "" }),
                     ));
                     for a in &system_apps {
                         let found = by_id(a["desktop"].as_str().unwrap_or_default())
@@ -562,7 +654,7 @@ impl freya::prelude::App for StoreWindow {
                         });
                         out.push(update_row(
                             &theme,
-                            found.as_ref(),
+                            icon(&theme, found.as_ref(), 48.),
                             &name,
                             Catalogue::Cachyos,
                             format!(
@@ -589,7 +681,7 @@ impl freya::prelude::App for StoreWindow {
                         Some(update_button("Update All", part.to_owned(), !blocked, true)),
                     ));
                     if blocked {
-                        out.push(note(&theme, "Packages from the AUR are built against the system: update CachyOS first, in Software Update."));
+                        out.push(note(&theme, "Packages from the AUR are built against the system: update the system first."));
                     } else if catalogue == Catalogue::Aur {
                         out.push(note(
                             &theme,
@@ -605,7 +697,7 @@ impl freya::prelude::App for StoreWindow {
                             .unwrap_or_else(|| id.to_owned());
                         out.push(update_row(
                             &theme,
-                            found.as_ref(),
+                            icon(&theme, found.as_ref(), 48.),
                             &name,
                             catalogue,
                             format!(
@@ -641,7 +733,7 @@ impl freya::prelude::App for StoreWindow {
                         };
                         out.push(update_row(
                             &theme,
-                            Some(a),
+                            icon(&theme, Some(a), 48.),
                             &a.name,
                             Catalogue::AppImages,
                             a.summary.clone(),
@@ -650,7 +742,7 @@ impl freya::prelude::App for StoreWindow {
                     }
                 }
 
-                if store_count == 0 && system_apps.is_empty() && !running {
+                if store_count == 0 && restart.is_empty() && !running {
                     let ask_c = ask.clone();
                     out.push(
                         rect()

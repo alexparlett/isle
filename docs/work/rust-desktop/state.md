@@ -829,4 +829,9 @@
   build.
 - 2026-11-23: the platform is Arch with CachyOS's repositories and tuning,
   CachyOS's own front ends removed (B148); Store is the only store.
-
+- 2026-11-23: the system's updates moved into Store (B149): Updates leads
+  with a System section (Arch's and CachyOS's repositories, one Update),
+  Software Update keeps Isle and the restart. Walked in the VM: the
+  `isle-store://updates` link opens Updates, the System Update ran 53
+  packages and left Restart… and the AUR's update unblocked, Settings
+  shows Isle and the restart, and no mention of Store.

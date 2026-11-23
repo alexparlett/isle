@@ -28,7 +28,7 @@ pub struct Pending {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Check {
     pub pending: Vec<Pending>,
-    /// What the repositories' updates hold, named for Software Update's CachyOS card.
+    /// What the repositories' updates hold, named for the System section of Store's Updates.
     #[serde(default)]
     pub system: crate::System,
     /// Seconds since the epoch.

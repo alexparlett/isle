@@ -291,7 +291,7 @@ fn the_aur_waits_for_the_system() {
         ..scene(Page::App(Box::new(o)))
     });
     let l = labels(&test);
-    assert!(l.iter().any(|x| x == "Software Update…"), "{l:?}");
+    assert!(l.iter().any(|x| x == "Show Updates"), "{l:?}");
     assert!(!l.iter().any(|x| x == "Install"), "{l:?}");
 }
 

@@ -643,7 +643,7 @@ impl Ctx {
         let t = &theme.tokens;
         let (what, glyph) = match c {
             Catalogue::Cachyos => (
-                "CachyOS's own repositories: Arch Linux's packages rebuilt for this computer's processor and signed by CachyOS. Apps from here update with the system, in Software Update.",
+                "CachyOS's own repositories: Arch Linux's packages rebuilt for this computer's processor and signed by CachyOS. Apps from here update together with the system, on the Updates page.",
                 "package",
             ),
             Catalogue::Flathub => (
@@ -1012,7 +1012,7 @@ impl Ctx {
         if o.kind == Kind::Aur {
             out.push(warning(theme, "From the AUR: built on this computer from a script anyone can publish. Neither CachyOS nor Arch checks it."));
             if self.system_waiting {
-                out.push(note(theme, "Update CachyOS first, in Software Update: the AUR builds against the system as it is."));
+                out.push(note(theme, "Update the system first, on the Updates page: the AUR builds against the system as it is."));
             }
         }
 
@@ -1281,10 +1281,10 @@ impl Ctx {
             });
         }
         if with_updates {
-            body.push(note(theme, "CachyOS has updates waiting. They are installed with it, so nothing is left half-updated."));
+            body.push(note(theme, "The system has updates waiting. They are installed with it, so nothing is left half-updated."));
         }
         if aur_blocked {
-            body.push(note(theme, "Update CachyOS first, in Software Update: the AUR builds against the system as it is."));
+            body.push(note(theme, "Update the system first, on the Updates page: the AUR builds against the system as it is."));
             let ctx = self.clone();
             return isle_ui::sheet(
                 500.,
@@ -1292,11 +1292,11 @@ impl Ctx {
                 vec![
                     cancel,
                     (
-                        "Software Update…".into(),
+                        "Show Updates".into(),
                         EventHandler::new(move |_| {
                             let mut s = ctx.sheet;
                             s.set(None);
-                            ctx.ask(Ask::SoftwareUpdate);
+                            ctx.go(Page::Updates);
                         }),
                     ),
                 ],

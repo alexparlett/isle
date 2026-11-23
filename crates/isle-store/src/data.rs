@@ -37,13 +37,13 @@ pub enum Event {
 
 #[derive(Debug)]
 pub enum Ask {
-    /// A run of a part: `flathub`, `flathub:<id>`, `aur`, `aur:<package>`.
+    /// A run of a part: `system`, `flathub`, `flathub:<id>`, `aur`, `aur:<package>`.
     Install(String),
     Check,
     Stop,
     Launch(String),
-    /// Settings at Software Update, where the system updates.
-    SoftwareUpdate,
+    /// The restart a system update owes, through the session's confirmation.
+    Restart,
     Rescan,
     Icons(Vec<PathBuf>),
     Shots(Vec<String>),
@@ -299,20 +299,7 @@ async fn act(bus: &zbus::Connection, ask: Ask) -> Result<(), String> {
             windows.launch(&id, "", &[]).await.map_err(err)?;
             String::new()
         }
-        Ask::SoftwareUpdate => {
-            let windows = isle_ipc::windows::WindowsProxy::new(bus)
-                .await
-                .map_err(err)?;
-            windows
-                .launch(
-                    "io.github.alexparlett.Isle.Settings",
-                    "",
-                    &["isle-settings://general/updates-status"],
-                )
-                .await
-                .map_err(err)?;
-            String::new()
-        }
+        Ask::Restart => updates.restart().await.map(|()| String::new()).map_err(err)?,
         _ => String::new(),
     };
     if why.is_empty() { Ok(()) } else { Err(why) }

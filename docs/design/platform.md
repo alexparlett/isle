@@ -661,12 +661,12 @@ D83: what Isle calls arrives with Isle.
 
 ### Updates
 
-The system and Isle update from Settings without a terminal, and a needed
-restart is said out loud.
+The system updates from Store and Isle from Settings › Software Update
+(B149), without a terminal, and a needed restart is said out loud.
 
 1. Updates are checked hourly against a temporary copy of the sync database.
    A new commit on Isle's git source counts as an update to Isle (B29).
-   The AUR is not Software Update's: nothing from it is checked or built.
+   The AUR is checked for Store; Software Update builds nothing from it.
 2. An update is `pacman -Syu` through pkexec. With Isle's commit waiting,
    paru runs the same upgrade in repository and PKGBUILD mode, building
    Isle's package as the user and handing pacman to pkexec. Isle has no

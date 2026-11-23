@@ -143,14 +143,15 @@ impl Tab {
         self.cursor = Some(path);
     }
 
-    /// Selects everything from the cursor to `path`, as ⇧-click does.
+    /// Selects every row listed from the cursor to `path`, as ⇧-click does.
     pub fn extend_to(&mut self, path: &Path) {
-        let entries = self.folder.entries();
-        let to = self.folder.position(path);
-        let from = self.cursor.as_deref().and_then(|c| self.folder.position(c)).or(to);
+        let mut listed = self.listed_paths();
+        let to = listed.iter().position(|p| p == path);
+        let from = self.cursor.as_deref().and_then(|c| listed.iter().position(|p| p == c)).or(to);
         if let (Some(from), Some(to)) = (from, to) {
             let (a, b) = if from <= to { (from, to) } else { (to, from) };
-            self.selection = entries[a..=b].iter().map(|e| e.path.clone()).collect();
+            listed.truncate(b + 1);
+            self.selection = listed.split_off(a);
         }
     }
 
@@ -162,9 +163,9 @@ impl Tab {
 
     /// Selection held by path drops what is no longer listed.
     pub fn prune(&mut self) {
-        let folder = &self.folder;
-        self.selection.retain(|p| folder.position(p).is_some());
-        if self.cursor.as_deref().is_some_and(|c| folder.position(c).is_none()) {
+        let selection = std::mem::take(&mut self.selection);
+        self.selection = selection.into_iter().filter(|p| self.entry(p).is_some()).collect();
+        if self.cursor.as_deref().is_some_and(|c| self.entry(c).is_none()) {
             self.cursor = self.selection.last().cloned();
         }
     }
@@ -759,4 +760,33 @@ pub fn calculate_sizes(mut tab: State<Tab>) {
             t.rev += 1;
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shift_click_takes_rows_inside_folders_opened_in_place() {
+        let root = tempfile::tempdir().unwrap();
+        for dir in ["a/x", "a/y", "b"] {
+            std::fs::create_dir_all(root.path().join(dir)).unwrap();
+        }
+        let at = |p: &str| Entry::at(&root.path().join(p)).unwrap();
+        let path = |p: &str| root.path().join(p);
+        let mut t = Tab::new(0, Place::Folder(root.path().to_path_buf()));
+        t.folder.merge(vec![at("a"), at("b")]);
+        t.expanded.push(path("a"));
+        t.children.insert(path("a"), vec![at("a/x"), at("a/y")]);
+
+        t.select_only(path("a/x"));
+        t.extend_to(&path("a/y"));
+        assert_eq!(t.selection, [path("a/x"), path("a/y")]);
+
+        t.extend_to(&path("b"));
+        assert_eq!(t.selection, [path("a/x"), path("a/y"), path("b")]);
+
+        t.prune();
+        assert_eq!(t.selection, [path("a/x"), path("a/y"), path("b")], "items in an open folder stay selected");
+    }
 }

@@ -222,8 +222,11 @@ async fn a_check_lists_each_source_and_the_menu_counts_them() {
     assert_eq!(item(&system, "Store…").unwrap()["badge"], "2");
     assert!(item(&system, "Restart to finish updating…").is_none());
 
+    // Updates waiting show in the island, and the module opens where they are, with no page.
+    assert!(isle.glyphs().await.contains(&"updates".to_owned()));
     isle.open_panel(None).await;
     wait_until(|| async { isle.module("updates").await["state"] == "4 updates" }).await;
+    assert!(isle.module("updates").await["page"].is_null());
 
     // Isle waiting: paru runs the upgrade in repository and PKGBUILD mode, never the AUR.
     assert_eq!(install(&isle, "ok").await, "");
@@ -265,7 +268,13 @@ async fn a_run_counts_its_packages_shows_its_glyph_and_says_when_it_is_done() {
     wait_until(|| async { note(&isle, "The system was updated").await.is_some() }).await;
     let n = note(&isle, "The system was updated").await.unwrap();
     assert_eq!(n["body"], "2 packages were updated.");
-    wait_until(|| async { !isle.glyphs().await.contains(&"updates".to_owned()) }).await;
+    // The run's glyph gives way to the waiting one: the fake check still finds updates.
+    isle.open_panel(None).await;
+    wait_until(|| async {
+        let state = isle.module("updates").await["state"].clone();
+        state.as_str().is_some_and(|s| s.ends_with("updates") || s == "Up to date")
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -342,13 +351,9 @@ async fn a_restart_owed_shows_in_the_island_the_menu_and_the_note() {
         "{n}"
     );
 
-    isle.open_panel(Some("updates")).await;
-    let labels: Vec<String> = isle.rows().await.iter().map(|r| r.to_string()).collect();
-    assert!(
-        labels.iter().any(|r| r.contains("The kernel was updated")),
-        "{labels:?}"
-    );
-    assert!(labels.iter().any(|r| r.contains("Restart…")), "{labels:?}");
+    isle.open_panel(None).await;
+    let module = isle.module("updates").await;
+    assert_eq!(module["state"], "Restart to finish updating", "{module}");
 }
 
 #[tokio::test(flavor = "multi_thread")]

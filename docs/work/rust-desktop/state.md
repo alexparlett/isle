@@ -843,3 +843,6 @@
 - 2026-11-23: the AUR page lists every AUR package installed (tools too, not
   isle-git); an app page has Remove… beside Open and no Installed label; an
   AUR package's optional extras are badged System when a repository has them.
+- 2026-11-23: the island shows a glyph while updates wait, and Control
+  Centre's Updates opens Store's Updates (or Software Update for Isle) on
+  a click, with no page (B150).

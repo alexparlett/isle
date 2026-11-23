@@ -1665,3 +1665,14 @@ automatic checks, and does not mention Store; its count in the system menu
 is Isle's, Store's is the system's row, its apps and the other catalogues'.
 Rejected: keeping the system in Settings (the store that installs an app
 cannot update it), and an Update per repository app (a partial upgrade).
+
+**B150 · Updates waiting show in the island, and Control Centre's Updates
+opens them.** Chosen 2026-11-23, revising P14d choice 20 and P1's Updates
+module. With waiting updates no glyph, nothing on screen said they were there
+short of opening a menu. The island's Updates glyph now has a third form,
+`download-simple`, while updates wait, beside `arrow-circle-up` while one runs
+and `arrows-clockwise` while a restart is owed; like every island glyph it can
+be set to always or never show. The Updates module has no page: a click opens
+Store's Updates for anything but Isle's build, Settings › Software Update for
+that, and the module keeps its state line and count. Rejected: the page with
+"Install updates…", two clicks to reach the one thing it offered.

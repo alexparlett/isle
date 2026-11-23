@@ -406,6 +406,7 @@ impl State {
                 return;
             }
             PanelAction::Toggle(id) if id == "night-light" => self.toggle_night_light(),
+            PanelAction::Toggle(id) if id == "updates" => self.open_updates(),
             PanelAction::Toggle(id) if id == "dark-mode" => {
                 let dark = self.isle.shell.theme().appearance.mode == isle_tokens::Mode::Dark;
                 self.isle.write_setting(
@@ -450,9 +451,6 @@ impl State {
                 }
             }
             PanelAction::Choose { module, row } if module == "centre" => self.centre_action(&row),
-            PanelAction::Choose { ref module, .. } if module == "updates" => {
-                self.updates_action(action)
-            }
             PanelAction::Choose { module, row } if module == "energy-mode" => {
                 self.energy_choose(row)
             }
@@ -517,13 +515,7 @@ impl State {
                     self.copy_stop(id);
                 }
             }
-            PanelAction::Settings(pane)
-                if pane == "Software Update"
-                    && self.isle.updates.for_store()
-                    && self.isle.updates.restart.is_empty() =>
-            {
-                self.open_store_updates();
-            }
+            PanelAction::Settings(pane) if pane == "Software Update" => self.open_updates(),
             PanelAction::Settings(pane) => {
                 let id = crate::settings_link::pane_id(&pane);
                 let row = (pane == "Software Update").then_some(crate::updates::ROW);

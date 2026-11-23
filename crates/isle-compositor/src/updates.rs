@@ -5,8 +5,7 @@ use std::time::Duration;
 
 use isle_shell::island::{
     grid::TileSize,
-    panel::{Module, PanelAction},
-    rows::{Choice, PageRow},
+    panel::Module,
 };
 use isle_updates::{Check, Progress, Reason, RunState, Source};
 use smithay::reexports::calloop::{
@@ -77,7 +76,7 @@ impl Updates {
         self.waiting() > self.count(Source::Isle)
     }
 
-    fn waiting(&self) -> usize {
+    pub fn waiting(&self) -> usize {
         self.check.as_ref().map_or(0, |c| c.pending.len())
     }
 
@@ -441,23 +440,14 @@ impl State {
         });
     }
 
-    pub fn updates_action(&mut self, action: PanelAction) {
-        match action {
-            PanelAction::Choose { row, .. } => match row.as_str() {
-                "check" => self.check_updates(true),
-                // Only Isle's build is Software Update's; the rest is Store's.
-                "install" if self.isle.updates.for_store() => {
-                    self.open_store_updates();
-                }
-                "install" | "details" => {
-                    self.open_settings(Some("general"), Some(ROW));
-                }
-                "restart" => {
-                    self.open_session_confirm(isle_shell::prompts::session::Choice::Restart);
-                }
-                _ => {}
-            },
-            other => info!(?other, "updates: not a control"),
+    /// Where the updates are: Store's Updates for anything but Isle's build, else Settings.
+    pub fn open_updates(&mut self) {
+        let isle_run = self.isle.updates.running()
+            && self.isle.updates.progress.as_ref().is_some_and(|p| matches!(p.part.as_str(), "isle" | "both" | ""));
+        if !isle_run && (self.isle.updates.for_store() || self.isle.updates.running()) {
+            self.open_store_updates();
+        } else {
+            self.open_settings(Some("general"), Some(ROW));
         }
     }
 }
@@ -521,7 +511,7 @@ pub async fn start_run(part: isle_updates::Part) -> Result<(), String> {
 }
 
 impl Isle {
-    /// The island's glyph while a run is going or a restart is owed (`island.md`).
+    /// The island's glyph while a run is going, a restart is owed or updates wait (B150).
     pub fn updates_glyph(&mut self) {
         use isle_shell::island::model::{Glyph, GlyphKind};
         let glyph = if self.updates.running() {
@@ -538,87 +528,35 @@ impl Isle {
                 alt: "Restart to finish updating".into(),
                 ..Default::default()
             })
+        } else if self.updates.waiting() > 0 {
+            Some(Glyph {
+                active: true,
+                symbol: "download-simple".into(),
+                alt: "Updates available".into(),
+                ..Default::default()
+            })
         } else {
             None
         };
         self.island.model.set_glyph(GlyphKind::Updates, glyph);
     }
 
-    /// Control Centre's Updates module and its page (`control-centre.md`).
+    /// Control Centre's Updates module: a click opens where the updates are, with no page.
     pub fn updates_module(&self, size: TileSize) -> Option<Module> {
         let u = &self.updates;
-        let row = |id: &str, label: String, detail: Option<String>| {
-            PageRow::Choice(Choice {
-                id: id.into(),
-                label,
-                detail,
-                enabled: true,
-                ..Default::default()
-            })
-        };
-        let (state, glyph, page) =
+        let (state, glyph) =
             if let Some(p) = u.progress.as_ref().filter(|p| p.state == RunState::Running) {
-                (
-                    installing(p),
-                    "arrow-circle-up",
-                    vec![PageRow::Status(p.phase.clone())],
-                )
+                (installing(p), "arrow-circle-up")
             } else if !u.restart.is_empty() {
-                let mut page = vec![PageRow::Heading("Restart to finish updating".into())];
-                page.extend(
-                    u.restart
-                        .iter()
-                        .map(|r| PageRow::Status(r.sentence().into())),
-                );
-                page.push(row("restart", "Restart…".into(), None));
-                (
-                    "Restart to finish updating".to_owned(),
-                    "arrows-clockwise",
-                    page,
-                )
+                ("Restart to finish updating".to_owned(), "arrows-clockwise")
             } else if u.waiting() > 0 {
-                let mut page = Vec::new();
-                for (source, name) in [
-                    (Source::Repositories, "System"),
-                    (Source::Isle, "Isle"),
-                    (Source::Flathub, "Flathub"),
-                    (Source::Aur, "AUR"),
-                ] {
-                    let n = u.count(source);
-                    if n > 0 {
-                        let detail = if source == Source::Isle {
-                            "A new build".to_owned()
-                        } else {
-                            n.to_string()
-                        };
-                        page.push(PageRow::Status(format!("{name}: {detail}")));
-                    }
-                }
-                page.push(row("install", "Install updates…".into(), None));
-                (count(u.waiting()), "arrow-circle-up", page)
+                (count(u.waiting()), "arrow-circle-up")
+            } else if u.checking {
+                ("Checking…".to_owned(), "arrow-circle-up")
+            } else if u.check_error.is_some() {
+                ("Couldn't check".to_owned(), "arrow-circle-up")
             } else {
-                let detail = if u.checking {
-                    "Checking…".to_owned()
-                } else if let Some(e) = &u.check_error {
-                    format!("Couldn't check for updates: {e}")
-                } else {
-                    u.check.as_ref().map_or("Not checked yet".into(), |c| {
-                        format!("Checked {}", self.at(c.checked_at))
-                    })
-                };
-                let mut page = vec![
-                    PageRow::Status("Up to date".into()),
-                    PageRow::Status(detail),
-                ];
-                if !u.checking {
-                    page.push(row("check", "Check now".into(), None));
-                }
-                let state = if u.check_error.is_some() {
-                    "Couldn't check"
-                } else {
-                    "Up to date"
-                };
-                (state.to_owned(), "arrow-circle-up", page)
+                ("Up to date".to_owned(), "arrow-circle-up")
             };
         let progress = u
             .progress
@@ -639,28 +577,12 @@ impl Isle {
             name: "Updates".into(),
             state,
             glyph: glyph.into(),
-            page: Some(page),
+            page: None,
             pane: "Software Update".into(),
             badge,
             progress,
             ..Default::default()
         })
-    }
-
-    /// A time today as the island's clock shows it.
-    fn at(&self, secs: u64) -> String {
-        let format = if crate::island::clock_24_hour(&self.settings.island) {
-            "%H:%M"
-        } else {
-            "%-I:%M %p"
-        };
-        jiff::Timestamp::from_second(secs as i64)
-            .map(|t| {
-                t.to_zoned(jiff::tz::TimeZone::system())
-                    .strftime(format)
-                    .to_string()
-            })
-            .unwrap_or_default()
     }
 
     /// Store's count in the system menu, as its Updates page counts: the system's row and each

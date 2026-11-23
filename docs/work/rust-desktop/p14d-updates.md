@@ -197,7 +197,7 @@ and a restart owed is said wherever the user looks until they restart.
     and Restart…. Its `missing` mark goes.
 20. **The island's glyph:** `arrow-circle-up` while a run is going,
     `arrows-clockwise` while a restart is owed; waiting updates are not a
-    glyph (P1).
+    glyph (P1). Revised by B150: `download-simple` while updates wait.
 21. **The system menu:** "Software Update…" enabled, opening General ›
     Software Update, with the count as a quiet badge in the trailing
     column (`MenuItem` gains a badge); "Restart to finish updating…" in

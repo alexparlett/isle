@@ -747,7 +747,11 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   imported xdg-foreign handle and xdg-dialog) or float over a caller
   (`isle_float_v1`), and can export its own handle. The clipboard and drag
   and drop are `isle-app`'s own data device on its own queue, so a drag is a
-  Wayland drag inside the window too.
+  Wayland drag inside the window too. A drag leaves no window the pointer's
+  focus, so the data device's motion moves Freya's pointer, and the wheel
+  turned during one reaches the window under it as `isle_drag_v1`'s `axis`
+  (`isle_titlebar_v1` version 5), which `isle-app` hands Freya as a wheel
+  event: a list scrolls under a drag as it does under the pointer.
 - **D-Bus and the daemons run on the app's worker,** a tokio runtime on a
   thread of its own; the UI thread awaits its results and never blocks.
 - Menus, pop-ups, popovers and sheets draw inside the window (B94).

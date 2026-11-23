@@ -76,6 +76,15 @@ impl State {
             return;
         }
         let pointer = self.isle.seat.get_pointer().unwrap();
+        // A drag leaves no window the pointer's focus, so the window under it hears the wheel
+        // through isle_drag_v1.
+        if self.isle.dnd_on {
+            let location = pointer.current_location();
+            if let Some((crate::focus::Focus::Surface(surface), origin)) = self.isle.surface_under(location) {
+                let at = location - origin;
+                self.isle.send_drag_axis(&surface, (at.x, at.y), &frame);
+            }
+        }
         pointer.axis(self, frame);
         pointer.frame(self);
     }

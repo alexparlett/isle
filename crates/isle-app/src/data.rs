@@ -30,6 +30,7 @@ use smithay_client_toolkit::{
 use wayland_backend::client::Backend;
 
 use crate::wayland::isle_titlebar::{
+    isle_drag_v1::{self, IsleDragV1},
     isle_titlebar_manager_v1::IsleTitlebarManagerV1,
     isle_visibility_v1::{self, IsleVisibilityV1},
 };
@@ -70,6 +71,9 @@ pub struct DragImage {
 pub enum DragEvent {
     Enter { surface: u32, x: f64, y: f64, types: Vec<String> },
     Motion { surface: u32, x: f64, y: f64 },
+    /// The wheel turned during the drag: in wheel steps when `steps`, else in points;
+    /// positive is down and right.
+    Axis { surface: u32, x: f64, y: f64, dx: f64, dy: f64, steps: bool },
     Leave { surface: u32 },
     /// Dropped: what it carried in the type asked for, and whether it was this app's own.
     Drop { surface: u32, x: f64, y: f64, data: Vec<u8>, own: bool, action: Action },
@@ -135,7 +139,7 @@ impl Data {
         let manager = DataDeviceManagerState::bind(&globals, &qh).ok()?;
         let (events, rx) = unbounded();
         let (shown, shown_rx) = unbounded();
-        let titlebars = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 4..=4, ()).ok();
+        let titlebars = globals.bind::<IsleTitlebarManagerV1, _, _>(&qh, 4..=5, ()).ok();
         let compositor = globals.bind::<WlCompositor, _, _>(&qh, 1..=6, ()).ok();
         let shm = globals.bind::<WlShm, _, _>(&qh, 1..=1, ()).ok();
         let state = State {
@@ -311,6 +315,9 @@ impl State {
         if let Ask::WatchShown(surface) = ask {
             if let Some(manager) = &self.titlebars {
                 manager.get_visibility(&surface, qh, surface.id().protocol_id());
+                if manager.version() >= 5 {
+                    manager.get_drag(&surface, qh, surface.id().protocol_id());
+                }
             }
             return;
         }
@@ -655,6 +662,13 @@ impl Dispatch<IsleVisibilityV1, u32> for State {
     fn event(state: &mut Self, _: &IsleVisibilityV1, event: isle_visibility_v1::Event, surface: &u32, _: &Connection, _: &QueueHandle<Self>) {
         let isle_visibility_v1::Event::Shown { shown } = event;
         let _ = state.shown.unbounded_send((*surface, shown != 0));
+    }
+}
+
+impl Dispatch<IsleDragV1, u32> for State {
+    fn event(state: &mut Self, _: &IsleDragV1, event: isle_drag_v1::Event, surface: &u32, _: &Connection, _: &QueueHandle<Self>) {
+        let isle_drag_v1::Event::Axis { x, y, horizontal, vertical, steps } = event;
+        state.send(DragEvent::Axis { surface: *surface, x, y, dx: horizontal, dy: vertical, steps: steps != 0 });
     }
 }
 

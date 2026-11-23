@@ -32,6 +32,7 @@ pub mod protocol {
 }
 
 use protocol::{
+    isle_drag_v1::{self, IsleDragV1},
     isle_float_v1::{self, IsleFloatV1},
     isle_titlebar_manager_v1::{self, IsleTitlebarManagerV1},
     isle_titlebar_v1::{self, IsleTitlebarV1},
@@ -39,7 +40,7 @@ use protocol::{
 };
 
 pub fn create_global(dh: &DisplayHandle) {
-    dh.create_global::<State, IsleTitlebarManagerV1, ()>(4, ());
+    dh.create_global::<State, IsleTitlebarManagerV1, ()>(5, ());
 }
 
 /// A window floating over its caller.
@@ -189,6 +190,10 @@ impl Dispatch<IsleTitlebarManagerV1, ()> for State {
                 visibility.shown(u32::from(!suspended));
                 state.isle.visibility.entry(surface.id()).or_default().push(visibility);
             }
+            isle_titlebar_manager_v1::Request::GetDrag { id, surface } => {
+                let drag = init.init(id, surface);
+                state.isle.drag_objects.push(drag);
+            }
             isle_titlebar_manager_v1::Request::Destroy => {}
         }
     }
@@ -288,7 +293,48 @@ impl Dispatch<IsleVisibilityV1, WlSurface> for State {
     }
 }
 
+impl Dispatch<IsleDragV1, WlSurface> for State {
+    fn request(
+        state: &mut Self,
+        _client: &Client,
+        resource: &IsleDragV1,
+        request: isle_drag_v1::Request,
+        _surface: &WlSurface,
+        _dh: &DisplayHandle,
+        _init: &mut DataInit<'_, Self>,
+    ) {
+        match request {
+            isle_drag_v1::Request::Destroy => state.isle.drag_objects.retain(|r| r != resource),
+        }
+    }
+
+    fn destroyed(
+        state: &mut Self,
+        _client: smithay::reexports::wayland_server::backend::ClientId,
+        resource: &IsleDragV1,
+        _surface: &WlSurface,
+    ) {
+        state.isle.drag_objects.retain(|r| r != resource);
+    }
+}
+
 impl Isle {
+    /// Sends the wheel to the drag objects of the toplevel holding `surface`, at `at` in
+    /// that surface's points.
+    pub fn send_drag_axis(&self, surface: &WlSurface, at: (f64, f64), frame: &smithay::input::pointer::AxisFrame) {
+        let mut root = surface.clone();
+        while let Some(parent) = smithay::wayland::compositor::get_parent(&root) {
+            root = parent;
+        }
+        let (amount, steps) = match frame.v120 {
+            Some((x, y)) => ((f64::from(x) / 120.0, f64::from(y) / 120.0), 1),
+            None => (frame.axis, 0),
+        };
+        for drag in self.drag_objects.iter().filter(|d| d.data() == Some(&root)) {
+            drag.axis(at.0, at.1, amount.0, amount.1, steps);
+        }
+    }
+
     fn forget_visibility(&mut self, surface: &WlSurface, resource: &IsleVisibilityV1) {
         if let Some(list) = self.visibility.get_mut(&surface.id()) {
             list.retain(|r| r != resource);

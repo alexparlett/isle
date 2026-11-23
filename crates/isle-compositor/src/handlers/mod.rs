@@ -158,10 +158,12 @@ impl DndGrabHandler for State {
         _seat: Seat<Self>,
         location: smithay::utils::Point<f64, smithay::utils::Logical>,
     ) {
+        self.isle.dnd_on = false;
         self.end_dnd_icon(location, !validated);
     }
 
     fn cancelled(&mut self, _seat: Seat<Self>, location: smithay::utils::Point<f64, smithay::utils::Logical>) {
+        self.isle.dnd_on = false;
         self.end_dnd_icon(location, true);
     }
 }
@@ -184,6 +186,7 @@ impl WaylandDndGrabHandler for State {
                 self.isle.dnd_return = None;
                 self.isle.dnd_icon_offset = icon.as_ref().map(crate::dnd::take_offset).unwrap_or_default();
                 pointer.set_grab(self, grab, serial, Focus::Keep);
+                self.isle.dnd_on = true;
                 self.isle.dnd_icon = icon;
                 self.isle.queue_redraw_all();
             }

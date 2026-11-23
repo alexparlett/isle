@@ -161,6 +161,10 @@ pub struct Isle {
         smithay::reexports::wayland_server::backend::ObjectId,
         Vec<crate::titlebar_overlay::protocol::isle_visibility_v1::IsleVisibilityV1>,
     >,
+    /// Every `isle_drag_v1`, its surface as its data.
+    pub drag_objects: Vec<crate::titlebar_overlay::protocol::isle_drag_v1::IsleDragV1>,
+    /// A drag of the data device is under way.
+    pub dnd_on: bool,
     /// A window may have been covered or uncovered since `update_shown` last ran.
     pub shown_dirty: bool,
     /// Windows floating over a caller, by their surface (`isle_float_v1`).
@@ -601,6 +605,8 @@ impl Isle {
             next_display_change: 0,
             titlebar_overlays: Default::default(),
             visibility: Default::default(),
+            drag_objects: Vec::new(),
+            dnd_on: false,
             shown_dirty: false,
             floats: Default::default(),
             zoom: Default::default(),

@@ -161,6 +161,26 @@ fn pointer(platform: &Platform, x: f64, y: f64, name: freya_core::integration::M
     });
 }
 
+/// Scrolls Freya under a drag, which hears the wheel through `isle_drag_v1` rather than its
+/// pointer; the amounts as winit makes them from `wl_pointer.axis`.
+fn wheel(platform: &Platform, x: f64, y: f64, dx: f64, dy: f64, steps: bool) {
+    use freya_core::integration::{PlatformEvent, WheelEventName, WheelSource};
+    use freya_winit::renderer::{NativeEvent, NativeWindowEvent, NativeWindowEventAction};
+    let (scale, source) = if steps { (WheelSource::LINE_SIZE, WheelSource::Line) } else { (2.0, WheelSource::Pixel) };
+    let _ = platform.post_callback(move |window, ctx: &mut RendererContext| {
+        ctx.send_native_event(NativeEvent::Window(NativeWindowEvent {
+            window_id: window,
+            action: NativeWindowEventAction::PlatformEvent(PlatformEvent::Wheel {
+                name: WheelEventName::Wheel,
+                scroll: (-dx * scale, -dy * scale).into(),
+                cursor: (x, y).into(),
+                source,
+                timestamp: std::time::Instant::now(),
+            }),
+        }));
+    });
+}
+
 /// The window an element is in, as its app knows it.
 pub fn this_window() -> WindowKey {
     use_consume::<WindowKey>()
@@ -392,6 +412,7 @@ impl<A: App + 'static> App for Frame<A> {
                             }
                             pointer(&platform, x, y, freya_core::integration::MouseEventName::MouseMove);
                         }
+                        E::Axis { x, y, dx, dy, steps, .. } => wheel(&platform, x, y, dx, dy, steps),
                         E::Leave { .. } => over.set(None),
                         E::Drop { x, y, data, own, action, .. } => {
                             over.set(None);

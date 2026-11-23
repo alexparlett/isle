@@ -11,7 +11,7 @@
     names. The client draws everything else, its toolbar included, under them.
   </description>
 
-  <interface name="isle_titlebar_manager_v1" version="4">
+  <interface name="isle_titlebar_manager_v1" version="5">
     <request name="destroy" type="destructor"/>
 
     <request name="get_titlebar">
@@ -35,6 +35,13 @@
         Any number per surface; the surface must be an xdg_toplevel's or an X11 window's.
       </description>
       <arg name="id" type="new_id" interface="isle_visibility_v1"/>
+      <arg name="surface" type="object" interface="wl_surface"/>
+    </request>
+    <request name="get_drag" since="5">
+      <description summary="the drag object for a toplevel's surface">
+        Any number per surface; the surface must be an xdg_toplevel's.
+      </description>
+      <arg name="id" type="new_id" interface="isle_drag_v1"/>
       <arg name="surface" type="object" interface="wl_surface"/>
     </request>
   </interface>
@@ -122,6 +129,24 @@
         Sent once as the object is made and whenever it changes.
       </description>
       <arg name="shown" type="uint" summary="1 when shown, 0 when not"/>
+    </event>
+  </interface>
+  <interface name="isle_drag_v1" version="5">
+    <description summary="what reaches a window under a drag besides the data device's events">
+      A drag takes the pointer focus from every window, so the wheel turned during one
+      reaches no wl_pointer. The compositor sends it here instead, to the window under it.
+    </description>
+    <request name="destroy" type="destructor"/>
+    <event name="axis">
+      <description summary="the wheel turned or a touchpad scrolled over the window">
+        At x, y in surface-local logical points. With steps 1 the amounts are wheel steps,
+        with 0 logical points as wl_pointer.axis gives them; positive is down and right.
+      </description>
+      <arg name="x" type="fixed"/>
+      <arg name="y" type="fixed"/>
+      <arg name="horizontal" type="fixed"/>
+      <arg name="vertical" type="fixed"/>
+      <arg name="steps" type="uint" summary="1 for wheel steps, 0 for logical points"/>
     </event>
   </interface>
 </protocol>

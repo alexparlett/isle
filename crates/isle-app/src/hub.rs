@@ -381,7 +381,7 @@ impl AppHandle {
             while let Some(event) = events.next().await {
                 use crate::data::DragEvent as E;
                 let surface = match &event {
-                    E::Enter { surface, .. } | E::Motion { surface, .. } | E::Drop { surface, .. } => Some(*surface),
+                    E::Enter { surface, .. } | E::Motion { surface, .. } | E::Axis { surface, .. } | E::Drop { surface, .. } => Some(*surface),
                     E::Leave { surface } => Some(*surface).filter(|s| *s != 0).or(over),
                     E::Ended { .. } => None,
                 };

@@ -384,7 +384,7 @@ Wi-Fi and VPN secrets, Bluetooth pairing, and the session and Force Quit dialogs
 2. The keyring prompter unlocks a keyring, or creates one with a confirmed password (`org.gnome.keyring.SystemPrompter`).
 3. The Wi-Fi prompt names the network and its security and takes the secret; VPN secrets use the same dialog.
 4. Bluetooth pairing, asked by Isle's `org.bluez.Agent1`, shows a passkey to confirm or takes a PIN (B28).
-5. A prompt takes keyboard focus when it appears and stays above every window; Escape cancels. Cmd+Tab sets it aside as a waiting prompt and switches; nothing else takes focus from it. One prompt shows at a time; others queue. Text from the requester is shown as plain text, never markup.
+5. A prompt takes keyboard focus when it appears and stays above every window; Escape cancels. Cmd+Tab sets it aside as a waiting prompt and switches; nothing else takes focus from it. One prompt shows at a time; others queue. Text from the requester is shown as plain text, never markup. A prompt with a password field says when Caps Lock is on, as the lock does.
 6. A prompt waiting behind a full-screen window or game, or set aside, shows as live activity, from which the user brings it forward.
 7. A prompt raised while the session is locked waits until unlock.
 8. The session dialog (from a chord or the power key) offers Restart, Sleep, Shut Down, Log Out and Lock, each by its first letter; Restart and Shut Down count down before acting, and say which apps are still open.

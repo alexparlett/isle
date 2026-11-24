@@ -240,6 +240,7 @@ impl Isle {
             "status": self.prompt_showing()
                 .and_then(|id| self.prompts.requests.get(&id))
                 .map(|r| format!("{:?}", r.prompt.status)),
+            "caps_lock": self.prompts.surface.model().caps_lock,
         });
         #[cfg(feature = "test-hooks")]
         {
@@ -384,6 +385,16 @@ impl State {
         self.refresh_prompts();
     }
 
+    /// Caps Lock went on or off: the lock's face and the prompt on screen say so.
+    pub fn caps_lock_changed(&mut self) {
+        if self.isle.lock.locked {
+            self.refresh_lock_face();
+        }
+        if let Some(id) = self.isle.prompt_showing() {
+            self.put_prompt_frame(id);
+        }
+    }
+
     /// Cmd+Tab over a prompt: it waits in the island, and the switch goes on.
     pub fn set_prompt_aside(&mut self) {
         if let Some(id) = self.isle.prompt_showing() {
@@ -525,6 +536,7 @@ impl State {
             more: self.isle.prompts.queue.more(&holds),
             solid: game || windowed_game || over_panel || theme.appearance.reduce_transparency,
             still: game || theme.appearance.reduce_motion,
+            caps_lock: self.isle.seat.get_keyboard().unwrap().modifier_state().caps_lock,
         };
         let surface = self.isle.prompts.surface.clone();
         surface.set_model(frame.clone());

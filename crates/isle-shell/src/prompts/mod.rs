@@ -108,6 +108,8 @@ pub struct Frame {
     pub more: usize,
     pub solid: bool,
     pub still: bool,
+    /// Caps Lock is on: said in the status line of a prompt with a secret field.
+    pub caps_lock: bool,
 }
 
 /// What the prompt asks of the compositor.

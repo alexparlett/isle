@@ -84,6 +84,11 @@ impl PromptSurface {
         *self.frame.borrow_mut() = frame;
     }
 
+    /// The frame last put in force.
+    pub fn model(&self) -> Frame {
+        self.frame.borrow().clone()
+    }
+
     /// Puts `frame` in force; call it in the tree's root scope.
     pub fn set(&self, frame: Frame) {
         *self.frame.borrow_mut() = frame.clone();
@@ -468,7 +473,15 @@ impl Component for PromptView {
         } else {
             prompt.status.clone()
         };
+        let caps = frame.caps_lock && prompt.fields.iter().any(|f| f.secret);
         let line = match &status {
+            Status::None if caps => rect()
+                .height(Size::px(16.))
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .spacing(t.space_xs)
+                .child(Glyph::new("arrow-fat-line-up", t.size_glyph_small, ink_2))
+                .child(text::line(&theme, text::Style::Callout, ink_2, "Caps Lock is on")),
             Status::None => rect().height(Size::px(16.)),
             Status::Checking => rect()
                 .height(Size::px(16.))

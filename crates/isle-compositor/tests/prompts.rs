@@ -20,6 +20,7 @@ const V: u32 = 47;
 const LEFT: u32 = 105;
 const BACKSPACE: u32 = 14;
 const OPTION: u32 = 56;
+const CAPS_LOCK: u32 = 58;
 
 async fn prompts(isle: &Isle) -> serde_json::Value {
     serde_json::from_str(&isle.test().await.prompts().await.unwrap()).unwrap()
@@ -138,6 +139,28 @@ async fn a_prompts_field_edits_as_a_mac_field_and_pastes() {
     press(&isle, RETURN).await;
     wait_until(|| async {
         prompts(&isle).await["answers"] == serde_json::json!([format!("{id} password=beforeq")])
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_password_prompt_says_when_caps_lock_is_on() {
+    let isle = Isle::start("prompt-caps-lock").await;
+    let id = ask(&isle, password_prompt("Test needs your password")).await;
+    wait_until(|| async { prompts(&isle).await["showing"] == id }).await;
+    assert_eq!(prompts(&isle).await["caps_lock"], false);
+    press(&isle, CAPS_LOCK).await;
+    wait_until(|| async { prompts(&isle).await["caps_lock"] == true }).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    isle.keep_shot("prompt-caps-lock").await;
+    press(&isle, P).await;
+    press(&isle, CAPS_LOCK).await;
+    wait_until(|| async { prompts(&isle).await["caps_lock"] == false }).await;
+    press(&isle, W).await;
+    wait_until(|| async { prompts(&isle).await["armed"] == true }).await;
+    press(&isle, RETURN).await;
+    wait_until(|| async {
+        prompts(&isle).await["answers"] == serde_json::json!([format!("{id} password=Pw")])
     })
     .await;
 }

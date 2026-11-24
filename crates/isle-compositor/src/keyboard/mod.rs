@@ -970,6 +970,7 @@ impl State {
         let keyboard = self.isle.seat.get_keyboard().unwrap();
         // While locked the field's keys are the compositor's, never a tree's (choice 6).
         let field = self.isle.lock.locked && self.isle.lock.field_focused;
+        let caps = keyboard.modifier_state().caps_lock;
         keyboard.input::<(), _>(
             self,
             Keycode::new(code + 8),
@@ -985,6 +986,9 @@ impl State {
                 }
             },
         );
+        if keyboard.modifier_state().caps_lock != caps {
+            self.caps_lock_changed();
+        }
     }
 
     /// Moves keyboard focus. The old focus is sent a release for every key it holds first,

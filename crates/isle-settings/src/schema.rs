@@ -997,9 +997,9 @@ pub struct ScreenLock {
 /// Sleep, wake and what keeps the computer awake (Settings › Energy).
 #[derive(Clone, Debug, PartialEq, Section)]
 pub struct Energy {
-    /// The computer never sleeps by idle; off, it sleeps a minute after the screens go off.
-    #[setting(default = true)]
-    pub prevent_sleep: bool,
+    /// Minutes with no input before the computer sleeps; 0 never.
+    #[setting(default = 0, range = 0..=240)]
+    pub sleep_after: i32,
     /// Keep Awake holds the display as well as the computer, so the session stays unlocked.
     #[setting(default = true)]
     pub keep_awake_display: bool,

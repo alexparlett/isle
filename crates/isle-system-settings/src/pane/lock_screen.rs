@@ -6,7 +6,7 @@ use isle_ui::form;
 use crate::{nav::Location, ui::Rows};
 
 /// The steps each delay offers, in minutes; 0 is never.
-const DELAYS: &[(&str, &str)] = &[
+pub(crate) const DELAYS: &[(&str, &str)] = &[
     ("1", "1 min"),
     ("2", "2 min"),
     ("5", "5 min"),

@@ -147,6 +147,8 @@ pub fn passed_over(idle: Duration, timeouts: Timeouts, done: &HashSet<Step>) -> 
 
 pub struct IdleState {
     pub last_activity: Instant,
+    /// The last input itself, which locking does not move; sleep counts from it.
+    last_input: Instant,
     /// Steps that came, or were passed over, since the last input.
     done: HashSet<Step>,
     timeouts: Option<Timeouts>,
@@ -164,7 +166,7 @@ pub struct IdleState {
     pub next_cookie: Arc<AtomicU32>,
     /// Keep Awake, while it is on.
     pub keep_awake: Option<crate::keep_awake::KeepAwake>,
-    /// The sleep step's timer, running while the screens are off and nothing holds sleep.
+    /// The sleep step's timer, running while sleep is on and nothing holds it.
     sleep_timer: Option<RegistrationToken>,
     /// logind refused the last idle sleep; none is tried again before the next input.
     sleep_refused: bool,
@@ -184,6 +186,7 @@ impl Default for IdleState {
     fn default() -> Self {
         Self {
             last_activity: Instant::now(),
+            last_input: Instant::now(),
             done: HashSet::new(),
             timeouts: None,
             for_lock: false,
@@ -386,12 +389,16 @@ impl Isle {
         })
     }
 
-    /// Whether idle may sleep now: the screens off, the switch off, display off not Never,
-    /// no refusal since the last input, and nothing holding sleep.
+    /// Energy's sleep after, or `None` for Never.
+    fn sleep_after(&self) -> Option<Duration> {
+        let m = self.settings.energy.sleep_after;
+        (m > 0).then(|| Duration::from_secs(m as u64 * 60))
+    }
+
+    /// Whether idle may sleep: sleep after not Never, no refusal since the last input, and
+    /// nothing holding sleep.
     fn sleep_wanted(&self) -> bool {
-        self.idle.off
-            && !self.settings.energy.prevent_sleep
-            && self.settings.lock_screen.display_off_after > 0
+        self.sleep_after().is_some()
             && !self.idle.sleep_refused
             && !self.asleep
             && !self.sleep_waiting
@@ -455,8 +462,9 @@ impl State {
     pub fn idle_activity(&mut self) -> bool {
         let woke = self.isle.idle.off;
         self.isle.idle.last_activity = Instant::now();
+        self.isle.idle.last_input = self.isle.idle.last_activity;
         self.isle.idle.done.clear();
-        self.isle.idle.sleep_refused = false;
+        let refused = std::mem::take(&mut self.isle.idle.sleep_refused);
         self.isle
             .idle_notifier_state
             .notify_activity(&self.isle.seat);
@@ -471,6 +479,9 @@ impl State {
             self.silence_check();
         }
         self.arm_idle();
+        if refused {
+            self.arm_sleep();
+        }
         woke
     }
 
@@ -555,23 +566,43 @@ impl State {
         }
     }
 
-    /// The sleep step's timer: running while the screens are off, sleep is allowed and
-    /// nothing holds it; a timer already running keeps its start (choice 8).
+    /// The sleep step's timer: running while sleep is allowed and nothing holds it, due at
+    /// sleep after from the last input and never sooner than the grace from now, so a hold
+    /// that ends or a changed setting does not sleep at once. A timer already running keeps
+    /// its time.
     pub fn arm_sleep(&mut self) {
         if !self.isle.sleep_wanted() {
-            if let Some(token) = self.isle.idle.sleep_timer.take() {
-                self.isle.loop_handle.remove(token);
-            }
+            self.disarm_sleep();
             return;
         }
         if self.isle.idle.sleep_timer.is_some() {
             return;
         }
-        let after = self.isle.shell.theme().tokens.timing_sleep_after_off_ms as u64;
+        let grace =
+            Duration::from_millis(self.isle.shell.theme().tokens.timing_sleep_grace_ms as u64);
+        let wait = self.sleep_left().max(grace);
+        self.sleep_timer(wait);
+    }
+
+    pub fn disarm_sleep(&mut self) {
+        if let Some(token) = self.isle.idle.sleep_timer.take() {
+            self.isle.loop_handle.remove(token);
+        }
+    }
+
+    /// Time until sleep after has passed since the last input.
+    fn sleep_left(&self) -> Duration {
+        self.isle
+            .sleep_after()
+            .unwrap_or_default()
+            .saturating_sub(self.isle.idle.last_input.elapsed())
+    }
+
+    fn sleep_timer(&mut self, wait: Duration) {
         self.isle.idle.sleep_timer = self
             .isle
             .loop_handle
-            .insert_source(Timer::from_duration(Duration::from_millis(after)), |_, _, state| {
+            .insert_source(Timer::from_duration(wait), |_, _, state| {
                 state.isle.idle.sleep_timer = None;
                 state.idle_sleep();
                 TimeoutAction::Drop
@@ -580,8 +611,14 @@ impl State {
     }
 
     /// Idle's last step: sleep through logind, which announces it so the lock comes first.
+    /// Input since the timer was set moves it on.
     fn idle_sleep(&mut self) {
         if !self.isle.sleep_wanted() {
+            return;
+        }
+        let left = self.sleep_left();
+        if !left.is_zero() {
+            self.sleep_timer(left);
             return;
         }
         info!(step = "sleep", "idle");
@@ -617,13 +654,11 @@ impl State {
         }
         self.silence_check();
         self.sleep_ready();
-        self.arm_sleep();
     }
 
     fn screens_on(&mut self) {
         info!("screens on");
         self.isle.idle.off = false;
-        self.arm_sleep();
         let outputs: Vec<Output> = self.isle.space.outputs().cloned().collect();
         for output in &outputs {
             self.backend.set_power(output, true);
@@ -695,6 +730,7 @@ impl State {
     #[cfg(feature = "test-hooks")]
     pub fn idle_advance(&mut self, by: Duration) {
         self.isle.idle.last_activity -= by;
+        self.isle.idle.last_input -= by;
         self.arm_idle();
     }
 }

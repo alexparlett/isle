@@ -841,7 +841,8 @@ fn energy_lists_what_keeps_the_computer_awake_and_lists_an_app_from_its_menu() {
         let mut network = services.network;
         network.set(Snapshot { available: true, state: wifi_state() });
     });
-    assert!(shows(&test, "Prevent automatic sleeping when the display is off"));
+    assert!(shows(&test, "Sleep after"));
+    assert!(shows(&test, "Never"));
     assert!(shows(&test, "This computer's network devices can't wake it."));
     assert!(shows(&test, "Show the Session Dialog"));
     assert!(shows(&test, "No apps"));

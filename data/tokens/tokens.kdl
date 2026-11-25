@@ -479,7 +479,7 @@ timing {
     check-long-ms 5000
     lock-dim-ms 45000
     lock-off-ms 60000
-    sleep-after-off-ms 60000
+    sleep-grace-ms 60000
     prompt-arm-ms 600
     prompt-gap-ms 200
     session-countdown-ms 60000

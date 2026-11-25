@@ -206,8 +206,8 @@ forward.
     Security, Login Password, Users & Groups; Calendars; Keyboard, Mouse, Trackpad, Game Controllers,
     Printers. There is no Dock pane (B19): Desktop holds what macOS's Desktop & Dock does but the Dock,
     Hot Corners… among it. Control Centre holds the island's glyphs, the modules and the tray. Phone and
-    Trackpad show only while there is one. Energy holds Energy Mode, "Prevent automatic sleeping when
-    the display is off", "Wake for network access", the power button, the apps that keep the display
+    Trackpad show only while there is one. Energy holds Energy Mode, Sleep after (B151), "Wake for
+    network access", the power button, the apps that keep the display
     on, and what keeps the computer awake now (`p20h-power.md` choices 15–19).
 19. View › Show changed settings, off by default, marks every row whose value differs from its default
     and every pane holding one; Reset to default in a row's context menu works with the view on or

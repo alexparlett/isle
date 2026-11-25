@@ -1,4 +1,4 @@
-//! Energy: the power profile, sleep, wake and the power button, the apps that keep the
+//! Energy: the power profile, sleep after, wake and the power button, the apps that keep the
 //! display on, and what keeps the computer awake now (`p20h-power.md` choices 15–19).
 
 use freya::prelude::*;
@@ -105,10 +105,11 @@ impl Component for Energy {
             rows.push(row.into_element());
         }
         rows.push(
-            r.switch(
-                "prevent-sleep",
-                "Prevent automatic sleeping when the display is off",
-                "energy.prevent-sleep",
+            r.choice_int(
+                "sleep-after",
+                "Sleep after",
+                "energy.sleep-after",
+                super::lock_screen::DELAYS,
             )
             .into_element(),
         );

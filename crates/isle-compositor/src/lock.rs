@@ -787,8 +787,8 @@ impl State {
         }
     }
 
-    /// Back from sleep: drawing resumes, the face wakes, and screens idle turned off come
-    /// back on.
+    /// Back from sleep: drawing resumes, the face wakes, and waking counts as input, so
+    /// screens idle turned off come back on and sleep after starts again.
     pub fn after_sleep(&mut self) {
         self.isle.sleep_waiting = false;
         self.isle.asleep = false;
@@ -796,9 +796,8 @@ impl State {
             gate.send_replace(false);
         }
         self.isle.queue_redraw_all();
-        if self.isle.idle.off {
-            self.idle_activity();
-        }
+        self.idle_activity();
+        self.arm_sleep();
         self.lock_activity();
     }
 }

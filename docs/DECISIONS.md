@@ -1676,3 +1676,15 @@ be set to always or never show. The Updates module has no page: a click opens
 Store's Updates for anything but Isle's build, Settings › Software Update for
 that, and the module keeps its state line and count. Rejected: the page with
 "Install updates…", two clicks to reach the one thing it offered.
+
+**B151 · Energy's Sleep after is a time of its own.** Chosen 2026-11-25,
+revising P20h choices 7 and 8. "Prevent automatic sleeping when the display
+is off" left the computer to sleep a minute after the screens went off, with
+no say in when, and tied sleep to display off. Energy now has Sleep after,
+`energy.sleep-after`, in minutes from the last input, with Lock Screen's
+choices and Never by default. Sleep no longer waits for the screens to go off
+and display off set to Never no longer stops it. A hold of either kind still
+keeps it off; one that ends past its time, or a time set past the idle time,
+leaves the `sleep-grace-ms` minute first. Waking from sleep counts as input.
+Rejected: keeping the switch beside a time (two controls for one choice), and
+counting from display off (a second clock to reason about).

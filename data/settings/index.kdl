@@ -11,7 +11,7 @@ row pane="network" id="ip-address" label="IP address" pane-label="Network" also=
 row pane="vpn" id="" label="VPN" pane-label="VPN"
 row pane="energy" id="" label="Energy" pane-label="Energy" also="power;performance;power profile;sleep;keep awake;caffeinate"
 row pane="energy" id="energy-mode" label="Energy Mode" pane-label="Energy" also="low power;high power;performance;power saver"
-row pane="energy" id="prevent-sleep" label="Prevent automatic sleeping when the display is off" pane-label="Energy" also="sleep;suspend;idle"
+row pane="energy" id="sleep-after" label="Sleep after" pane-label="Energy" also="sleep;suspend;idle"
 row pane="energy" id="wake-for-network" label="Wake for network access" pane-label="Energy" also="wake on lan;wol;magic packet"
 row pane="energy" id="power-button" label="When the power button is pressed" pane-label="Energy" also="power key"
 row pane="energy" id="display-apps" label="Apps that keep the display on" pane-label="Energy" also="keep awake;screen on;lock"

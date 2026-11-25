@@ -11,8 +11,9 @@ use isle_fakes::logind::Logind;
 use isle_ipc::{displays::DisplaysProxy, session::SessionProxy, settings::SettingsProxy};
 
 const POWER: u32 = 116;
-const NO_SLEEP_PREVENTED: &str =
-    "wallpaper {\n    source \"#1c1c1f\"\n}\nenergy {\n    prevent-sleep #false\n}\n";
+const SLEEP_AFTER_30: &str =
+    "wallpaper {\n    source \"#1c1c1f\"\n}\nenergy {\n    sleep-after 30\n}\n";
+const MINUTE: u64 = 60_000;
 
 #[zbus::proxy(
     interface = "org.freedesktop.PowerManagement.Inhibit",
@@ -175,55 +176,56 @@ async fn a_listed_apps_sleep_hold_keeps_the_display_on() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn idle_sleeps_a_while_after_the_screens_go_off_unless_held_or_prevented() {
-    let isle = Isle::start_with("sleep-step", NO_SLEEP_PREVENTED).await;
+async fn idle_sleeps_after_its_minutes_from_the_last_input_unless_held_or_never() {
+    let isle = Isle::start_with("sleep-step", SLEEP_AFTER_30).await;
     let logind = Logind::start(&isle.system_address()).await.unwrap();
-    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
+    wait_until(|| async { idle(&isle).await["sleep_armed"] == true }).await;
 
-    // A sleep hold keeps the step from coming at all.
+    // Not yet due: the timer moves on and nothing sleeps.
+    isle.test().await.idle_advance(20 * MINUTE).await.unwrap();
+    assert!(isle.test().await.sleep_now().await.unwrap());
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(logind.ended().is_empty());
+    assert_eq!(idle(&isle).await["sleep_armed"], true);
+
+    // A sleep hold keeps it from coming at all, screens off or not.
     let app = connect(&isle).await;
     let pm = PowerManagementProxy::new(&app).await.unwrap();
     let cookie = pm.inhibit("Claude", "Working on a task").await.unwrap();
-    displays.sleep().await.unwrap();
-    wait_until(|| async { idle(&isle).await["off"] == true }).await;
+    wait_until(|| async { idle(&isle).await["sleep_armed"] == false }).await;
+    isle.test().await.idle_advance(20 * MINUTE).await.unwrap();
     assert_eq!(idle(&isle).await["sleep_armed"], false);
 
-    // Let go while the screens are off, the minute starts.
+    // Let go past its time, the grace starts, then it sleeps.
     pm.un_inhibit(cookie).await.unwrap();
     wait_until(|| async { idle(&isle).await["sleep_armed"] == true }).await;
     assert!(isle.test().await.sleep_now().await.unwrap());
     wait_until(|| async { logind.ended().contains(&"Suspend".to_owned()) }).await;
 
-    // Input ends it; the switch back on keeps it from coming.
-    isle.chord(&[30]).await;
-    wait_until(|| async { idle(&isle).await["off"] == false }).await;
-    assert_eq!(idle(&isle).await["sleep_armed"], false);
-    set(&isle, "energy.prevent-sleep", zvariant::Value::from(true)).await;
-    displays.sleep().await.unwrap();
-    wait_until(|| async { idle(&isle).await["off"] == true }).await;
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-    assert_eq!(idle(&isle).await["sleep_armed"], false);
-    set(&isle, "energy.prevent-sleep", zvariant::Value::from(false)).await;
+    // Never disarms it; a time arms it again.
+    set(&isle, "energy.sleep-after", zvariant::Value::from(0)).await;
+    wait_until(|| async { idle(&isle).await["sleep_armed"] == false }).await;
+    set(&isle, "energy.sleep-after", zvariant::Value::from(60)).await;
     wait_until(|| async { idle(&isle).await["sleep_armed"] == true }).await;
 
-    // Display off set to Never: idle never sleeps.
+    // Display off set to Never no longer keeps it from sleeping.
     set(
         &isle,
         "lock-screen.display-off-after",
         zvariant::Value::from(0),
     )
     .await;
-    wait_until(|| async { idle(&isle).await["sleep_armed"] == false }).await;
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(idle(&isle).await["sleep_armed"], true);
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn a_refused_sleep_is_not_tried_again_before_input() {
-    let isle = Isle::start_with("sleep-refused", NO_SLEEP_PREVENTED).await;
+    let isle = Isle::start_with("sleep-refused", SLEEP_AFTER_30).await;
     let logind = Logind::start(&isle.system_address()).await.unwrap();
     logind.refuse_sleep(true);
-    let displays = DisplaysProxy::new(&isle.bus).await.unwrap();
-    displays.sleep().await.unwrap();
     wait_until(|| async { idle(&isle).await["sleep_armed"] == true }).await;
+    isle.test().await.idle_advance(31 * MINUTE).await.unwrap();
     assert!(isle.test().await.sleep_now().await.unwrap());
     wait_until(|| async { logind.ended() == ["Suspend"] }).await;
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
@@ -231,8 +233,6 @@ async fn a_refused_sleep_is_not_tried_again_before_input() {
 
     logind.refuse_sleep(false);
     isle.chord(&[30]).await;
-    wait_until(|| async { idle(&isle).await["off"] == false }).await;
-    displays.sleep().await.unwrap();
     wait_until(|| async { idle(&isle).await["sleep_armed"] == true }).await;
 }
 

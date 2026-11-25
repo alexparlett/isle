@@ -148,7 +148,8 @@ impl State {
         } else if touched("energy.display-apps") {
             self.idle_holds_changed();
         }
-        if touched("energy.prevent-sleep") {
+        if touched("energy.sleep-after") {
+            self.disarm_sleep();
             self.arm_sleep();
         }
         if touched("energy.wake-for-network") && changed.is_some() {

@@ -107,25 +107,15 @@ fn update_row(
     catalogue: Catalogue,
     versions: String,
     trailing: Element,
+    below: Option<Element>,
 ) -> Element {
     let t = &theme.tokens;
-    rect()
+    let row = rect()
         .width(Size::fill())
-        .padding((t.space_m, 0.))
         .horizontal()
         .content(Content::flex())
         .cross_align(Alignment::Center)
         .spacing(t.space_m)
-        .border(
-            Border::new()
-                .fill(colour(t.colour_hairline))
-                .width(BorderWidth {
-                    top: 0.,
-                    right: 0.,
-                    bottom: t.stroke_hairline,
-                    left: 0.,
-                }),
-        )
         .child(icon)
         .child(
             rect()
@@ -151,7 +141,23 @@ fn update_row(
                     versions,
                 )),
         )
-        .child(trailing)
+        .child(trailing);
+    rect()
+        .width(Size::fill())
+        .padding((t.space_m, 0.))
+        .spacing(t.space_s)
+        .border(
+            Border::new()
+                .fill(colour(t.colour_hairline))
+                .width(BorderWidth {
+                    top: 0.,
+                    right: 0.,
+                    bottom: t.stroke_hairline,
+                    left: 0.,
+                }),
+        )
+        .child(row)
+        .maybe_child(below)
         .into_element()
 }
 
@@ -161,7 +167,7 @@ fn system_packages(theme: &Theme, repo: &[&Value], mut shown: State<bool>) -> El
     let open = *shown.read();
     let mut list = rect()
         .width(Size::fill())
-        .padding((0., 0., t.space_s, 48. + t.space_m))
+        .padding((0., 0., 0., 48. + t.space_m))
         .spacing(t.space_xxs)
         .child(
             Button::new(if open {
@@ -704,8 +710,8 @@ impl freya::prelude::App for StoreWindow {
                         Catalogue::Cachyos,
                         parts.join(" · "),
                         note(&theme, if owes { "Restart required" } else { "" }),
+                        Some(system_packages(&theme, &repo, show_system)),
                     ));
-                    out.push(system_packages(&theme, &repo, show_system));
                     for a in &system_apps {
                         let found = by_id(a["desktop"].as_str().unwrap_or_default())
                             .or_else(|| by_id(a["package"].as_str().unwrap_or_default()));
@@ -723,6 +729,7 @@ impl freya::prelude::App for StoreWindow {
                                 a["to"].as_str().unwrap_or_default()
                             ),
                             note(&theme, "With the system"),
+                            None,
                         ));
                     }
                 }
@@ -766,6 +773,7 @@ impl freya::prelude::App for StoreWindow {
                                 p["to"].as_str().unwrap_or_default()
                             ),
                             update_button("Update", format!("{part}:{id}"), !blocked, true),
+                            None,
                         ));
                     }
                 }
@@ -791,6 +799,7 @@ impl freya::prelude::App for StoreWindow {
                             Catalogue::AppImages,
                             a.summary.clone(),
                             update_button("Update", part.clone(), true, true),
+                            None,
                         ));
                     }
                 }

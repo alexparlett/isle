@@ -462,7 +462,7 @@ updated, with the catalogue each comes from always named.
    deserve a look marked and why (B147).
 7. Updates leads with System: everything from Arch's and CachyOS's repositories, the kernel,
    drivers and libraries in one row and each app from them "With the system", under one Update
-   (B149). Then Flathub, the AUR and AppImages by catalogue, each with Update All (an AppImage
+   (B149). Show Packages under that row lists every package it updates with both versions. Then Flathub, the AUR and AppImages by catalogue, each with Update All (an AppImage
    only when a newer build is found), and Update Everything, which runs the system first and the AUR last. A restart owed is said with
    Restart….
 8. Every run is the same machinery as Software Update's: a transient unit, one password, it

@@ -155,6 +155,56 @@ fn update_row(
         .into_element()
 }
 
+/// The system row's packages behind Show, each with the versions it moves between.
+fn system_packages(theme: &Theme, repo: &[&Value], mut shown: State<bool>) -> Element {
+    let t = &theme.tokens;
+    let open = *shown.read();
+    let mut list = rect()
+        .width(Size::fill())
+        .padding((0., 0., t.space_s, 48. + t.space_m))
+        .spacing(t.space_xxs)
+        .child(
+            Button::new(if open {
+                "Hide Packages".to_owned()
+            } else {
+                format!("Show {}", plural(repo.len(), "Package", "Packages"))
+            })
+            .kind(Kind::Plain)
+            .small()
+            .on_press(move |_| shown.set(!open)),
+        );
+    if open {
+        let mut sorted: Vec<&Value> = repo.to_vec();
+        sorted.sort_by_key(|p| p["name"].as_str().unwrap_or_default().to_owned());
+        for p in sorted {
+            list = list.child(
+                rect()
+                    .width(Size::fill())
+                    .horizontal()
+                    .content(Content::flex())
+                    .spacing(t.space_m)
+                    .child(rect().width(Size::flex(1.)).child(text::line(
+                        theme,
+                        text::Style::Callout,
+                        colour(t.colour_text),
+                        p["name"].as_str().unwrap_or_default(),
+                    )))
+                    .child(text::line(
+                        theme,
+                        text::Style::Callout,
+                        colour(t.colour_text_2),
+                        format!(
+                            "{} → {}",
+                            p["from"].as_str().unwrap_or_default(),
+                            p["to"].as_str().unwrap_or_default()
+                        ),
+                    )),
+            );
+        }
+    }
+    list.into_element()
+}
+
 pub fn section(theme: &Theme, title: &str, trailing: Option<Element>) -> Element {
     let t = &theme.tokens;
     rect()
@@ -227,6 +277,7 @@ impl freya::prelude::App for StoreWindow {
         let mut foreign = use_state(|| Rc::new(Vec::<(String, String)>::new()));
         let mut explicit = use_state(|| Rc::new(Vec::<(String, String)>::new()));
         let show_packages = use_state(|| false);
+        let show_system = use_state(|| false);
         let mut core = use_state(|| Rc::new(HashSet::<String>::new()));
         let mut icons = use_state(|| Rc::new(HashMap::<PathBuf, Option<PathBuf>>::new()));
         let mut shots = use_state(|| Rc::new(HashMap::<String, Option<PathBuf>>::new()));
@@ -654,6 +705,7 @@ impl freya::prelude::App for StoreWindow {
                         parts.join(" · "),
                         note(&theme, if owes { "Restart required" } else { "" }),
                     ));
+                    out.push(system_packages(&theme, &repo, show_system));
                     for a in &system_apps {
                         let found = by_id(a["desktop"].as_str().unwrap_or_default())
                             .or_else(|| by_id(a["package"].as_str().unwrap_or_default()));

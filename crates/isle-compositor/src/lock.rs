@@ -799,5 +799,6 @@ impl State {
         self.idle_activity();
         self.arm_sleep();
         self.lock_activity();
+        self.schedule_updates();
     }
 }

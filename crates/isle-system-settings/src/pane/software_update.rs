@@ -358,7 +358,7 @@ impl Component for SoftwareUpdatePage {
                         "Check for updates automatically",
                         "updates.check",
                     )
-                    .description("Looks once an hour; nothing is installed until you choose.")
+                    .description("Looks after logging in or waking and once an hour; nothing is installed until you choose.")
                     .into_element(),
                 ],
             ))

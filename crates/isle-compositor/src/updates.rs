@@ -20,8 +20,8 @@ use crate::{
     worker::{Event, ToLoop},
 };
 
-/// The first check after the session starts, then the rest.
-const FIRST: Duration = Duration::from_secs(5 * 60);
+/// The first check after the session starts or the computer wakes, then the rest.
+const FIRST: Duration = Duration::from_secs(30);
 const EVERY: Duration = Duration::from_secs(60 * 60);
 /// How long a finished run stays shown.
 const SHOWN: Duration = Duration::from_secs(30);
@@ -125,6 +125,15 @@ impl State {
     pub fn start_updates(&mut self) {
         self.isle.updates.since = now();
         self.refresh_restart();
+        self.schedule_updates();
+    }
+
+    /// Checks again soon, then every hour. The timer stands still while the computer sleeps,
+    /// so waking starts it over.
+    pub fn schedule_updates(&mut self) {
+        if let Some(old) = self.isle.updates.schedule.take() {
+            self.isle.loop_handle.remove(old);
+        }
         let token = self
             .isle
             .loop_handle

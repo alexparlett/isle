@@ -186,7 +186,8 @@ forward.
     upgrade only (D83) under pkexec, showing pacman's own per-package lines as progress (D47, D81).
     The run is not a child of Settings (D78): quitting Settings leaves it running and reopening shows
     where it is. A restart owed after kernel or NVIDIA module skew is stated until the restart (D46),
-    here and in Store (inventory §7 IsleUpdate).
+    here and in Store (inventory §7 IsleUpdate). With automatic checks on, the session looks half
+    a minute after logging in and after waking, then every hour.
 13. Displays: arranging the displays relative to each other; mode, scale, rotation, VRR, tearing and
     enabled per display, VRR and tearing being display settings rather than Game Mode's; the last
     enabled display cannot be turned off; Redetect (inventory §3.7; D56).
@@ -462,7 +463,7 @@ updated, with the catalogue each comes from always named.
    deserve a look marked and why (B147).
 7. Updates leads with System: everything from Arch's and CachyOS's repositories, the kernel,
    drivers and libraries in one row and each app from them "With the system", under one Update
-   (B149). Show Packages under that row lists every package it updates with both versions. Then Flathub, the AUR and AppImages by catalogue, each with Update All (an AppImage
+   (B149). Packages, a disclosure triangle under that row, lists every package it updates with both versions. Then Flathub, the AUR and AppImages by catalogue, each with Update All (an AppImage
    only when a newer build is found), and Update Everything, which runs the system first and the AUR last. A restart owed is said with
    Restart….
 8. Every run is the same machinery as Software Update's: a transient unit, one password, it

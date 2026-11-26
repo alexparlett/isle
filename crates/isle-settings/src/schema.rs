@@ -1016,7 +1016,7 @@ pub struct Energy {
 /// Software Update (Settings › General › Software Update).
 #[derive(Clone, Debug, PartialEq, Section)]
 pub struct Updates {
-    /// Looks for updates once an hour; off, only Check Now looks.
+    /// Looks soon after logging in or waking, then once an hour; off, only Check Now looks.
     #[setting(default = true)]
     pub check: bool,
 }

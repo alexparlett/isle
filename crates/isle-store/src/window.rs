@@ -161,54 +161,72 @@ fn update_row(
         .into_element()
 }
 
-/// The system row's packages behind Show, each with the versions it moves between.
+/// The system row's packages under a disclosure triangle, each with the versions it moves between.
 fn system_packages(theme: &Theme, repo: &[&Value], mut shown: State<bool>) -> Element {
     let t = &theme.tokens;
     let open = *shown.read();
-    let mut list = rect()
+    let toggle = rect()
+        .horizontal()
+        .cross_align(Alignment::Center)
+        .spacing(t.space_xs)
+        .a11y_role(AccessibilityRole::Button)
+        .a11y_alt("Packages")
+        .a11y_builder(move |node| node.set_expanded(open))
+        .on_press(move |_| shown.set(!open))
+        .child(Glyph::new(
+            if open { "caret-down" } else { "caret-right" },
+            t.size_glyph_small,
+            colour(t.colour_text_2),
+        ))
+        .child(text::line(
+            theme,
+            text::Style::Callout,
+            colour(t.colour_text_2),
+            "Packages",
+        ));
+    let mut out = rect()
         .width(Size::fill())
         .padding((0., 0., 0., 48. + t.space_m))
-        .spacing(t.space_xxs)
-        .child(
-            Button::new(if open {
-                "Hide Packages".to_owned()
-            } else {
-                format!("Show {}", plural(repo.len(), "Package", "Packages"))
-            })
-            .kind(Kind::Plain)
-            .small()
-            .on_press(move |_| shown.set(!open)),
-        );
+        .spacing(t.space_xs)
+        .child(toggle);
     if open {
         let mut sorted: Vec<&Value> = repo.to_vec();
         sorted.sort_by_key(|p| p["name"].as_str().unwrap_or_default().to_owned());
-        for p in sorted {
-            list = list.child(
-                rect()
-                    .width(Size::fill())
-                    .horizontal()
-                    .content(Content::flex())
-                    .spacing(t.space_m)
-                    .child(rect().width(Size::flex(1.)).child(text::line(
-                        theme,
-                        text::Style::Callout,
-                        colour(t.colour_text),
-                        p["name"].as_str().unwrap_or_default(),
-                    )))
-                    .child(text::line(
-                        theme,
-                        text::Style::Callout,
-                        colour(t.colour_text_2),
-                        format!(
-                            "{} → {}",
-                            p["from"].as_str().unwrap_or_default(),
-                            p["to"].as_str().unwrap_or_default()
-                        ),
-                    )),
-            );
-        }
+        let lines = sorted.into_iter().map(|p| {
+            rect()
+                .width(Size::fill())
+                .horizontal()
+                .content(Content::flex())
+                .spacing(t.space_m)
+                .child(rect().width(Size::flex(1.)).child(text::line(
+                    theme,
+                    text::Style::Callout,
+                    colour(t.colour_text),
+                    p["name"].as_str().unwrap_or_default(),
+                )))
+                .child(text::line(
+                    theme,
+                    text::Style::Callout,
+                    colour(t.colour_text_2),
+                    format!(
+                        "{} → {}",
+                        p["from"].as_str().unwrap_or_default(),
+                        p["to"].as_str().unwrap_or_default()
+                    ),
+                ))
+                .into_element()
+        });
+        out = out.child(
+            rect()
+                .width(Size::fill())
+                .padding((t.space_s, t.space_m))
+                .spacing(t.space_xxs)
+                .corner_radius(t.radius_small)
+                .background(colour(t.colour_window_sunken))
+                .children(lines),
+        );
     }
-    list.into_element()
+    out.into_element()
 }
 
 pub fn section(theme: &Theme, title: &str, trailing: Option<Element>) -> Element {

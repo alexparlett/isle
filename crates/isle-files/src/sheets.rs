@@ -120,13 +120,24 @@ pub fn alert_sheet(alert: Alert, on_done: impl Fn(Option<Then>) + Clone + 'stati
     let theme = isle_ui::theme();
     let t = &theme.tokens;
     let items = (!alert.items.is_empty()).then(|| {
+        // At most five rows show; the rest scroll inside the well.
+        let line = text::metrics(&theme, text::Style::Callout).1;
+        let shown = alert.items.len().min(5) as f32;
+        let rows = rect().width(Size::fill()).children(alert.items.iter().map(|i| {
+            rect()
+                .width(Size::fill())
+                .height(Size::px(line))
+                .child(text::MiddleCut::new(i.clone(), text::Style::Callout, colour(t.colour_text)))
+                .into_element()
+        }));
         rect()
             .width(Size::fill())
-            .max_height(Size::px(5. * t.size_row))
+            .height(Size::px(shown * line + 2. * t.space_s))
             .padding(t.space_s)
             .corner_radius(t.radius_control)
+            .overflow(Overflow::Clip)
             .background(colour(t.colour_window_sunken))
-            .children(alert.items.iter().map(|i| text::line(&theme, text::Style::Callout, colour(t.colour_text), i.clone()).into_element()))
+            .child(isle_ui::scroll_area(&theme).width(Size::fill()).height(Size::fill()).child(rows))
             .into_element()
     });
     let buttons: Vec<isle_ui::AlertButton> = alert

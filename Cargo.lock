@@ -4715,6 +4715,7 @@ dependencies = [
  "isle-fs",
  "isle-games",
  "isle-ipc",
+ "isle-keychron",
  "isle-keys",
  "isle-media",
  "isle-menus",
@@ -4895,6 +4896,17 @@ dependencies = [
  "tracing-subscriber",
  "zbus",
  "zeroize",
+]
+
+[[package]]
+name = "isle-keychron"
+version = "0.1.0"
+dependencies = [
+ "isle-bus",
+ "libc",
+ "serde",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

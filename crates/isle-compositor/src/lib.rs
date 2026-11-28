@@ -33,6 +33,7 @@ mod idle;
 mod image_copy;
 mod input;
 mod keyboard;
+mod keychron;
 mod island;
 pub mod capture;
 pub mod cast;

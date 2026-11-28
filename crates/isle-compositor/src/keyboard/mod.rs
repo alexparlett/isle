@@ -51,6 +51,8 @@ pub struct Device {
     pub spec: KeymapSpec,
     /// Has letter keys: power buttons and the like report as keyboards too.
     pub typing: bool,
+    /// What the Keychron receiver it comes through has paired: a mouse's key node is no keyboard.
+    pub keychron: Option<isle_keychron::protocol::Kind>,
     /// A client's virtual keyboard, and the keymap its codes are in.
     pub client: Option<Virtual>,
 }
@@ -223,6 +225,9 @@ impl State {
         if self.isle.keyboards.get(id).is_some() {
             return;
         }
+        let found = self.keychron_keyboard(id);
+        let name = found.as_ref().map_or(name, |f| f.0.as_str());
+        let hint = hint.or(found.as_ref().and_then(|f| f.2));
         let (profile, guessed, swap, spec) = self.resolve_keyboard(name, hint);
         info!(
             id,
@@ -245,6 +250,7 @@ impl State {
             spec,
             typing: true,
             client: None,
+            keychron: found.as_ref().map(|f| f.1),
         });
         self.isle.notify(Event::KeyboardsChanged);
     }
@@ -268,6 +274,7 @@ impl State {
             spec,
             typing: false,
             client: Some(client),
+            keychron: None,
         });
     }
 
@@ -316,6 +323,38 @@ impl State {
 
     /// Puts the keyboard settings in force: each keyboard's profile and keymap again, the
     /// seat's keymap, the repeat.
+    /// The name, kind and switch of the Keychron device an input node comes through.
+    fn keychron_keyboard(&self, id: &str) -> Option<(String, isle_keychron::protocol::Kind, Option<Profile>)> {
+        let p = self.isle.keychron_node(id, isle_keychron::protocol::Kind::Keyboard)?;
+        let hint = p.mac.map(|mac| if mac { Profile::Mac } else { Profile::Pc });
+        Some((p.name.clone(), p.kind, hint))
+    }
+
+    /// Gives keyboards behind Keychron receivers their device's name, kind and switch.
+    pub fn keychron_keyboards(&mut self) {
+        let found: Vec<(usize, (String, isle_keychron::protocol::Kind, Option<Profile>))> = self
+            .isle
+            .keyboards
+            .devices
+            .iter()
+            .enumerate()
+            .filter(|(_, d)| d.client.is_none())
+            .filter_map(|(i, d)| Some((i, self.keychron_keyboard(&d.id)?)))
+            .collect();
+        let mut changed = false;
+        for (i, (name, kind, hint)) in found {
+            let device = &mut self.isle.keyboards.devices[i];
+            let hint = hint.or(device.hint);
+            if device.name != name || device.keychron != Some(kind) || device.hint != hint {
+                (device.name, device.keychron, device.hint) = (name, Some(kind), hint);
+                changed = true;
+            }
+        }
+        if changed {
+            self.apply_keyboard_settings();
+        }
+    }
+
     pub fn apply_keyboard_settings(&mut self) {
         self.isle.keyboards.keymaps.clear();
         let devices: Vec<(String, Option<Profile>)> = self
@@ -1053,6 +1092,7 @@ impl State {
             .devices
             .iter()
             .filter(|d| d.id != ISLE_DEVICE && d.typing)
+            .filter(|d| d.keychron != Some(isle_keychron::protocol::Kind::Mouse))
             .map(|d| isle_ipc::KeyboardInfo {
                 id: d.id.clone(),
                 name: d.name.clone(),
@@ -1064,7 +1104,14 @@ impl State {
                 remapper: d.name == "xremap",
                 active: active == Some(&d.spec),
             })
-            .collect()
+            // One row per name: settings are kept by name, and one device has several nodes.
+            .fold(Vec::<isle_ipc::KeyboardInfo>::new(), |mut list, k| {
+                match list.iter_mut().find(|l| l.name == k.name) {
+                    Some(l) => l.active |= k.active,
+                    None => list.push(k),
+                }
+                list
+            })
     }
 }
 

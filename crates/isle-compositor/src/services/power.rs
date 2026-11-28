@@ -44,7 +44,8 @@ impl State {
     pub fn power_changed(&mut self, snapshot: Snapshot<Power>) {
         let before = self.isle.services.power.state.keyboard;
         let was = self.isle.services.power.available;
-        self.isle.services.power = snapshot;
+        self.isle.services.upower = snapshot;
+        self.isle.services.compose_power();
         let now = self.isle.services.power.state.keyboard;
         if was && let (Some(_), Some((level, max))) = (before, now)
             && before != now
@@ -55,9 +56,43 @@ impl State {
         self.isle.services_changed();
     }
 
+    pub fn keychron_changed(&mut self, snapshot: Snapshot<Vec<isle_keychron::Peripheral>>) {
+        self.isle.services.keychron = snapshot;
+        self.isle.services.compose_power();
+        self.keychron_devices();
+        self.isle.services_changed();
+    }
+
     pub fn profiles_changed(&mut self, snapshot: Snapshot<Profiles>) {
         self.isle.services.profiles = snapshot;
         self.isle.services_changed();
+    }
+}
+
+impl crate::services::Services {
+    /// UPower's batteries and the connected Keychron peripherals' in one list, as UPower sorts it.
+    pub fn compose_power(&mut self) {
+        let mut power = self.upower.clone();
+        let peripherals = self.keychron.state.iter().filter(|p| p.connected);
+        for p in peripherals.filter(|p| p.battery.is_some()) {
+            power.state.batteries.push(isle_power::Battery {
+                path: format!("keychron:{:04x}", p.product),
+                kind: match p.kind {
+                    isle_keychron::protocol::Kind::Keyboard => Kind::Keyboard,
+                    isle_keychron::protocol::Kind::Mouse => Kind::Mouse,
+                },
+                name: p.name.clone(),
+                level: p.battery,
+                charging: p.charging,
+                time_to_empty: None,
+            });
+            power.available = true;
+        }
+        power
+            .state
+            .batteries
+            .sort_by(|a, b| a.kind.cmp(&b.kind).then(a.name.cmp(&b.name)));
+        self.power = power;
     }
 }
 
@@ -231,5 +266,73 @@ impl State {
                 }
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use isle_bus::Snapshot;
+    use isle_keychron::{Peripheral, protocol::Kind as Made};
+    use isle_power::{Battery, Kind, Power};
+
+    use crate::services::Services;
+
+    fn peripheral(product: u16, kind: Made, name: &str, battery: Option<u8>, connected: bool) -> Peripheral {
+        Peripheral {
+            product,
+            kind,
+            name: name.into(),
+            usb: vec![],
+            connected,
+            battery,
+            charging: false,
+            mac: None,
+            dpi: vec![],
+            stage: None,
+            rate_hz: None,
+        }
+    }
+
+    #[test]
+    fn keychron_batteries_join_upowers() {
+        let mut services = Services::default();
+        services.upower = Snapshot {
+            available: true,
+            state: Power {
+                batteries: vec![Battery {
+                    path: "/org/freedesktop/UPower/devices/headset".into(),
+                    kind: Kind::Headset,
+                    name: "Headset".into(),
+                    level: Some(50),
+                    charging: false,
+                    time_to_empty: None,
+                }],
+                ..Default::default()
+            },
+        };
+        services.keychron = Snapshot {
+            available: true,
+            state: vec![
+                peripheral(0x0861, Made::Keyboard, "Keychron Q6 Max", Some(83), true),
+                peripheral(0xD056, Made::Mouse, "Keychron M7 8K", Some(29), true),
+                // Paired but asleep or out of range, and one that has said nothing yet.
+                peripheral(0xD03F, Made::Mouse, "Keychron M6", Some(60), false),
+                peripheral(0x0860, Made::Keyboard, "Keychron keyboard", None, true),
+            ],
+        };
+        services.compose_power();
+        let names: Vec<_> = services.power.state.batteries.iter().map(|b| (b.kind, b.name.as_str(), b.level)).collect();
+        assert_eq!(
+            names,
+            vec![
+                (Kind::Mouse, "Keychron M7 8K", Some(29)),
+                (Kind::Keyboard, "Keychron Q6 Max", Some(83)),
+                (Kind::Headset, "Headset", Some(50)),
+            ]
+        );
+
+        services.keychron.state.clear();
+        services.compose_power();
+        assert_eq!(services.power.state.batteries.len(), 1);
     }
 }

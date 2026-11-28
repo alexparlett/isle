@@ -51,6 +51,7 @@ isle-audio.workspace = true
 isle-bluetooth.workspace = true
 isle-brightness.workspace = true
 isle-bus.workspace = true
+isle-keychron.workspace = true
 isle-power.workspace = true
 isle-updates.workspace = true
 isle-disks.workspace = true

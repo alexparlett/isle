@@ -1307,15 +1307,24 @@ impl State {
         self.process_input_event(event);
     }
 
+    /// The name a pointing device's settings are kept under: the Keychron mouse it comes
+    /// through, else its own; None for a Keychron keyboard's mouse keys, which are no mouse.
+    pub fn pointer_key(&self, device: &libinput::Device) -> Option<String> {
+        use isle_keychron::protocol::Kind;
+        let syspath = unsafe { device.udev_device() }.map(|u| u.syspath().to_path_buf());
+        match syspath.as_deref().and_then(|p| self.isle.keychron_at(p, Kind::Mouse)) {
+            Some(p) if p.kind == Kind::Keyboard => None,
+            Some(p) => Some(p.name.clone()),
+            None => Some(device.name().into_owned()),
+        }
+    }
+
     /// A pointing device's settings, by its name (`pointer "name" { }`).
     pub fn apply_pointer_settings(&self, device: &mut libinput::Device) {
         use isle_settings::schema::{AccelProfile, ScrollMethod};
         let Some(config) = self
-            .isle
-            .settings
-            .pointer
-            .get(device.name().as_ref())
-            .cloned()
+            .pointer_key(device)
+            .and_then(|key| self.isle.settings.pointer.get(&key).cloned())
         else {
             let _ = device.config_accel_set_profile(libinput::AccelProfile::Flat);
             return;
@@ -1357,7 +1366,7 @@ impl State {
             .pointers
             .iter()
             .filter(|d| !virtual_device(d) && d.config_tap_finger_count() == 0)
-            .map(|d| d.name().into_owned())
+            .filter_map(|d| self.pointer_key(d))
             .collect();
         names.sort();
         names.dedup();

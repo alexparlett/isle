@@ -1,0 +1,13 @@
+[package]
+name = "isle-keychron"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+isle-bus.workspace = true
+libc.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true

@@ -354,6 +354,8 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   `isle-bluetooth`, `isle-media`, `isle-disks` and `isle-tray` has a
   `watch` that reads its daemon whole into one state value and publishes it
   through `isle-bus`'s `Publisher` as a `Snapshot { available, state }`;
+  `isle-keychron` reads hidraw nodes on a blocking task instead of a
+  daemon, and the compositor adds its batteries to UPower's (B152);
   after any signal under the daemon's paths it reads again, a burst read
   once, when `isle-bus`'s `Rereads` says. A watch's signal streams are
   drained while a read is in flight: a full zbus stream stops the shared
@@ -1127,8 +1129,8 @@ is at the root: `crates/` holds `isle-compositor`, `isle-session`, `isle-cli`
 (the `isle` command), `isle-ipc`, `isle-settings` with its derive,
 `isle-state`, `isle-bus` (what the service crates share: the buses, a daemon's name
 followed, snapshots and listeners), the service crates `isle-power`, `isle-audio`,
-`isle-brightness`, `isle-network`, `isle-bluetooth`, `isle-media`, `isle-disks` and
-`isle-tray`, `isle-notifications` (the notification server), `isle-focus` (which Focus
+`isle-brightness`, `isle-network`, `isle-bluetooth`, `isle-media`, `isle-disks`,
+`isle-keychron` and `isle-tray`, `isle-notifications` (the notification server), `isle-focus` (which Focus
 is in force), `isle-fakes` (fake system daemons for the tests), `isle-apps` (desktop entries, app resolution, icons and LauncherEntry's
 badges), `isle-games` (launchers' libraries: names, covers and launch links, and
 which processes descend from them), `isle-sun` (sunrise and sunset from the

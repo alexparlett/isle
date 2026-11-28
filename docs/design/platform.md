@@ -206,6 +206,7 @@ through one shared set of crates.
 | network | NetworkManager (system bus) | Wi-Fi, wired, VPN connections, connectivity, the secret agent |
 | bluetooth | BlueZ (system) | adapters, devices, pairing agent, device batteries |
 | power | UPower; power-profiles-daemon (`org.freedesktop.UPower.PowerProfiles`) | batteries, profile, holding a profile in Game Mode |
+| keychron | Keychron's 2.4 GHz receivers and keyboards over hidraw (B152) | their keyboards' and mice's batteries, the Mac/Windows switch, a mouse's DPI and report rate |
 | session | logind (system) | suspend, restart, power off, lid, PrepareForSleep, Lock and Unlock, inhibitors, idle and locked hints |
 | audio | pipewire-pulse via `libpulse-binding`; PipeWire via `pipewire-rs` | volume, mute, default devices, per-app streams, capture in use |
 | media | MPRIS players (session bus) | now playing, transport, art |

@@ -1688,3 +1688,23 @@ keeps it off; one that ends past its time, or a time set past the idle time,
 leaves the `sleep-grace-ms` minute first. Waking from sleep counts as input.
 Rejected: keeping the switch beside a time (two controls for one choice), and
 counting from display off (a second clock to reason about).
+
+**B152 · Keychron peripherals are read from their receivers, beside UPower.**
+Chosen 2026-11-28. The kernel and UPower know nothing of a Keychron keyboard's
+or mouse's battery through its 2.4 GHz receiver, and see each receiver as
+several unnamed input nodes. `isle-keychron` opens Keychron's vendor hidraw
+nodes (the user has them through `70-isle-hidraw.rules`) and reads what the
+receivers and devices answer and push: the paired product, so the device has
+its name and kind; a mouse's battery, charging, DPI stages and report rate on
+the Ultra-Link 8K; a keyboard's battery, charging and default layer (its
+Mac/Windows switch) where its firmware answers `a7 f0` and `a3`, which the
+Q6 Max does with the patched firmware in `keychron-2026.md` §5. The compositor
+adds the batteries to UPower's list, so Batteries, the island and the
+Devices widget show them unchanged, and a keyboard's switch is its profile
+while the profile is Automatic. A receiver's input nodes are the device it
+paired: they take its name, under which Keyboard's and Mouse's settings are
+kept, so a mouse's settings reach all its nodes; a mouse receiver's key node
+is not listed as a keyboard, nor a keyboard receiver's pointer node as a
+mouse; and Keyboard lists a name once however many nodes carry it. Evidence: `keychron-2026.md`. Rejected: the
+out-of-tree `keychron-battery` kernel module (mouse only, and a module to
+keep building for each kernel), and leaving it to Keychron's web Launcher.

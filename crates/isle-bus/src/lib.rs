@@ -149,6 +149,11 @@ impl<T: PartialEq + Clone> Publisher<T> {
         self.0.borrow().state.clone()
     }
 
+    /// Every reader is gone.
+    pub fn is_closed(&self) -> bool {
+        self.0.is_closed()
+    }
+
     pub fn subscribe(&self) -> watch::Receiver<Snapshot<T>> {
         self.0.subscribe()
     }

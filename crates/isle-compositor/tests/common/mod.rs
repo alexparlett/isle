@@ -171,6 +171,8 @@ impl Isle {
         let log = fs::File::create(dir.join("compositor.log")).unwrap();
         let extra = env(&dir);
         let compositor = Command::new(env!("CARGO_BIN_EXE_isle-compositor"))
+            // Before the test's own, which may let the host's receivers in.
+            .env("ISLE_NO_HIDRAW", "1")
             .envs(extra)
             .arg("--headless")
             .args(args)

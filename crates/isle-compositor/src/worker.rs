@@ -152,6 +152,10 @@ pub fn spawn(
                 crate::services::login::hold(loop_l.clone(), may_sleep_rx.clone())
             }));
             start(&runtime, &to_loop, "power", isle_power::watch_batteries, State::power_changed);
+            // The headless tests' machine has its own receivers plugged in.
+            if std::env::var("ISLE_NO_HIDRAW").as_deref() != Ok("1") {
+                start(&runtime, &to_loop, "keychron", isle_keychron::watch, State::keychron_changed);
+            }
             start(&runtime, &to_loop, "profiles", isle_power::watch_profiles, State::profiles_changed);
             start(&runtime, &to_loop, "audio", isle_audio::watch, State::audio_changed);
             start(&runtime, &to_loop, "network", isle_network::watch, State::network_changed);

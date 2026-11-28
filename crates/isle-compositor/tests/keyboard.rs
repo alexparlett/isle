@@ -292,3 +292,17 @@ async fn a_click_with_cmd_held_arrives_with_ctrl() {
         "{lines:?}"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_device_with_several_key_nodes_is_one_keyboard() {
+    let isle = Isle::start("keyboard-nodes").await;
+    let test = isle.test().await;
+    // A receiver that is a keyboard several times over, as Steam Controller's is.
+    for _ in 0..4 {
+        test.add_keyboard("Valve Software Steam Controller Puck").await.unwrap();
+    }
+    test.add_keyboard("Keychron K2").await.unwrap();
+    let keyboard = KeyboardProxy::new(&isle.bus).await.unwrap();
+    let names: Vec<String> = keyboard.list().await.unwrap().into_iter().map(|k| k.name).collect();
+    assert_eq!(names, ["Valve Software Steam Controller Puck", "Keychron K2"]);
+}

@@ -19,6 +19,7 @@ isle-brightness = { path = "crates/isle-brightness" }
 isle-bus = { path = "crates/isle-bus" }
 isle-catalog = { path = "crates/isle-catalog" }
 isle-fakes = { path = "crates/isle-fakes" }
+isle-keychron = { path = "crates/isle-keychron" }
 isle-power = { path = "crates/isle-power" }
 isle-disks = { path = "crates/isle-disks" }
 isle-focus = { path = "crates/isle-focus" }

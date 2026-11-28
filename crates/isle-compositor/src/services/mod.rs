@@ -27,7 +27,11 @@ const FRAME: Duration = Duration::from_millis(8);
 
 pub struct Services {
     pub login: Snapshot<login::Login>,
+    /// UPower's batteries with the Keychron peripherals' added.
     pub power: Snapshot<isle_power::Power>,
+    /// UPower's own, as it last said.
+    pub upower: Snapshot<isle_power::Power>,
+    pub keychron: Snapshot<Vec<isle_keychron::Peripheral>>,
     pub profiles: Snapshot<isle_power::Profiles>,
     pub audio: Snapshot<isle_audio::Audio>,
     pub cameras: Snapshot<isle_audio::camera::Cameras>,
@@ -82,6 +86,7 @@ impl Services {
         serde_json::json!({
             "login": entry(&self.login, applied("login")),
             "power": entry(&self.power, applied("power")),
+            "keychron": entry(&self.keychron, applied("keychron")),
             "profiles": entry(&self.profiles, applied("profiles")),
             "audio": entry(&self.audio, applied("audio")),
             "cameras": entry(&self.cameras, applied("cameras")),
@@ -201,6 +206,8 @@ impl Default for Services {
         Self {
             login: Default::default(),
             power: Default::default(),
+            upower: Default::default(),
+            keychron: Default::default(),
             profiles: Default::default(),
             errors: Default::default(),
             audio: Default::default(),

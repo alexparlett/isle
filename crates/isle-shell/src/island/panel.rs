@@ -1347,7 +1347,7 @@ impl Component for Tile {
             }
         };
         // At Small the whole tile is the glyph's switch; larger, the glyph switches and the
-        // rest opens the page.
+        // rest opens the page. A tile with no page sends Toggle, which it reads as open.
         let press = {
             let (actions, id) = (actions.clone(), id.clone());
             move |e: Event<PressEventData>| {
@@ -1355,12 +1355,10 @@ impl Component for Tile {
                 if editing {
                     return;
                 }
-                let action = if toggles && (small || !open_page) {
-                    PanelAction::Toggle(id.clone())
-                } else if open_page {
+                let action = if open_page && !(toggles && small) {
                     PanelAction::Page(Some(id.clone()))
                 } else {
-                    return;
+                    PanelAction::Toggle(id.clone())
                 };
                 send(&actions, action);
             }

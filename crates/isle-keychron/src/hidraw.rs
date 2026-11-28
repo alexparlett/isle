@@ -18,8 +18,10 @@ use crate::{
 
 /// How often new or unplugged receivers are noticed.
 const SCAN: Duration = Duration::from_secs(3);
-/// How often battery and slots are asked for again; the devices push their changes between.
+/// How often slots and keyboards are asked again; keyboards push their changes between.
 const REFRESH: Duration = Duration::from_secs(120);
+/// How often a mouse is asked again: its pushes carry no charging state.
+const MOUSE_REFRESH: Duration = Duration::from_secs(10);
 
 struct Node {
     sysname: String,
@@ -53,6 +55,7 @@ pub fn run(publisher: &Publisher<Vec<Peripheral>>) -> Result<(), isle_bus::Error
     let mut model = Model::default();
     let mut scanned = Instant::now() - SCAN;
     let mut refreshed = Instant::now();
+    let mut mouse_asked = Instant::now();
     // Runs until every reader has gone: a blocking task is not cancelled with its runtime.
     while !publisher.is_closed() {
         if scanned.elapsed() >= SCAN {
@@ -70,9 +73,15 @@ pub fn run(publisher: &Publisher<Vec<Peripheral>>) -> Result<(), isle_bus::Error
         }
         if refreshed.elapsed() >= REFRESH {
             refreshed = Instant::now();
-            for node in &mut nodes {
+            for node in nodes.iter_mut().filter(|n| n.channel != Channel::Mouse) {
                 let product = model.devices.get(&node.usb).map_or(0, |d| d.0);
                 ask(node, product);
+            }
+        }
+        if mouse_asked.elapsed() >= MOUSE_REFRESH {
+            mouse_asked = Instant::now();
+            for node in nodes.iter_mut().filter(|n| n.channel == Channel::Mouse) {
+                ask(node, 0);
             }
         }
 
@@ -112,6 +121,8 @@ pub fn run(publisher: &Publisher<Vec<Peripheral>>) -> Result<(), isle_bus::Error
                         };
                         debug!(node = nodes[i].sysname, ?report, "keychron report");
                         let follow_up = matches!(&report, Report::Slots(s) if s.iter().any(|s| s.connected && Kind::of(s.product) == Kind::Keyboard));
+                        // A mouse that pushed has woken or been plugged in: ask what its push leaves out.
+                        let woke = matches!(&report, Report::MouseEvent { .. });
                         let now = std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
                             .map_or(0, |d| d.as_secs());
@@ -119,6 +130,9 @@ pub fn run(publisher: &Publisher<Vec<Peripheral>>) -> Result<(), isle_bus::Error
                         // A receiver with a keyboard connected: ask the keyboard through it.
                         if follow_up && nodes[i].channel == Channel::Raw {
                             let _ = ask_keyboard(&mut nodes[i]);
+                        }
+                        if woke && nodes[i].channel == Channel::Mouse {
+                            let _ = nodes[i].send(&protocol::MOUSE_STATUS);
                         }
                     }
                     Err(e) if e.kind() == ErrorKind::WouldBlock => break,

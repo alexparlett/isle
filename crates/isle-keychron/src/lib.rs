@@ -10,7 +10,7 @@ use protocol::{Charging, Kind, Report, Slot};
 use serde::Serialize;
 
 /// A Keychron keyboard or mouse that a receiver has paired or that is on its cable.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
 pub struct Peripheral {
     /// Its USB product id, which its receiver reports.
     pub product: u16,
@@ -28,6 +28,8 @@ pub struct Peripheral {
     pub dpi: Vec<u16>,
     pub stage: Option<u8>,
     pub rate_hz: Option<u32>,
+    /// When it last reported anything, in seconds since the Unix epoch.
+    pub seen: Option<u64>,
 }
 
 /// Follows every Keychron receiver and keyboard the user can open.
@@ -51,6 +53,7 @@ struct Known {
     dpi: Vec<u16>,
     stage: Option<u8>,
     rate: Option<u8>,
+    seen: Option<u64>,
 }
 
 impl Model {
@@ -66,7 +69,8 @@ impl Model {
             .map(|s| s.product)
     }
 
-    fn apply(&mut self, usb: &str, report: Report) {
+    /// Takes in a report from `usb` read at `now`, in seconds since the Unix epoch.
+    fn apply(&mut self, usb: &str, report: Report, now: u64) {
         let kind = match &report {
             Report::Slots(slots) => {
                 if let Some(device) = self.devices.get_mut(usb) {
@@ -81,6 +85,7 @@ impl Model {
             return;
         };
         let known = self.products.entry(product).or_default();
+        known.seen = Some(now);
         match report {
             Report::Keyboard(b) => {
                 known.battery = Some(b.percent);
@@ -131,6 +136,7 @@ impl Model {
                     dpi: known.dpi.clone(),
                     stage: known.stage,
                     rate_hz: known.rate.and_then(protocol::rate_hz),
+                    seen: known.seen,
                 });
                 p.usb.push(usb.clone());
                 p.connected |= connected;
@@ -161,6 +167,7 @@ mod tests {
                 product: 0x0861,
                 connected: true,
             }]),
+            0,
         );
         m.apply(
             ULTRA,
@@ -168,6 +175,7 @@ mod tests {
                 product: 0xD056,
                 connected: true,
             }]),
+            0,
         );
         m
     }
@@ -200,8 +208,9 @@ mod tests {
                 charging: Charging::Charging,
                 connected: true,
             }),
+            10,
         );
-        m.apply(LINK, Report::Layer(2));
+        m.apply(LINK, Report::Layer(2), 11);
         m.apply(
             ULTRA,
             Report::Mouse(MouseStatus {
@@ -211,6 +220,7 @@ mod tests {
                 stage: 1,
                 rate: 2,
             }),
+            12,
         );
         m.apply(
             ULTRA,
@@ -219,6 +229,7 @@ mod tests {
                 stage: Some(0),
                 rate: None,
             },
+            13,
         );
         let list = m.peripherals();
         assert_eq!(
@@ -230,13 +241,14 @@ mod tests {
             (Some(16), Some(0), Some(1000))
         );
         assert_eq!(list[1].dpi, vec![400, 800]);
+        assert_eq!((list[0].seen, list[1].seen), (Some(11), Some(13)));
     }
 
     #[test]
     fn a_keyboard_on_its_cable_and_its_receiver_is_one() {
         let mut m = model();
         m.devices.insert(CABLE.into(), (0x0861, vec![]));
-        m.apply(CABLE, Report::Layer(0));
+        m.apply(CABLE, Report::Layer(0), 20);
         let list = m.peripherals();
         assert_eq!(list.len(), 2);
         assert_eq!(list[0].usb, vec![LINK.to_owned(), CABLE.to_owned()]);

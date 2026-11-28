@@ -57,7 +57,12 @@ impl State {
     }
 
     pub fn keychron_changed(&mut self, snapshot: Snapshot<Vec<isle_keychron::Peripheral>>) {
-        self.isle.services.keychron = snapshot;
+        let before = std::mem::replace(&mut self.isle.services.keychron, snapshot).state;
+        for (was, now) in self.isle.services.keychron.state.clone().iter().filter_map(|now| {
+            Some((before.iter().find(|p| p.product == now.product)?, now))
+        }) {
+            self.isle.mouse_osd(was, now);
+        }
         self.isle.services.compose_power();
         self.keychron_devices();
         self.isle.services_changed();
@@ -97,6 +102,21 @@ impl crate::services::Services {
 }
 
 impl Isle {
+    /// An OSD for a mouse's DPI or report rate changed on the mouse, not for a first reading.
+    fn mouse_osd(&mut self, was: &isle_keychron::Peripheral, now: &isle_keychron::Peripheral) {
+        if let (Some(before), Some(stage)) = (was.stage, now.stage)
+            && before != stage
+            && let Some(dpi) = now.dpi.get(stage as usize)
+        {
+            let steps = now.dpi.len() as u8;
+            self.osd_steps("mouse", &now.name, format!("{dpi} DPI"), steps, stage);
+        } else if let (Some(before), Some(hz)) = (was.rate_hz, now.rate_hz)
+            && before != hz
+        {
+            self.osd_steps("mouse", &now.name, format!("Report rate {hz} Hz"), 0, 0);
+        }
+    }
+
     /// Isle's own hold on the performance profile, while Game Mode keeps it.
     pub fn profile_held(&self) -> bool {
         let p = &self.services.profiles.state;
@@ -290,6 +310,7 @@ mod tests {
             dpi: vec![],
             stage: None,
             rate_hz: None,
+            seen: None,
         }
     }
 

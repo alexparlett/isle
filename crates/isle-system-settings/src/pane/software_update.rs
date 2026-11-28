@@ -10,16 +10,6 @@ use crate::{
     ui::{self, Rows},
 };
 
-/// A time today as hours and minutes, local.
-fn clock(secs: u64) -> String {
-    let t = secs as libc::time_t;
-    let mut tm: libc::tm = unsafe { std::mem::zeroed() };
-    if unsafe { libc::localtime_r(&t, &mut tm) }.is_null() {
-        return String::new();
-    }
-    format!("{:02}:{:02}", tm.tm_hour, tm.tm_min)
-}
-
 fn plural(n: usize, one: &str, many: &str) -> String {
     if n == 1 {
         format!("1 {one}")
@@ -86,7 +76,7 @@ impl Card {
             .filter_map(|l| l.as_str().map(str::to_owned))
             .collect();
         let tail = lines[lines.len().saturating_sub(8)..].to_vec();
-        let at = |key: &str| run[key].as_u64().map(clock).unwrap_or_default();
+        let at = |key: &str| run[key].as_u64().map(ui::clock).unwrap_or_default();
         let base = Card {
             glyph: "arrow-circle-up",
             tone: Tone::Plain,
@@ -314,7 +304,7 @@ pub fn cards(s: &Value) -> Vec<Card> {
 
 fn checked(s: &Value) -> String {
     match s["checked_at"].as_u64() {
-        Some(at) => format!("Checked {}", clock(at)),
+        Some(at) => format!("Checked {}", ui::clock(at)),
         None => "Not checked yet".into(),
     }
 }

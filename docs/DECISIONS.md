@@ -1708,3 +1708,16 @@ is not listed as a keyboard, nor a keyboard receiver's pointer node as a
 mouse; and Keyboard lists a name once however many nodes carry it. Evidence: `keychron-2026.md`. Rejected: the
 out-of-tree `keychron-battery` kernel module (mouse only, and a module to
 keep building for each kernel), and leaving it to Keychron's web Launcher.
+
+**B153 · A mouse's own settings are shown, not set.** Chosen 2026-11-28 at
+the Keychron devices gate (`docs/work/rust-desktop/keychron/devices-1.html`).
+Settings › Mouse shows a Keychron mouse's battery beside its name and, under
+Isle's pointer settings, its DPI as the stage table with the stage in use
+marked and its report rate in Hz, each saying it is changed on the mouse;
+asleep or away, the last values stay dimmed with when they were read. A
+press of the mouse's DPI or rate button raises an OSD: the DPI with a pip per
+stage, the rate as a line. Keyboard names a keyboard's battery and says when
+Automatic follows its Mac/Windows switch. Rejected: setting DPI and rate
+from Isle (the receivers' set commands are not decoded, and the mouse keeps
+its own), and a Control Centre module for them (Batteries already carries
+the battery, and the rest is set up once, not glanced at).

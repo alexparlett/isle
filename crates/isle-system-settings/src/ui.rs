@@ -955,6 +955,29 @@ pub fn foot(buttons: Vec<(String, EventHandler<()>)>) -> Element {
 }
 
 /// A pane's state while what it shows is missing: "No Wi-Fi device is connected."
+/// A time today as hours and minutes, local.
+pub fn clock(secs: u64) -> String {
+    let t = secs as libc::time_t;
+    let mut tm: libc::tm = unsafe { std::mem::zeroed() };
+    if unsafe { libc::localtime_r(&t, &mut tm) }.is_null() {
+        return String::new();
+    }
+    format!("{:02}:{:02}", tm.tm_hour, tm.tm_min)
+}
+
+/// A battery's glyph and its level as Batteries words it: "30%, charging".
+pub fn battery(level: u8, charging: bool) -> (&'static str, String) {
+    let glyph = match (charging, level) {
+        (true, _) => "battery-charging",
+        (_, 0..=20) => "battery-warning",
+        (_, 21..=40) => "battery-low",
+        (_, 41..=65) => "battery-medium",
+        (_, 66..=90) => "battery-high",
+        _ => "battery-full",
+    };
+    (glyph, format!("{level}%{}", if charging { ", charging" } else { "" }))
+}
+
 pub fn missing(message: &str) -> Element {
     let theme = isle_ui::theme();
     let t = &theme.tokens;

@@ -872,3 +872,119 @@ fn energy_says_nothing_holds_when_nothing_does() {
     assert!(shows(&test, "Nothing"));
 }
 
+
+fn keychron_mouse(connected: bool) -> isle_keychron::Peripheral {
+    isle_keychron::Peripheral {
+        product: 0xD056,
+        kind: isle_keychron::protocol::Kind::Mouse,
+        name: "Keychron M7 8K".into(),
+        usb: vec![],
+        connected,
+        battery: Some(30),
+        charging: true,
+        mac: None,
+        dpi: vec![400, 800, 1600, 3200, 5000],
+        stage: Some(2),
+        rate_hz: Some(1000),
+        seen: Some(1_795_000_000),
+    }
+}
+
+fn keychron_keyboard(mac: bool) -> isle_keychron::Peripheral {
+    isle_keychron::Peripheral {
+        product: 0x0861,
+        kind: isle_keychron::protocol::Kind::Keyboard,
+        name: "Keychron Q6 Max".into(),
+        usb: vec![],
+        connected: true,
+        battery: Some(88),
+        charging: true,
+        mac: Some(mac),
+        dpi: vec![],
+        stage: None,
+        rate_hz: None,
+        seen: Some(1_795_000_000),
+    }
+}
+
+fn mouse_pane(connected: bool) -> TestingRunner {
+    open("isle-settings://mouse", move |_, services| {
+        let (mut pointers, mut keychron) = (services.pointers, services.keychron);
+        pointers.set(Snapshot {
+            available: true,
+            state: vec!["Keychron M7 8K".into(), "Valve Software Steam Controller Puck".into()],
+        });
+        keychron.set(Snapshot {
+            available: true,
+            state: vec![keychron_mouse(connected)],
+        });
+    })
+    .0
+}
+
+#[test]
+fn a_keychron_mouse_shows_its_battery_dpi_and_report_rate() {
+    let test = mouse_pane(true);
+    for text in ["Keychron M7 8K", "30%, charging", "DPI", "1600", "5000", "1000 Hz"] {
+        assert!(shows(&test, text), "{text}: {:?}", labels(&test));
+    }
+    // The other device has no battery or sensor of its own to show.
+    assert!(shows(&test, "Valve Software Steam Controller Puck"));
+    assert_eq!(labels(&test).iter().filter(|l| *l == "DPI").count(), 1);
+}
+
+#[test]
+fn an_asleep_mouse_shows_what_it_last_said() {
+    let test = mouse_pane(false);
+    assert!(shows(&test, "Not connected"), "{:?}", labels(&test));
+    assert!(shows(&test, "1000 Hz"));
+    let said = format!(
+        "As the mouse last reported, at {}. It is asleep or out of range.",
+        crate::ui::clock(1_795_000_000)
+    );
+    assert!(shows(&test, &said), "{:?}", labels(&test));
+}
+
+fn keyboard_info(name: &str) -> isle_ipc::KeyboardInfo {
+    isle_ipc::KeyboardInfo {
+        id: "event9".into(),
+        name: name.into(),
+        profile: "mac".into(),
+        guessed: true,
+        swap: false,
+        layouts: "gb(mac)".into(),
+        model: "pc105".into(),
+        remapper: false,
+        active: true,
+    }
+}
+
+#[test]
+fn a_keychron_keyboard_says_its_switch_and_battery() {
+    let setup = |mac: bool| {
+        move |_: Desktop, services: Services| {
+            let (mut keyboards, mut keychron) = (services.keyboards, services.keychron);
+            keyboards.set(Snapshot {
+                available: true,
+                state: vec![keyboard_info("Keychron Q6 Max"), keyboard_info("AT Translated Set 2 keyboard")],
+            });
+            keychron.set(Snapshot {
+                available: true,
+                state: vec![keychron_keyboard(mac)],
+            });
+        }
+    };
+    let (test, _) = open("isle-settings://keyboard", setup(true));
+    assert!(shows(&test, "Mac (from its switch)"), "{:?}", labels(&test));
+    assert!(shows(&test, "Mac (automatic)"));
+    assert!(shows(&test, "88%, charging"));
+
+    let (mut test, _) = open("isle-settings://keyboard", setup(false));
+    click(&mut test, "Keychron Q6 Max");
+    assert!(
+        shows(&test, "Automatic follows the Mac/Windows switch on the keyboard: Windows now."),
+        "{:?}",
+        labels(&test)
+    );
+    assert!(shows(&test, "Battery"));
+}

@@ -1641,6 +1641,27 @@ impl Test {
             .await?)
     }
 
+    /// Adds a pointing device by the name its settings are kept under, as if plugged in.
+    async fn add_pointer(&self, name: String) -> fdo::Result<()> {
+        Ok(self
+            .to_loop
+            .call(move |state| {
+                state.isle.test_pointers.push(name);
+                state.isle.notify(crate::worker::Event::KeyboardsChanged);
+            })
+            .await?)
+    }
+
+    /// Stands in for the Keychron receivers: the peripherals as JSON, as they would report.
+    async fn keychron(&self, peripherals: String) -> fdo::Result<()> {
+        let state: Vec<isle_keychron::Peripheral> =
+            serde_json::from_str(&peripherals).map_err(|e| fdo::Error::InvalidArgs(e.to_string()))?;
+        Ok(self
+            .to_loop
+            .call(move |s| s.keychron_changed(isle_bus::Snapshot { available: true, state }))
+            .await?)
+    }
+
     /// Adds a keyboard by name, as if plugged in; its id for `key_on`.
     async fn add_keyboard(&self, name: String) -> fdo::Result<String> {
         Ok(self

@@ -61,12 +61,26 @@ pub struct RevealFound(pub ScrollController);
 
 /// A group of rows on a raised card, hairlines between them, with an optional title above.
 pub fn group(title: Option<String>, rows: Vec<Element>) -> impl IntoElement {
-    GroupCard { title, rows }
+    GroupCard {
+        title,
+        trailing: None,
+        rows,
+    }
+}
+
+/// A group whose title has something at its trailing edge: a device's battery.
+pub fn group_with(title: String, trailing: Element, rows: Vec<Element>) -> impl IntoElement {
+    GroupCard {
+        title: Some(title),
+        trailing: Some(trailing),
+        rows,
+    }
 }
 
 #[derive(Clone)]
 struct GroupCard {
     title: Option<String>,
+    trailing: Option<Element>,
     rows: Vec<Element>,
 }
 
@@ -105,8 +119,17 @@ impl Component for GroupCard {
             .map(self.title.clone(), |el, title| {
                 el.child(
                     rect()
+                        .width(Size::fill())
                         .padding((0., t.space_m))
-                        .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), title)),
+                        .horizontal()
+                        .content(Content::flex())
+                        .cross_align(Alignment::Center)
+                        .child(
+                            rect()
+                                .width(Size::flex(1.))
+                                .child(text::line(&theme, text::Style::Headline, colour(t.colour_text), title)),
+                        )
+                        .maybe_child(self.trailing.clone()),
                 )
             })
             .child(
@@ -257,12 +280,14 @@ impl Component for Row {
                 )
             });
         let trailing = match (&self.trailing, navigates.is_some()) {
-            (Some(control), _) => Some(control.clone()),
-            (None, true) => Some(
+            (Some(control), false) => Some(control.clone()),
+            // A navigation row's control is a status before its value: a device's battery.
+            (status, true) => Some(
                 rect()
                     .horizontal()
                     .cross_align(Alignment::Center)
                     .spacing(t.space_s)
+                    .maybe_child(status.clone())
                     .map(self.value.clone(), |el, v| {
                         el.child(text::line(&theme, text::Style::Body, colour(t.colour_text_2), v))
                     })
@@ -365,6 +390,7 @@ pub struct Segmented {
     selected: usize,
     alt: String,
     enabled: bool,
+    read_only: bool,
     on_select: EventHandler<usize>,
 }
 
@@ -380,12 +406,19 @@ impl Segmented {
             selected,
             alt: alt.into(),
             enabled: true,
+            read_only: false,
             on_select: on_select.into(),
         }
     }
 
     pub fn enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
+        self
+    }
+
+    /// Shows a choice made elsewhere, on a device, at full strength but not to be changed.
+    pub fn read_only(mut self) -> Self {
+        self.read_only = true;
         self
     }
 }
@@ -396,7 +429,8 @@ impl Component for Segmented {
         let t = &theme.tokens;
         let a11y = use_a11y();
         let focus = use_focus(a11y);
-        let (selected, count, enabled) = (self.selected, self.options.len(), self.enabled);
+        let (selected, count, shown) = (self.selected, self.options.len(), self.enabled);
+        let enabled = shown && !self.read_only;
         let keys = self.on_select.clone();
         rect()
             .a11y_id(a11y)
@@ -444,7 +478,7 @@ impl Component for Segmented {
                     .child(text::line(
                         &theme,
                         text::Style::Body,
-                        colour(if enabled { t.colour_text } else { t.colour_text_disabled }),
+                        colour(if shown { t.colour_text } else { t.colour_text_disabled }),
                         option.clone(),
                     ))
                     .into_element()

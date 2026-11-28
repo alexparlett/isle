@@ -33,7 +33,7 @@ impl Channel {
 }
 
 /// Keyboard or mouse, from a Keychron product id: their mice are `0xDxxx`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Kind {
     Keyboard,
@@ -134,8 +134,7 @@ pub struct MouseStatus {
     pub rate: u8,
 }
 
-/// Report rates by the index the 8K receiver reports; index 2 measured 1000 Hz on the M7 8K, the
-/// rest follow its six steps.
+/// Report rates by the index the 8K receiver reports (`keychron-2026.md` §4).
 pub fn rate_hz(index: u8) -> Option<u32> {
     [125, 500, 1000, 2000, 4000, 8000]
         .get(index as usize)

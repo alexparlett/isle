@@ -1355,6 +1355,9 @@ impl State {
     /// devices and touchpads are left out (`p13/rows.md`, Mouse).
     pub fn pointer_names(&self) -> Vec<String> {
         let Backend::Udev(udev) = &self.backend else {
+            #[cfg(feature = "test-hooks")]
+            return self.isle.test_pointers.clone();
+            #[cfg(not(feature = "test-hooks"))]
             return Vec::new();
         };
         // The device's own context is libinput's, made from the session's udev.

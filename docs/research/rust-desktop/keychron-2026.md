@@ -56,9 +56,10 @@ polling `b3 06` and reading the pushes:
 | push `[6]`, `[7]`, `[8]` | DPI stage, report-rate index, stage count |
 
 The button cycles the rate index through 0–5 and every press pushes a `b6 e2`, so changes arrive
-without polling. Index 2 measured 1001 reports a second on the mouse's hidraw node, so 1000 Hz; the
-six steps fit 125, 500, 1000, 2000, 4000, 8000 Hz, but only index 2 was measured. Keychron's manual
-lists 125/500/1000 Hz for the M7; the 8K receiver adds the higher three.
+without polling. Peak reports a second on the mouse's hidraw node while moving it fast, per index:
+0 → 126, 1 → 501, 2 → 1003, 3 → 1999, 4 → 2809, 5 → 3573. So 0–3 are 125, 500, 1000 and 2000 Hz;
+4 and 5 rise past 2000 but a hand and a Python reader cannot fill 4000 and 8000 a second, and they are
+taken as those. Keychron's manual lists 125/500/1000 Hz for the M7; the 8K receiver adds the rest.
 
 **Keyboard, through the Link: not available with stock firmware.** On power cycling the Q6 Max (twice) the Link
 pushed `54 e2 01 0{1,2} 00 00 00 00 …` on the `0x8C` node: the shape of the battery event a Link sends

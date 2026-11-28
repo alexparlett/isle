@@ -45,6 +45,7 @@ pub enum Follow {
     Audio,
     Profiles,
     Power,
+    Keychron,
     Tray,
     Displays,
     Keyboards,
@@ -178,6 +179,7 @@ pub struct Services {
     pub audio: State<Snapshot<isle_audio::Audio>>,
     pub profiles: State<Snapshot<isle_power::Profiles>>,
     pub power: State<Snapshot<isle_power::Power>>,
+    pub keychron: State<Snapshot<Vec<isle_keychron::Peripheral>>>,
     /// The tray's items now, by id and title.
     pub tray: State<Snapshot<Vec<(String, String)>>>,
     pub displays: State<Snapshot<Vec<DisplayInfo>>>,
@@ -225,6 +227,7 @@ impl Services {
             audio: State::create(Snapshot::default()),
             profiles: State::create(Snapshot::default()),
             power: State::create(Snapshot::default()),
+            keychron: State::create(Snapshot::default()),
             tray: State::create(Snapshot::default()),
             displays: State::create(Snapshot::default()),
             keyboards: State::create(Snapshot::default()),
@@ -275,6 +278,9 @@ impl Services {
             Follow::Audio => system(&worker, self.audio, isle_audio::watch),
             Follow::Profiles => system(&worker, self.profiles, isle_power::watch_profiles),
             Follow::Power => system(&worker, self.power, isle_power::watch_batteries),
+            // The headless tests' machine has its own receivers plugged in.
+            Follow::Keychron if std::env::var("ISLE_NO_HIDRAW").as_deref() == Ok("1") => {}
+            Follow::Keychron => system(&worker, self.keychron, isle_keychron::watch),
             Follow::Tray => session(&worker, bus, self.tray, tray),
             Follow::Displays => session(&worker, bus, self.displays, displays),
             Follow::Keyboards => session(&worker, bus, self.keyboards, keyboards),

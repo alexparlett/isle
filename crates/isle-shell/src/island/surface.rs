@@ -184,7 +184,7 @@ fn event_size(event: &IslandEvent, theme: &Theme, pill: f32) -> (f32, f32) {
                 .ceil(),
             pill,
         ),
-        Form::Level { .. } => (t.size_island_osd, t.size_island_event),
+        Form::Level { .. } | Form::Steps { .. } => (t.size_island_osd, t.size_island_event),
         Form::StartRow(_) => (t.size_panel, 56.0 + 2.0 * t.space_s),
     }
 }
@@ -764,6 +764,68 @@ fn event_content(
                     }),
             )
             .into_element(),
+        Form::Steps {
+            symbol,
+            name,
+            value,
+            steps,
+            step,
+        } => {
+            let label = |style, ink, s: &str| text::line(theme, style, ink, s.to_owned());
+            let detail = if *steps == 0 {
+                rect()
+                    .width(Size::fill())
+                    .spacing(t.space_xs)
+                    .child(label(text::Style::Subheadline, colour(t.colour_text_2), name))
+                    .child(label(text::Style::Headline, ink, value))
+            } else {
+                let pips = (0..*steps).map(|i| {
+                    rect()
+                        .width(Size::flex(1.))
+                        .height(Size::px(6.))
+                        .corner_radius(3.)
+                        .background(if i <= *step { ink } else { colour(t.colour_fill_strong) })
+                        .into_element()
+                });
+                rect()
+                    .width(Size::fill())
+                    .spacing(t.space_xs)
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .horizontal()
+                            .content(Content::flex())
+                            .child(
+                                rect()
+                                    .width(Size::flex(1.))
+                                    .child(label(text::Style::Subheadline, colour(t.colour_text_2), name)),
+                            )
+                            .child(
+                                label(text::Style::Subheadline, ink, value)
+                                    .font_weight(t.type_weight_semibold as i32),
+                            ),
+                    )
+                    .child(
+                        rect()
+                            .width(Size::fill())
+                            .horizontal()
+                            .content(Content::flex())
+                            .spacing(4.)
+                            .children(pips),
+                    )
+            };
+            rect()
+                .width(Size::fill())
+                .height(Size::fill())
+                .padding((t.space_m, t.space_l))
+                .horizontal()
+                .cross_align(Alignment::Center)
+                .spacing(t.space_m)
+                .a11y_alt(format!("{name} {value}"))
+                .child(Glyph::new(symbol.clone(), t.size_glyph_large, ink).fill(true))
+                .child(detail)
+                .into_element()
+        }
         Form::StartRow(activity) => rect()
             .width(Size::fill())
             .height(Size::fill())

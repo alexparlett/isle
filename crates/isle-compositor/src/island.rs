@@ -865,6 +865,7 @@ impl Isle {
                         match &e.form {
                             Form::Line { text, .. } => text.clone(),
                             Form::Level { name, .. } => name.clone(),
+                            Form::Steps { name, value, .. } => format!("{name} {value}"),
                             Form::StartRow(a) => a.title.clone(),
                         },
                         Vec::new(),

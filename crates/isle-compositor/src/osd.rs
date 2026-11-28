@@ -43,6 +43,20 @@ impl Isle {
         );
     }
 
+    /// A device's setting among its steps: a mouse's DPI stage; no steps for a value alone.
+    pub fn osd_steps(&mut self, symbol: &str, name: &str, value: String, steps: u8, step: u8) {
+        self.post_osd(
+            Form::Steps {
+                symbol: symbol.into(),
+                name: name.into(),
+                value,
+                steps,
+                step,
+            },
+            None,
+        );
+    }
+
     fn post_osd(&mut self, form: Form, output: Option<String>) {
         self.island.model.post(
             Event {

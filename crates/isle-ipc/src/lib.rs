@@ -701,6 +701,10 @@ pub mod test {
         fn stall(&self, millis: u32) -> zbus::Result<()>;
         /// A key by its evdev code, from a test keyboard with the Mac profile.
         fn key(&self, code: u32, pressed: bool) -> zbus::Result<()>;
+        /// Adds a pointing device by the name its settings are kept under, as if plugged in.
+        fn add_pointer(&self, name: &str) -> zbus::Result<()>;
+        /// Stands in for the Keychron receivers: the peripherals as JSON, as they would report.
+        fn keychron(&self, peripherals: &str) -> zbus::Result<()>;
         /// Adds a keyboard by name, as if plugged in; its id for `key_on`.
         fn add_keyboard(&self, name: &str) -> zbus::Result<String>;
         fn remove_keyboard(&self, id: &str) -> zbus::Result<()>;

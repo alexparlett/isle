@@ -232,6 +232,15 @@ pub enum Form {
         level: f32,
         muted: bool,
     },
+    /// A device's setting among its steps, a mouse's DPI: the device, the value, and which
+    /// step of `steps` it is; with no steps, the value alone under the device.
+    Steps {
+        symbol: String,
+        name: String,
+        value: String,
+        steps: u8,
+        step: u8,
+    },
     /// An activity's row, briefly, as it starts.
     StartRow(Activity),
 }

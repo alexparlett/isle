@@ -1,6 +1,7 @@
 //! Keyboard: key repeat, each keyboard's kind, input sources, Caps Lock and the shortcuts.
 
 use freya::prelude::*;
+use isle_keychron::{Peripheral, protocol::Kind};
 use isle_settings::Value;
 use isle_ui::{CheckRow, Glyph, colour, form, text, use_theme};
 
@@ -218,7 +219,7 @@ pub struct Keyboard {
 
 impl Component for Keyboard {
     fn render(&self) -> impl IntoElement {
-        let services = use_follow(&[Follow::Keyboards]);
+        let services = use_follow(&[Follow::Keyboards, Follow::Keychron]);
         if let Some(name) = self
             .at
             .sub
@@ -239,6 +240,7 @@ impl Component for Keyboard {
         let mut detecting = use_state(|| false);
         let at = self.at.clone();
 
+        let keychron = services.keychron.read().state.clone();
         let keyboards: Vec<Element> = services
             .keyboards
             .read()
@@ -246,19 +248,24 @@ impl Component for Keyboard {
             .iter()
             .filter(|k| !k.remapper)
             .map(|k| {
+                let made = keychron_keyboard(&keychron, &k.name);
                 let mut value = if k.profile == "mac" { "Mac" } else { "PC" }.to_owned();
-                if k.guessed {
+                if k.guessed && made.is_some_and(|p| p.mac.is_some()) {
+                    value.push_str(" (from its switch)");
+                } else if k.guessed {
                     value.push_str(" (automatic)");
                 }
                 let at = at.clone();
                 let sub = format!("device/{}", k.name);
-                r.row(&k.name, k.name.clone(), None)
-                    .leading(Glyph::new(
-                        "keyboard",
-                        20.,
-                        colour(isle_ui::theme().tokens.colour_text_2),
-                    ))
-                    .opens(Some(value), move |_| super::open(nav, &at, &sub))
+                let mut row = r.row(&k.name, k.name.clone(), None).leading(Glyph::new(
+                    "keyboard",
+                    20.,
+                    colour(isle_ui::theme().tokens.colour_text_2),
+                ));
+                if let Some(status) = made.and_then(battery_status) {
+                    row = row.control(status);
+                }
+                row.opens(Some(value), move |_| super::open(nav, &at, &sub))
                     .into_element()
             })
             .collect();
@@ -402,6 +409,8 @@ impl Component for Device {
                 .any(|k| k.name == name && k.profile == "mac"),
         };
         let model = r.str(&field("model")).unwrap_or_else(|| "auto".into());
+        let keychron = services.keychron.read().state.clone();
+        let made = keychron_keyboard(&keychron, &name);
         const PROFILES: [&str; 3] = ["auto", "mac", "pc"];
         const MODELS: [&str; 3] = ["auto", "iso", "ansi"];
         let (pkey, mkey) = (field("profile"), field("model"));
@@ -416,7 +425,7 @@ impl Component for Device {
             .child(form::group(
                 None,
                 vec![
-                    r.row("kind", "Kind", Some(&pkey))
+                    kind_row(&r, &pkey, made)
                         .control(form::Segmented::new(
                             vec!["Automatic".into(), "Mac".into(), "PC".into()],
                             PROFILES.iter().position(|p| *p == profile).unwrap_or(0),
@@ -446,8 +455,45 @@ impl Component for Device {
                         .into_element(),
                 ],
             ))
+            .maybe_child(made.and_then(|p| {
+                let status = battery_status(p)?;
+                Some(form::group(None, vec![r.row("battery", "Battery", None).control(status).into_element()]))
+            }))
             .into_element()
     }
+}
+
+/// Kind's row, saying what Automatic follows on a keyboard with a Mac/Windows switch.
+fn kind_row(r: &Rows, key: &str, made: Option<&Peripheral>) -> form::Row {
+    let row = r.row("kind", "Kind", Some(key));
+    match made.and_then(|p| p.mac) {
+        Some(mac) => row.description(format!(
+            "Automatic follows the Mac/Windows switch on the keyboard: {} now.",
+            if mac { "Mac" } else { "Windows" }
+        )),
+        None => row,
+    }
+}
+
+/// The Keychron keyboard a row is for, by the name its nodes take from it.
+fn keychron_keyboard<'a>(list: &'a [Peripheral], name: &str) -> Option<&'a Peripheral> {
+    list.iter().find(|p| p.kind == Kind::Keyboard && p.name == name)
+}
+
+/// A keyboard's battery as Batteries words it, while it is connected and has said.
+fn battery_status(keyboard: &Peripheral) -> Option<Element> {
+    let theme = isle_ui::theme();
+    let t = &theme.tokens;
+    let (glyph, words) = ui::battery(keyboard.battery.filter(|_| keyboard.connected)?, keyboard.charging);
+    Some(
+        rect()
+            .horizontal()
+            .cross_align(Alignment::Center)
+            .spacing(t.space_xs)
+            .child(Glyph::new(glyph, 16., colour(t.colour_text_2)))
+            .child(text::line(&theme, text::Style::Callout, colour(t.colour_text_2), words))
+            .into_element(),
+    )
 }
 
 #[derive(PartialEq)]

@@ -24,6 +24,7 @@ isle-games.workspace = true
 isle-ipc.workspace = true
 isle-keys.workspace = true
 isle-network.workspace = true
+isle-keychron.workspace = true
 isle-power.workspace = true
 isle-search.workspace = true
 isle-tokens.workspace = true

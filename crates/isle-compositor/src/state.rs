@@ -96,6 +96,9 @@ pub struct Isle {
     pub held_chord: Option<(&'static str, isle_keys::chord::Mods)>,
     #[cfg(feature = "test-hooks")]
     pub held_releases: u32,
+    /// Pointing devices a test plugged in, by name, where no backend has any.
+    #[cfg(feature = "test-hooks")]
+    pub test_pointers: Vec<String>,
 
     /// The windows shown now; `wm` keeps every window.
     pub space: Space<Window>,
@@ -577,6 +580,8 @@ impl Isle {
             held_chord: None,
             #[cfg(feature = "test-hooks")]
             held_releases: 0,
+            #[cfg(feature = "test-hooks")]
+            test_pointers: Vec::new(),
             space: Space::default(),
             wm: Default::default(),
             xwm: None,

@@ -112,7 +112,10 @@ pub fn run(publisher: &Publisher<Vec<Peripheral>>) -> Result<(), isle_bus::Error
                         };
                         debug!(node = nodes[i].sysname, ?report, "keychron report");
                         let follow_up = matches!(&report, Report::Slots(s) if s.iter().any(|s| s.connected && Kind::of(s.product) == Kind::Keyboard));
-                        model.apply(&nodes[i].usb.clone(), report);
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map_or(0, |d| d.as_secs());
+                        model.apply(&nodes[i].usb.clone(), report, now);
                         // A receiver with a keyboard connected: ask the keyboard through it.
                         if follow_up && nodes[i].channel == Channel::Raw {
                             let _ = ask_keyboard(&mut nodes[i]);

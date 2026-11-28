@@ -1,0 +1,159 @@
+<title>Keychron devices</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&family=Inter:opsz,wght@14..32,400..700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="p1/harness/harness.css">
+<link rel="stylesheet" href="p1/system/components.css">
+<style>
+  .hb-qs { max-width: 90ch; }
+  .hb-qs h2 { font-size: 15px; margin: 16px 0 6px; }
+  .hb-qs p, .hb-qs li { color: var(--hb-fg-2); line-height: 1.5; }
+  .hb-qs b { color: var(--hb-fg); }
+  .hb-qs ol { padding-left: 20px; margin: 0; }
+  .hb-qs li + li { margin-top: 6px; }
+</style>
+<script src="p1/system/phosphor.js"></script>
+<script src="p1/harness/harness.js"></script>
+<script src="p1/surfaces/scene.js"></script>
+<script>
+(function () {
+  // Keychron devices: the M7 8K's DPI and report rate in Settings › Mouse and as OSDs, and the Q6 Max's switch in Keyboard.
+  const S = Scene, { h } = Isle, { el, sp, row, col, ic, grow } = S;
+  const px = (n) => n + "px";
+  const DPI = [400, 800, 1600, 3200, 5000];
+
+  // ---- Settings ---------------------------------------------------------------------
+  const PANES = [["wifi-high", "blue", "Wi-Fi"], ["bluetooth", "blue", "Bluetooth"], null, ["gear", "grey", "General"], ["circle-half", "graphite", "Appearance"], ["monitor", "blue", "Displays"], ["battery-high", "green", "Energy"], null, ["keyboard", "grey", "Keyboard"], ["mouse", "grey", "Mouse"], ["game-controller", "grey", "Game Controllers"]];
+  const WX = 1000, WY = 140, WW = 1300, WH = 1060;
+  function settings(s, st, pane, title, body) {
+    const side = el("", { position: "absolute", left: 0, top: 0, bottom: 0, width: "var(--size-sidebar)", background: "var(--colour-sidebar)", borderRight: "1px solid var(--colour-hairline)", boxSizing: "border-box" },
+      el("", { height: "var(--size-toolbar)", display: "flex", alignItems: "center", padding: "0 var(--space-l)" }, S.lights()),
+      el("s-field search", { margin: "0 var(--space-s) var(--space-s)" }, ic("magnifying-glass", 14), sp("ph", "Search")),
+      el("", { padding: "0 var(--space-s)", display: "flex", flexDirection: "column", gap: "2px" },
+        ...PANES.map((p) => p ? el("s-side-item" + (p[2] === pane ? " sel focused" : ""), {}, h("span", { class: "s-pane-ic", style: { background: "var(--pane-" + p[1] + ")" } }, ic(p[0], 13)), sp("", p[2])) : el("", { height: "var(--space-s)" }))));
+    const main = el("", { marginLeft: "var(--size-sidebar)" },
+      el("s-toolbar", { gap: "var(--space-s)", padding: "0 var(--space-l)" }, ic("caret-left", 20), ic("caret-right", 20, false, { color: "var(--colour-text-3)" }), sp("s-headline", title)),
+      col({ width: "640px", margin: "var(--space-xl) auto var(--space-xxl)", gap: "var(--space-l)" }, ...body));
+    const win = el("s s-window", { left: px(WX), top: px(WY), width: px(WW), minHeight: px(WH), overflow: "hidden" }, side, main);
+    s.append(win);
+    st.crop = [WX - 60, WY - 40, WW + 120, Math.max(WH, win.offsetHeight) + 80];
+  }
+  const header = (glyph, name, sub) => row({ gap: "var(--space-m)" }, ic(glyph, 32, false, { color: "var(--colour-text-2)" }),
+    col({ gap: "2px", flex: 1 }, sp("s-title-2", name), sp("s-callout s-2", sub)));
+  const label = (t, d) => col({ gap: "2px", flex: 1 }, sp("", t), d ? sp("s-callout s-2", d) : null);
+  const r = (...kids) => el("r", { minHeight: "var(--size-row-large)", paddingTop: "var(--space-xs)", paddingBottom: "var(--space-xs)" }, ...kids);
+  const group = (...rows) => el("s-group", {}, ...rows);
+  const groupTitle = (t, right) => row({ alignItems: "baseline", padding: "0 var(--space-xs)", marginBottom: "calc(-1 * var(--space-s))" }, sp("s-headline", t, { flex: 1 }), right);
+  const slider = (pct) => el("", { width: "220px" }, el("s-slider", { minWidth: "0" }, h("b", { style: { width: pct + "%" } }), h("i", { style: { left: pct + "%" } })));
+  const seg = (items, on, dim) => el("s-seg", dim ? { opacity: 0.55 } : {}, ...items.map((t, i) => sp(i === on ? "on" : "", t)));
+  const battery = (level, charging, gone) => row({ gap: "var(--space-xs)" },
+    ic(charging ? "battery-charging" : level > 65 ? "battery-high" : level > 40 ? "battery-medium" : "battery-low", 16, false, { color: gone ? "var(--colour-text-3)" : "var(--colour-text-2)" }),
+    sp("s-callout s-2 s-num", gone ? "Not connected" : level + "%" + (charging ? ", charging" : "")));
+
+  function pointerRows(speed) {
+    return [
+      r(sp("", "Tracking speed", { flex: 1 }), sp("s-callout s-2", "Slow"), slider(speed), sp("s-callout s-2", "Fast")),
+      r(sp("", "Pointer acceleration", { flex: 1 }), h("span", { class: "s-switch" })),
+      r(label("Natural scrolling", "Content moves with your fingers."), h("span", { class: "s-switch on" })),
+      r(sp("", "Primary mouse button", { flex: 1 }), seg(["Left", "Right"], 0)),
+    ];
+  }
+  // The mouse's own settings, read from it: shown, not set here.
+  function sensor(o) {
+    o = o || {};
+    const dim = !!o.gone;
+    const dpi = o.text
+      ? sp("s-num", DPI[o.stage] + " DPI", dim ? { color: "var(--colour-text-3)" } : {})
+      : seg(DPI.map(String), o.stage, dim);
+    return group(
+      r(label("DPI", o.text ? "Stages 400, 800, 1600, 3200 and 5000. Change it with the DPI button on the mouse." : "Change it with the DPI button on the mouse."), dpi),
+      r(label("Report rate", "How often the mouse reports its movement."), sp("s-num", o.rate || "1000 Hz", dim ? { color: "var(--colour-text-3)" } : { color: "var(--colour-text-2)" })),
+      o.gone ? r(sp("s-callout s-2", "As the mouse last reported, at 12:40. It is asleep or out of range.", { flex: 1 })) : null);
+  }
+  function mouse(s, st, o) {
+    o = o || {};
+    settings(s, st, "Mouse", "Mouse", [
+      header("mouse", "Mouse", "Set pointer speed, scrolling and the primary button."),
+      groupTitle("Keychron M7 8K", battery(30, true, o.gone)),
+      group(...pointerRows(62)),
+      sensor(o),
+      groupTitle("Valve Software Steam Controller Puck", null),
+      group(...pointerRows(50)),
+    ]);
+  }
+  function keyboardList(s, st) {
+    settings(s, st, "Keyboard", "Keyboard", [
+      header("keyboard", "Keyboard", "Layouts, modifier keys and shortcuts."),
+      groupTitle("Keyboards", null),
+      group(
+        r(ic("keyboard", 20, false, { color: "var(--colour-text-2)" }), sp("", "Keychron Q6 Max", { flex: 1 }), battery(88, true), sp("s-callout s-2", "Mac (from its switch)"), ic("caret-right", 12, false, { color: "var(--colour-text-3)" })),
+        r(ic("keyboard", 20, false, { color: "var(--colour-text-2)" }), sp("", "Valve Software Steam Controller Puck", { flex: 1 }), sp("s-callout s-2", "PC (automatic)"), ic("caret-right", 12, false, { color: "var(--colour-text-3)" }))),
+      group(r(sp("", "Identify a keyboard…", { flex: 1, color: "var(--colour-accent-text)" }))),
+    ]);
+  }
+  function keyboardPage(s, st, windows) {
+    settings(s, st, "Keyboard", "Keychron Q6 Max", [
+      row({ gap: "var(--space-xs)" }, ic("caret-left", 16, false, { color: "var(--colour-accent-text)" }), sp("s-callout", "Keyboard", { color: "var(--colour-accent-text)" })),
+      header("keyboard", "Keychron Q6 Max", "How this keyboard's modifier keys work."),
+      group(
+        r(label("Kind", "Automatic follows the Mac/Windows switch on the keyboard: " + (windows ? "Windows" : "Mac") + " now."), seg(["Automatic", "Mac", "PC"], 0)),
+        r(sp("", "Model", { flex: 1 }), seg(["Automatic", "ISO", "ANSI"], 0)),
+        r(sp("", "Battery", { flex: 1 }), battery(88, true))),
+    ]);
+  }
+
+  // ---- The island's OSDs ----------------------------------------------------------------
+  const CX = S.CX;
+  function osd(s, st, kids) {
+    S.bar(s, { app: "Zed", menus: ["File", "Edit", "Selection", "View", "Go", "Window", "Help"] });
+    const e = el("s s-island", { left: px(CX), top: "var(--size-island-top)", transform: "translateX(-50%)", height: "var(--size-island-event)", width: "var(--size-island-osd)", borderRadius: "var(--radius-panel)", padding: "0 var(--space-l)", gap: "var(--space-m)", boxShadow: "var(--shadow-menu)" }, ...kids);
+    s.append(e);
+    st.crop = [CX - 520, 0, 1040, 200];
+  }
+  const pips = (stage) => row({ gap: "4px", flex: 1 }, ...DPI.map((_, i) => h("b", { style: { flex: 1, height: "6px", borderRadius: "3px", background: i <= stage ? "var(--colour-island-text)" : "var(--colour-fill-strong)" } })));
+  const dpiOsd = (stage) => (s, st) => osd(s, st, [ic("mouse", 22, true),
+    col({ gap: "var(--space-xs)", flex: 1 }, row({ gap: "var(--space-s)" }, sp("s-sub s-2", "Keychron M7 8K", { flex: 1 }), sp("s-sub s-num", DPI[stage] + " DPI", { fontWeight: "600" })), pips(stage))]);
+  const rateOsd = (s, st) => osd(s, st, [ic("mouse", 22, true),
+    col({ gap: "var(--space-xs)", flex: 1 }, sp("s-sub s-2", "Keychron M7 8K"), sp("s-headline s-num", "Report rate 1000 Hz"))]);
+
+  const sc = (id, name, note, draw) => ({ id, name, note, render(s) { draw(s, this); } });
+  Isle.board({
+    title: "Keychron devices",
+    subtitle: "The M7 8K's DPI and report rate, read from its receiver, in Settings › Mouse and as OSDs; the Q6 Max's Mac/Windows switch in Settings › Keyboard. Read only: Isle shows what the devices say and does not set it.",
+    tokens: "data/tokens.kdl",
+    wallpaper: "frost",
+    selects: [{ id: "accent", label: "Accent", value: "blue", options: { blue: "Blue", purple: "Purple", pink: "Pink", red: "Red", orange: "Orange", yellow: "Yellow", green: "Green", graphite: "Graphite" },
+      apply(screen, a) { screen.style.setProperty("--colour-accent", "var(--accent-" + a + "-fill)"); screen.style.setProperty("--colour-on-accent", "var(--accent-" + a + "-on)"); screen.style.setProperty("--colour-accent-text", "var(--accent-" + a + "-text)"); } }],
+    surfaces: [
+      { id: "mouse", name: "Settings › Mouse", states: [
+        sc("on", "1 · Connected", "The mouse's group: its name and battery as Batteries shows them, Isle's pointer settings, then what the mouse itself is set to. DPI is its stage table with the stage in use marked; report rate is its value. Neither is a control.", (s, me) => mouse(s, me, { stage: 2 })),
+        sc("text", "2 · DPI as text", "The alternative to 1: the DPI as one value, the stages in the note under it.", (s, me) => mouse(s, me, { stage: 2, text: true })),
+        sc("gone", "3 · Asleep or away", "What the mouse last said, dimmed, with when.", (s, me) => mouse(s, me, { stage: 2, gone: true })),
+      ] },
+      { id: "osd", name: "OSDs", states: [
+        sc("dpi", "1 · DPI button", "A press of the mouse's DPI button: its name, the new DPI and the stage among five. Repeated presses update it in place, as the other OSDs do.", dpiOsd(3)),
+        sc("dpi-low", "2 · Back to the first stage", "", dpiOsd(0)),
+        sc("rate", "3 · Report rate changed", "On the mouse's own control; the rate has no stages worth a bar.", rateOsd),
+      ] },
+      { id: "keyboard", name: "Settings › Keyboard", states: [
+        sc("list", "1 · Keyboards", "One row for the Q6 Max, under its own name, with its battery; Automatic says where it came from.", keyboardList),
+        sc("page", "2 · Its page, on Mac", "Automatic follows the switch; Mac or PC set here still win.", (s, me) => keyboardPage(s, me, false)),
+        sc("page-win", "3 · Its page, on Windows", "The switch moved; the page says so at once.", (s, me) => keyboardPage(s, me, true)),
+      ] },
+    ],
+  });
+})();
+</script>
+<section class="hb hb-qs" aria-label="Keychron devices gate">
+  <h2>How it works</h2>
+  <p>The receivers already tell Isle each device's battery, the M7 8K's DPI stages, which is in use and its report rate, and the Q6 Max's Mac/Windows switch. This board puts the mouse's settings where the mouse is set up, raises an OSD when its buttons change them, and shows the keyboard's switch where its Kind is chosen. Isle reads these; it does not write them to the devices (the receivers' set commands are not decoded).</p>
+  <h2>For you to answer</h2>
+  <p>Reply lgtm or name changes. Recommended:</p>
+  <ol>
+    <li><b>DPI and report rate in Settings › Mouse,</b> in the mouse's own group below Isle's pointer settings, read only, each saying where it is changed.</li>
+    <li><b>DPI as the stage table with the stage in use marked</b> (Mouse 1), over one value with the stages in its note (Mouse 2).</li>
+    <li><b>Report rate as its value in Hz.</b> Only 1000 Hz is measured; the other five steps are read from the mouse's six and are checked when this is built.</li>
+    <li><b>The battery beside the device's name</b> in Mouse's group title and Keyboard's row and page, as Batteries shows it.</li>
+    <li><b>An OSD for the DPI button</b> (name, DPI, five stage pips) and one for a report-rate change, as the other OSDs: in place on repeats, shown over games.</li>
+    <li><b>Asleep or away, the last values dimmed,</b> with when they were read (Mouse 3), rather than hiding the group.</li>
+    <li><b>Keyboard's Automatic names the switch:</b> "Mac (from its switch)" in the list, and the page says which side it is on now.</li>
+  </ol>
+</section>

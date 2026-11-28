@@ -340,7 +340,7 @@ Open for its packet
 
 Feedback for volume, brightness, keyboard backlight, mute and the like; where it shows is P1's (B24).
 
-1. Volume, mute, microphone mute, brightness, keyboard brightness and keyboard layout changes raise an OSD, whichever key, device or app caused the change.
+1. Volume, mute, microphone mute, brightness, keyboard brightness and keyboard layout changes raise an OSD, whichever key, device or app caused the change; so do a mouse's DPI and report rate changed on the mouse, where its receiver reports them (B153).
 2. An OSD shows the new level and the device it applies to (which output, which monitor).
 3. Repeated changes update one OSD in place; it leaves shortly after the last change.
 4. In Game Mode OSDs still show, briefly, without revealing the island or the menu bar.

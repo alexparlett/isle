@@ -379,6 +379,59 @@ pub async fn signals_under(
 
 pub type Error = Box<dyn std::error::Error + Send + Sync>;
 
+/// When a follower reads its daemon again: at once to start, `settle` after the first
+/// change of a burst, and once more after a read that a change arrived during.
+///
+/// Polled in a `select!` beside the follower's signal streams, so they are drained while a
+/// read waits on its replies: a full stream stops the connection receiving anything, those
+/// replies included. `next` is cancel-safe.
+pub struct Rereads<F> {
+    settle: std::time::Duration,
+    reading: Option<std::pin::Pin<Box<F>>>,
+    at: Option<tokio::time::Instant>,
+    again: bool,
+}
+
+impl<F: std::future::Future> Rereads<F> {
+    pub fn new(settle: std::time::Duration) -> Self {
+        Self {
+            settle,
+            reading: None,
+            at: Some(tokio::time::Instant::now()),
+            again: false,
+        }
+    }
+
+    /// Something the state is read from changed.
+    pub fn changed(&mut self) {
+        if self.reading.is_some() {
+            self.again = true;
+        } else if self.at.is_none() {
+            self.at = Some(tokio::time::Instant::now() + self.settle);
+        }
+    }
+
+    /// The next read's result, the read started with `start` when it is due.
+    pub async fn next(&mut self, mut start: impl FnMut() -> F) -> F::Output {
+        loop {
+            if let Some(reading) = &mut self.reading {
+                let out = reading.await;
+                self.reading = None;
+                if std::mem::take(&mut self.again) {
+                    self.at = Some(tokio::time::Instant::now() + self.settle);
+                }
+                return out;
+            }
+            let Some(at) = self.at else {
+                return std::future::pending().await;
+            };
+            tokio::time::sleep_until(at).await;
+            self.at = None;
+            self.reading = Some(Box::pin(start()));
+        }
+    }
+}
+
 /// Follows a daemon whose state is small enough to read whole: while `name` has an owner,
 /// reads it with `read` at once and again after any signal the daemon sends under `path`,
 /// a burst read once, and publishes it; while the name has no owner, the snapshot is
@@ -395,27 +448,31 @@ where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T, Error>>,
 {
-    use futures_util::FutureExt;
     let mut owner = NameWatch::new(conn, name).await?;
     loop {
         owner.appeared().await?;
         let mut signals = signals_under(conn, name, path).await?;
-        let mut result = read().await.map(|state| publisher.publish(state));
-        while result.is_ok() {
+        let mut rereads = Rereads::new(std::time::Duration::ZERO);
+        let result = loop {
             tokio::select! {
+                state = rereads.next(&mut read) => {
+                    if let Err(e) = state.map(|state| publisher.publish(state)) {
+                        break Err(e);
+                    }
+                }
                 gone = owner.vanished() => {
                     gone?;
-                    break;
+                    break Ok(());
                 }
                 signal = signals.next() => {
                     if signal.is_none() {
                         return Err("the bus connection ended".into());
                     }
-                    while let Some(Some(_)) = signals.next().now_or_never() {}
-                    result = read().await.map(|state| publisher.publish(state));
+                    rereads.changed();
                 }
             }
-        }
+        };
+        drop(rereads);
         publisher.unavailable();
         if result.is_err() {
             // A daemon that answers wrongly is asked again, not hammered.

@@ -4623,6 +4623,7 @@ name = "isle-bus"
 version = "0.1.0"
 dependencies = [
  "futures-util",
+ "isle-fakes",
  "serde",
  "tokio",
  "zbus",
@@ -4912,6 +4913,7 @@ dependencies = [
  "base64 0.22.1",
  "futures-util",
  "isle-bus",
+ "isle-fakes",
  "reqwest",
  "serde",
  "tokio",
@@ -5283,6 +5285,7 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "isle-bus",
+ "isle-fakes",
  "png 0.17.16",
  "serde",
  "tokio",

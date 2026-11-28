@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-use futures_util::{FutureExt, StreamExt};
+use futures_util::StreamExt;
 use isle_bus::{Error, Props, Publisher};
 use serde::Serialize;
 use zbus::{Connection, zvariant::Value};
@@ -191,24 +191,23 @@ pub async fn watch(publisher: Publisher<Media>) -> Result<(), Error> {
         .path(PATH)?
         .build();
     let mut signals = zbus::MessageStream::for_match_rule(rule, &conn, Some(64)).await?;
+    let mut rereads = isle_bus::Rereads::new(Duration::from_millis(30));
     loop {
-        publisher.publish(read(&conn).await?);
         tokio::select! {
+            media = rereads.next(|| read(&conn)) => publisher.publish(media?),
             change = names.next() => {
                 let Some(change) = change else { return Err("the bus ended".into()) };
-                if !change.args().is_ok_and(|a| a.name().starts_with(PREFIX)) {
-                    continue;
+                if change.args().is_ok_and(|a| a.name().starts_with(PREFIX)) {
+                    rereads.changed();
                 }
             }
             signal = signals.next() => {
                 if signal.is_none() {
                     return Err("the bus ended".into());
                 }
+                rereads.changed();
             }
         }
-        // A burst is read once, a moment after it starts.
-        tokio::time::sleep(Duration::from_millis(30)).await;
-        while let Some(Some(_)) = signals.next().now_or_never() {}
     }
 }
 

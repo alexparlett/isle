@@ -355,7 +355,9 @@ System daemons                  NetworkManager, BlueZ, UPower, UDisks2,
   `watch` that reads its daemon whole into one state value and publishes it
   through `isle-bus`'s `Publisher` as a `Snapshot { available, state }`;
   after any signal under the daemon's paths it reads again, a burst read
-  once. Commands are plain async functions on the crate. The same crates
+  once, when `isle-bus`'s `Rereads` says. A watch's signal streams are
+  drained while a read is in flight: a full zbus stream stops the shared
+  connection receiving anything, the read's own replies included. Commands are plain async functions on the crate. The same crates
   serve Isle's apps, which talk to the daemons themselves.
 - **On the worker, under the supervisor.** `services::start` runs each
   watch under `worker::supervise` and carries its snapshots to the loop at

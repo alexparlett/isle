@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use futures_util::{FutureExt, StreamExt};
+use futures_util::StreamExt;
 use isle_bus::{Error, Props, Publisher};
 use serde::Serialize;
 use tokio::sync::Notify;
@@ -254,59 +254,65 @@ impl Host {
             .interface(ITEM)?
             .build();
         let mut signals = zbus::MessageStream::for_match_rule(rule, conn, Some(64)).await?;
-        loop {
-            // Armed before the read, so a registration during it is not missed.
-            let changed = self.registry.changed.notified();
-            tokio::pin!(changed);
-            changed.as_mut().enable();
+        // The registry as it is when a read starts.
+        let mut read = || {
             let addresses = self.registry.items.lock().unwrap().clone();
-            let mut items = Vec::new();
-            for address in &addresses {
-                match read_item(conn, address).await {
-                    Ok(item) => items.push(item),
-                    Err(err) => tracing::debug!(?address, "a tray item: {err}"),
-                }
-            }
-            publisher.publish(Tray { items });
-            loop {
-                tokio::select! {
-                    _ = &mut changed => break,
-                    change = owners.next() => {
-                        let Some(change) = change else { return Err("the bus ended".into()) };
-                        let Ok(args) = change.args() else { continue };
-                        if args.new_owner().is_some() {
-                            continue;
-                        }
-                        let gone = args.name().to_string();
-                        let removed = {
-                            let mut items = self.registry.items.lock().unwrap();
-                            let before = items.len();
-                            items.retain(|a| a.service != gone);
-                            before != items.len()
-                        };
-                        if removed {
-                            if let Ok(iface) =
-                                conn.object_server().interface::<_, Watcher>(WATCHER_PATH).await
-                            {
-                                let _ = Watcher::status_notifier_item_unregistered(
-                                    iface.signal_emitter(),
-                                    &gone,
-                                )
-                                .await;
-                            }
-                            break;
-                        }
-                    }
-                    signal = signals.next() => {
-                        if signal.is_none() {
-                            return Err("the bus ended".into());
-                        }
-                        break;
+            async move {
+                let mut items = Vec::new();
+                for address in &addresses {
+                    match read_item(conn, address).await {
+                        Ok(item) => items.push(item),
+                        Err(err) => tracing::debug!(?address, "a tray item: {err}"),
                     }
                 }
+                Tray { items }
             }
-            tokio::time::sleep(Duration::from_millis(30)).await;
-            while let Some(Some(_)) = signals.next().now_or_never() {}
+        };
+        let mut rereads = isle_bus::Rereads::new(Duration::from_millis(30));
+        // Kept armed, so a registration between two waits is not missed.
+        let mut changed = Box::pin(self.registry.changed.notified());
+        changed.as_mut().enable();
+        loop {
+            tokio::select! {
+                tray = rereads.next(&mut read) => publisher.publish(tray),
+                _ = &mut changed => {
+                    changed = Box::pin(self.registry.changed.notified());
+                    changed.as_mut().enable();
+                    rereads.changed();
+                }
+                change = owners.next() => {
+                    let Some(change) = change else { return Err("the bus ended".into()) };
+                    let Ok(args) = change.args() else { continue };
+                    if args.new_owner().is_some() {
+                        continue;
+                    }
+                    let gone = args.name().to_string();
+                    let removed = {
+                        let mut items = self.registry.items.lock().unwrap();
+                        let before = items.len();
+                        items.retain(|a| a.service != gone);
+                        before != items.len()
+                    };
+                    if removed {
+                        if let Ok(iface) =
+                            conn.object_server().interface::<_, Watcher>(WATCHER_PATH).await
+                        {
+                            let _ = Watcher::status_notifier_item_unregistered(
+                                iface.signal_emitter(),
+                                &gone,
+                            )
+                            .await;
+                        }
+                        rereads.changed();
+                    }
+                }
+                signal = signals.next() => {
+                    if signal.is_none() {
+                        return Err("the bus ended".into());
+                    }
+                    rereads.changed();
+                }
+            }
         }
     }
 }

@@ -12,4 +12,5 @@ tokio.workspace = true
 zbus.workspace = true
 
 [dev-dependencies]
+isle-fakes.workspace = true
 tokio.workspace = true
